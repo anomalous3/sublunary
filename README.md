@@ -1,3 +1,5 @@
+<img src="brand/icon@2x.png" alt="" width="128" align="right">
+
 # Sublunary
 
 *The realm of change beneath the Moon, rendered in light.*

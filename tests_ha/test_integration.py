@@ -95,3 +95,74 @@ def _no_numpy(x):
     if isinstance(x, (list, tuple)):
         return all(_no_numpy(v) for v in x)
     return type(x).__module__ != "numpy"
+
+
+async def _setup(hass):
+    _link_kernel(hass)
+    entry = MockConfigEntry(domain="sublunary", data={}, options=OPTIONS)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    return entry
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_clock_fast_forward_jump_and_reset(hass, freezer):
+    from datetime import timedelta
+    from homeassistant.exceptions import ServiceValidationError
+    from homeassistant.util import dt as dt_util
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    entry = await _setup(hass)
+    st = lambda e: hass.states.get(e)
+
+    # a day per minute, continuing from now
+    await hass.services.async_call("sublunary", "set_clock", {"speed": 1440}, blocking=True)
+    freezer.tick(timedelta(minutes=1))
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+    clock = st("sensor.sublunary_clock")
+    assert clock.attributes["simulated"] is True and clock.attributes["speed"] == 1440
+    assert clock.state.startswith("2026-10-17T01:00")
+    assert st("sensor.sublunary_moon_sign").state == "capricorn"
+    dom = st("sensor.sublunary_dominant_contact")
+    assert dom.state == "saturn" and dom.attributes["tone"] == "warm" and dom.attributes["in_sign"]
+    assert dom.attributes["clock_speed"] == 1440
+
+    # jump back into the whole-sign Leo void of January (forces a timeline rebuild)
+    await hass.services.async_call("sublunary", "set_clock",
+                                   {"start": "2026-01-04T18:00:00+00:00", "speed": 1}, blocking=True)
+    assert st("sensor.sublunary_moon_sign").state == "leo"
+    trad = st("binary_sensor.sublunary_void_of_course_traditional")
+    assert trad.state == "on" and trad.attributes["last_aspect"] is None
+    assert trad.attributes["start"].startswith("2026-01-04T13:4")
+
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call("sublunary", "set_clock", {"start": "2200-01-01T00:00:00+00:00"}, blocking=True)
+
+    await hass.services.async_call("sublunary", "reset_clock", {}, blocking=True)
+    assert st("sensor.sublunary_clock").attributes["simulated"] is False
+    assert st("sensor.sublunary_moon_sign").state == "sagittarius"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_clock_stops_at_ephemeris_edge(hass, freezer):
+    from datetime import timedelta
+    from homeassistant.util import dt as dt_util
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    entry = await _setup(hass)
+    await hass.services.async_call("sublunary", "set_clock",
+                                   {"start": "2148-12-01T00:00:00+00:00", "speed": 100000}, blocking=True)
+    for _ in range(4):  # 100000x for 20 min real ~ 4 sim years: well past the edge
+        freezer.tick(timedelta(minutes=5))
+        async_fire_time_changed(hass, dt_util.utcnow())
+        await hass.async_block_till_done()
+    clock = hass.states.get("sensor.sublunary_clock")
+    assert clock.state.startswith("2149-12-01") and clock.attributes["paused"] is True
+    assert hass.states.get("sensor.sublunary_moon_sign").state != "unavailable"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

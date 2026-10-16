@@ -89,6 +89,9 @@
           "neptune": "Neptune",
           "pluto": "Pluto"
         }
+      },
+      "clock": {
+        "name": "Clock"
       }
     },
     "binary_sensor": {
@@ -104,6 +107,26 @@
       "void_of_course_lilly_unbounded": {
         "name": "Void of course (Lilly, unbounded)"
       }
+    }
+  },
+  "services": {
+    "set_clock": {
+      "name": "Set clock",
+      "description": "Run Sublunary on simulated time, for testing or replaying the sky.",
+      "fields": {
+        "start": {
+          "name": "Start",
+          "description": "Simulated start time. Omit to continue from the current simulated time."
+        },
+        "speed": {
+          "name": "Speed",
+          "description": "Simulated seconds per real second. 60 = an hour a minute, 1440 = a day a minute."
+        }
+      }
+    },
+    "reset_clock": {
+      "name": "Reset clock",
+      "description": "Return to real time."
     }
   }
 }

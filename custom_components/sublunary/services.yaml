@@ -1,0 +1,16 @@
+set_clock:
+  fields:
+    start:
+      required: false
+      example: "2026-10-16 01:00:00"
+      selector:
+        datetime:
+    speed:
+      required: false
+      default: 1440
+      selector:
+        number:
+          min: 0.01
+          max: 100000
+          mode: box
+reset_clock:

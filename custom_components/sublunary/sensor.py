@@ -20,7 +20,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: SublunaryConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     c = entry.runtime_data
     async_add_entities([MoonSignSensor(c, "moon_sign"), MoonPhaseSensor(c, "moon_phase"),
-                        DominantContactSensor(c, "dominant_contact")])
+                        DominantContactSensor(c, "dominant_contact"), ClockSensor(c, "clock")])
+
+
+class ClockSensor(SublunaryEntity, SensorEntity):
+    """The time Sublunary believes it is. Differs from real time while simulating."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-fast"
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.now
+
+    @property
+    def extra_state_attributes(self):
+        d = self.coordinator.data
+        return {"simulated": d.simulated, "speed": d.speed, "paused": d.paused}
 
 
 class MoonSignSensor(SublunaryEntity, SensorEntity):
@@ -79,7 +95,7 @@ class DominantContactSensor(SublunaryEntity, SensorEntity):
             out["begins"], out["perfects"] = ci.begins.isoformat(), ci.perfects.isoformat()
             return out
 
-        attrs = {"contacts": [plain(c) for c in d.contacts]}
+        attrs = {"contacts": [plain(c) for c in d.contacts], "clock_speed": d.speed}
         if dom:
             attrs |= {k: v for k, v in plain(dom).items() if k != "body"}
         return attrs

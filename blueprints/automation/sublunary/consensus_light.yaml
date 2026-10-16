@@ -53,6 +53,9 @@ variables:
   sensor: !input contact_sensor
   warm: !input warm_color
   cool: !input cool_color
+  base_transition: !input transition
+  # under a simulated clock, fades shrink with it
+  fade: "{{ (base_transition / (state_attr(sensor, 'clock_speed') | float(1))) | round(1) }}"
 
 actions:
   - choose:
@@ -61,7 +64,7 @@ actions:
           - action: light.turn_off
             target: !input target_light
             data:
-              transition: !input transition
+              transition: "{{ fade }}"
     default:
       - action: light.turn_on
         target: !input target_light
@@ -71,4 +74,4 @@ actions:
             {% set d = state_attr(sensor, 'depth') | float(0) %}
             {% if state_attr(sensor, 'in_sign') %}{{ (60 + 40 * d) | round(0) | int }}
             {% else %}{{ (15 + 10 * d) | round(0) | int }}{% endif %}
-          transition: !input transition
+          transition: "{{ fade }}"

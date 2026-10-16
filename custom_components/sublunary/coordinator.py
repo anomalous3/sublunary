@@ -3,6 +3,9 @@
 Ephemeris work (kernel load, timeline rebuild) runs in the executor. State
 refreshes on a short tick for continuous depth, and exactly at each discrete
 edge (contact begin/perfection, ingress, void start/end).
+
+Time can be simulated: sim = sim_anchor + (real - real_anchor) * speed. Edges
+are computed in sim time and mapped back to real time for scheduling.
 """
 
 from __future__ import annotations
@@ -10,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -29,6 +32,10 @@ from .engine.timeline import Timeline
 from .engine.voc import void_of_course
 
 _LOGGER = logging.getLogger(__name__)
+
+# de440s spans 1849-12-26 .. 2150-01-22; keep the timeline's padding inside it
+SIM_MIN = datetime(1851, 1, 1, tzinfo=timezone.utc)
+SIM_MAX = datetime(2149, 12, 1, tzinfo=timezone.utc)
 
 
 @dataclass
@@ -54,6 +61,9 @@ class VoidInfo:
 
 @dataclass
 class Snapshot:
+    now: datetime
+    simulated: bool
+    speed: float
     sign: str
     next_ingress: datetime
     elongation: float
@@ -64,6 +74,7 @@ class Snapshot:
     dominant: ContactInfo | None
     contacts: list[ContactInfo] = field(default_factory=list)
     voids: dict[str, VoidInfo] = field(default_factory=dict)
+    paused: bool = False
 
 
 class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
@@ -77,12 +88,62 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         self._timeline: Timeline | None = None
         self._periods: dict[str, list] = {}
         self._phases: list = []
+        self._built_from = 0.0
         self._built_until = 0.0
         self._unsub_edge = None
+        self._base_tick = timedelta(minutes=tick)
+        self._sim_anchor: datetime | None = None
+        self._real_anchor: datetime | None = None
+        self.speed = 1.0
+        self._paused = False
+
+    # --- clock -----------------------------------------------------------
+
+    @property
+    def simulated(self) -> bool:
+        return self._sim_anchor is not None
+
+    def sim_now(self) -> datetime:
+        real = dt_util.utcnow()
+        if self._sim_anchor is None:
+            return real
+        if self._paused:
+            return self._sim_anchor
+        sim = self._sim_anchor + (real - self._real_anchor) * self.speed
+        if not SIM_MIN <= sim <= SIM_MAX:
+            # a fast clock stops at the ephemeris edge rather than running off it
+            sim = min(max(sim, SIM_MIN), SIM_MAX)
+            self._sim_anchor, self._real_anchor, self._paused = sim, real, True
+            _LOGGER.warning("Sublunary simulated clock reached the ephemeris edge and paused at %s", sim)
+        return sim
+
+    def to_real(self, sim_dt: datetime) -> datetime | None:
+        if self._sim_anchor is None:
+            return sim_dt
+        if self._paused:
+            return None
+        return self._real_anchor + (sim_dt - self._sim_anchor) / self.speed
+
+    async def async_set_clock(self, start: datetime | None, speed: float) -> None:
+        sim = start or self.sim_now()  # no start: continue from current sim time
+        self._real_anchor, self._sim_anchor, self.speed = dt_util.utcnow(), sim, speed
+        self._paused = False
+        self.update_interval = max(timedelta(seconds=5), self._base_tick / speed)
+        await self.async_refresh()
+
+    async def async_reset_clock(self) -> None:
+        self._sim_anchor = self._real_anchor = None
+        self.speed = 1.0
+        self._paused = False
+        self.update_interval = self._base_tick
+        await self.async_refresh()
+
+    # --- refresh ---------------------------------------------------------
 
     async def _async_update_data(self) -> Snapshot:
-        snap, next_edge = await self.hass.async_add_executor_job(self._compute, dt_util.utcnow())
-        self._schedule_edge(next_edge)
+        snap, next_edge = await self.hass.async_add_executor_job(self._compute, self.sim_now())
+        self._schedule_edge(self.to_real(next_edge) if next_edge else None)
+        snap.paused = self._paused
         return snap
 
     # --- executor side -------------------------------------------------
@@ -99,7 +160,7 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         }
         self._periods = {d: builders[d]() for d in self.definitions}
         self._phases = lunar_phases(eph, jd0, jd1)
-        self._built_until = jd1
+        self._built_from, self._built_until = jd0, jd1
         _LOGGER.debug("Sublunary timeline rebuilt through JD %.2f", jd1)
 
     def _compute(self, now_utc: datetime) -> tuple[Snapshot, datetime | None]:
@@ -108,7 +169,8 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         eph = self._eph
         to_dt = lambda jd: eph.tt(jd).utc_datetime()
         now = eph.ts.from_datetime(now_utc).tt
-        if self._timeline is None or now > self._built_until - REBUILD_MARGIN_DAYS:
+        if (self._timeline is None or now > self._built_until - REBUILD_MARGIN_DAYS
+                or now < self._built_from + 0.5):  # clock jumped backward
             self._rebuild(now)
 
         st = self._timeline.state(now)
@@ -148,6 +210,9 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             edges += [upcoming.start_jd] if upcoming else []
 
         snap = Snapshot(
+            now=now_utc,
+            simulated=self.simulated,
+            speed=self.speed,
             sign=st.sign,
             next_ingress=to_dt(st.sign_end_jd),
             elongation=round(el, 3),
@@ -168,8 +233,9 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             self._unsub_edge()
             self._unsub_edge = None
         if when is not None:
-            self._unsub_edge = async_track_point_in_utc_time(
-                self.hass, self._on_edge, when + timedelta(seconds=1))
+            # never in the past: a past edge would refresh, reschedule, and spin
+            when = max(when + timedelta(seconds=1), dt_util.utcnow() + timedelta(seconds=1))
+            self._unsub_edge = async_track_point_in_utc_time(self.hass, self._on_edge, when)
 
     async def _on_edge(self, _now: datetime) -> None:
         self._unsub_edge = None

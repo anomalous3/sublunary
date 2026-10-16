@@ -48,6 +48,9 @@ triggers:
     entity_id: !input contact_sensor
   - trigger: homeassistant
     event: start
+  # saving an automation in the UI reloads automations: apply immediately
+  - trigger: event
+    event_type: automation_reloaded
 
 variables:
   sensor: !input contact_sensor

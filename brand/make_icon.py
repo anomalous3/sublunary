@@ -81,8 +81,11 @@ if __name__ == "__main__":
     import cairosvg
     s = svg()
     (HERE / "icon.svg").write_text(s)
+    local = HERE.parent / "custom_components" / "sublunary" / "brand"  # HA 2026.3+ reads these directly
+    local.mkdir(parents=True, exist_ok=True)
     for size, name in ((512, "icon@2x.png"), (256, "icon.png")):
-        cairosvg.svg2png(bytestring=s.encode(), write_to=str(HERE / name), output_width=size, output_height=size)
+        for d in (HERE, local):
+            cairosvg.svg2png(bytestring=s.encode(), write_to=str(d / name), output_width=size, output_height=size)
     if len(sys.argv) > 1:  # preview sheets: light/dark at full size and at 48px
         inner = s.split(">", 1)[1].rsplit("</svg>", 1)[0]
         out = Path(sys.argv[1])

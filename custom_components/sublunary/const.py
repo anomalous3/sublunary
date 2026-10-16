@@ -2,11 +2,11 @@
 
 DOMAIN = "sublunary"
 
-CONF_DEFINITIONS = "definitions"
 CONF_TICK_MINUTES = "tick_minutes"
 
+# every definition is always computed; users enable/disable the entities
 DEFINITIONS = ("modern", "traditional", "lilly", "lilly_unbounded")
-DEFAULT_DEFINITIONS = ["modern", "traditional", "lilly"]
+DISABLED_BY_DEFAULT = ("lilly_unbounded",)
 DEFAULT_TICK_MINUTES = 5
 
 HORIZON_DAYS = 14      # timeline span ahead of now (lunar quarters are up to ~7.6 days apart)

@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SublunaryConfigEntry
+from .const import DISABLED_BY_DEFAULT
 from .entity import SublunaryEntity
 
 
@@ -22,6 +23,7 @@ class VoidOfCourseSensor(SublunaryEntity, BinarySensorEntity):
     def __init__(self, coordinator, definition: str) -> None:
         super().__init__(coordinator, f"void_of_course_{definition}")
         self._definition = definition
+        self._attr_entity_registry_enabled_default = definition not in DISABLED_BY_DEFAULT
 
     @property
     def _info(self):

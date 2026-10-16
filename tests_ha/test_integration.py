@@ -18,7 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 ROOT = Path(__file__).resolve().parents[1]
 KERNEL = ROOT / "data" / "de440s.bsp"
-OPTIONS = {"definitions": ["modern", "traditional", "lilly"], "tick_minutes": 5}
+OPTIONS = {"tick_minutes": 5}
 
 
 def _link_kernel(hass):
@@ -57,6 +57,13 @@ async def test_entities_tonight(hass):
     # Venus's orb arrives before the ingress, so Lilly's void ends early.
     assert lilly.state == "on"
     assert lilly.attributes["end"] < sign.attributes["next_ingress"]
+    # all four definitions exist; the unbounded one starts disabled
+    from homeassistant.helpers import entity_registry as er
+    reg = er.async_get(hass)
+    unb = reg.async_get("binary_sensor.sublunary_void_of_course_lilly_unbounded")
+    assert unb is not None and unb.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert hass.states.get("binary_sensor.sublunary_void_of_course_lilly_unbounded") is None
+
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
@@ -65,9 +72,9 @@ async def test_config_flow(hass):
     result = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
     assert result["type"] is FlowResultType.FORM
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"definitions": ["lilly"], "tick_minutes": 10.0})
+        result["flow_id"], {"tick_minutes": 10.0})
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["options"] == {"definitions": ["lilly"], "tick_minutes": 10}
+    assert result["options"] == {"tick_minutes": 10}
 
 
 async def test_blueprint_parses(hass):

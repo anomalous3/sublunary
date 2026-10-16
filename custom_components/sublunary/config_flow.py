@@ -1,4 +1,5 @@
-"""Config and options flow: which VoC definitions to expose, and the refresh tick."""
+"""Config and options flow. Only the refresh tick is configurable; VoC
+definitions are entities that users enable or disable."""
 
 from __future__ import annotations
 
@@ -7,21 +8,13 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
-from homeassistant.helpers.selector import (
-    NumberSelector, NumberSelectorConfig, NumberSelectorMode,
-    SelectSelector, SelectSelectorConfig,
-)
+from homeassistant.helpers.selector import NumberSelector, NumberSelectorConfig, NumberSelectorMode
 
-from .const import (
-    CONF_DEFINITIONS, CONF_TICK_MINUTES, DEFAULT_DEFINITIONS, DEFAULT_TICK_MINUTES,
-    DEFINITIONS, DOMAIN,
-)
+from .const import CONF_TICK_MINUTES, DEFAULT_TICK_MINUTES, DOMAIN
 
 
 def _schema() -> vol.Schema:
     return vol.Schema({
-        vol.Required(CONF_DEFINITIONS, default=DEFAULT_DEFINITIONS): SelectSelector(
-            SelectSelectorConfig(options=list(DEFINITIONS), multiple=True, translation_key="definitions")),
         vol.Required(CONF_TICK_MINUTES, default=DEFAULT_TICK_MINUTES): NumberSelector(
             NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX)),
     })

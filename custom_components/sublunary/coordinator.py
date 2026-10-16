@@ -22,7 +22,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_DEFINITIONS, CONF_TICK_MINUTES, DEFAULT_DEFINITIONS, DEFAULT_TICK_MINUTES,
+    CONF_TICK_MINUTES, DEFAULT_TICK_MINUTES, DEFINITIONS,
     DOMAIN, HORIZON_DAYS, PHASE_NAMES, REBUILD_MARGIN_DAYS,
 )
 from .engine.ephemeris import MODERN, TRADITIONAL, Ephemeris
@@ -82,7 +82,7 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         tick = entry.options.get(CONF_TICK_MINUTES, DEFAULT_TICK_MINUTES)
         super().__init__(hass, _LOGGER, name=DOMAIN, config_entry=entry,
                          update_interval=timedelta(minutes=tick))
-        self.definitions: list[str] = entry.options.get(CONF_DEFINITIONS, DEFAULT_DEFINITIONS)
+        self.definitions = DEFINITIONS
         self._data_dir = hass.config.path(DOMAIN)
         self._eph: Ephemeris | None = None
         self._timeline: Timeline | None = None

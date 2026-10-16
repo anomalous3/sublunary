@@ -3,13 +3,11 @@
     "step": {
       "user": {
         "title": "Sublunary",
-        "description": "The realm of change beneath the Moon.",
+        "description": "The realm of change beneath the Moon. Every void-of-course definition gets its own binary sensor; enable or disable them from the entity settings.",
         "data": {
-          "definitions": "Void-of-course definitions",
           "tick_minutes": "Refresh interval (minutes)"
         },
         "data_description": {
-          "definitions": "One binary sensor is created per definition.",
           "tick_minutes": "How often contact depth updates between discrete events."
         }
       }
@@ -23,23 +21,11 @@
       "init": {
         "title": "Sublunary options",
         "data": {
-          "definitions": "Void-of-course definitions",
           "tick_minutes": "Refresh interval (minutes)"
         },
         "data_description": {
-          "definitions": "One binary sensor is created per definition.",
           "tick_minutes": "How often contact depth updates between discrete events."
         }
-      }
-    }
-  },
-  "selector": {
-    "definitions": {
-      "options": {
-        "modern": "Modern (last aspect to ingress, with outer planets)",
-        "traditional": "Traditional (seven bodies)",
-        "lilly": "Lilly moieties, sign-bounded",
-        "lilly_unbounded": "Lilly moieties, no sign boundary"
       }
     }
   },

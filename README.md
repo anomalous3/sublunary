@@ -18,6 +18,8 @@ something you can display.
 1. HACS → ⋮ → **Custom repositories** → add `https://github.com/anomalous3/sublunary`, type **Integration**.
 2. Install **Sublunary**, restart Home Assistant.
 3. Settings → Devices & services → **Add integration** → Sublunary.
+4. Every void-of-course definition has its own binary sensor. `lilly_unbounded`
+   starts disabled; enable or disable any of them from the entity settings.
 
 On first setup it downloads NASA JPL's `de440s.bsp` ephemeris (~32 MB, covers
 1849–2150) into `config/sublunary/`, so the first start needs internet.

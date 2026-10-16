@@ -71,6 +71,9 @@
   #strip { width: 100%; height: 132px; display: block; cursor: ew-resize; touch-action: none; border-radius: 8px; }
   footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
   footer code { font-family: var(--mono); font-size: 12.5px; }
+  a { color: var(--fg); text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--fg); }
+  a:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; border-radius: 2px; }
 
   @media (max-width: 760px) {
     .stage { grid-template-columns: minmax(0, 1fr); }
@@ -81,7 +84,7 @@
 <main class="wrap">
   <header>
     <h1>Sublunary Astrolabe</h1>
-    <p class="lede">A lunar month of <em>Lilly's orbs</em>, Oct 14 to Nov 11, 2026, and what one bulb does with them. Times are UTC. Every frame comes from the Sublunary engine.</p>
+    <p class="lede">A lunar month of <em>Lilly's orbs</em>, Oct 14 to Nov 11, 2026, and what one bulb does with them. Times are UTC. Every frame comes from the <a href="https://github.com/anomalous3/sublunary">Sublunary</a> engine, a Home Assistant integration that drives lights from the Moon.</p>
   </header>
 
   <section class="stage">
@@ -126,7 +129,7 @@
     <canvas id="strip" tabindex="0" aria-label="Bulb color and brightness across the month, with void periods under each definition"></canvas>
   </section>
 
-  <footer>Orbs from Lilly's <i>Christian Astrology</i> (1647): Sun 17°, Moon 12.5°, Jupiter 12°, Saturn 10°, Venus 8°, Mars 7.5°, Mercury 7°. Uranus, Neptune and Pluto get a placeholder 5°. Positions from JPL DE440s via Skyfield. Bulb mapping from the <code>consensus_light</code> blueprint.</footer>
+  <footer>Orbs from Lilly's <i>Christian Astrology</i> (1647): Sun 17°, Moon 12.5°, Jupiter 12°, Saturn 10°, Venus 8°, Mars 7.5°, Mercury 7°. Uranus, Neptune and Pluto get a placeholder 5°. Positions from JPL DE440s via Skyfield. Bulb mapping from the <code>consensus_light</code> blueprint. Install Sublunary through HACS from <a href="https://github.com/anomalous3/sublunary">github.com/anomalous3/sublunary</a>.</footer>
 </main>
 
 <script>

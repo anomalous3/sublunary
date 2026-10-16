@@ -65,5 +65,21 @@ data = {
 }
 blob = json.dumps(data, separators=(",", ":"))
 tpl = (HERE / "astrolabe.template.html").read_text()
-(HERE / "astrolabe.html").write_text(tpl.replace("/*__DATA__*/null", blob))
+page = tpl.replace("/*__DATA__*/null", blob)
+(HERE / "astrolabe.html").write_text(page)  # fragment: the artifact host adds the document skeleton
+
+# GitHub Pages needs a whole document
+docs = HERE.parents[1] / "docs"
+docs.mkdir(exist_ok=True)
+(docs / "index.html").write_text(
+    '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+    '<meta name="description" content="A lunar month of Lilly\'s orbs on a zodiac wheel, and the bulb color '
+    'Sublunary would produce, frame by frame.">\n'
+    '<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}'
+    '[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);'
+    'padding-bottom:env(safe-area-inset-bottom,0px)}</style>\n'
+    + page.replace("</style>", "</style>\n</head>\n<body>", 1)
+    + "\n</body>\n</html>\n")
+(docs / ".nojekyll").write_text("")
 print(f"{len(frames)} frames, {len(blob)/1024:.0f} KB")

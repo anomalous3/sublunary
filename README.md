@@ -9,6 +9,9 @@ sensors (sign, phase, applying aspects, void-of-course) so automations can
 drive lights from it. It's an art project: the astrology is taken seriously as
 a system of definitions, and none of it is claimed as a mechanism.
 
+**[Watch a lunar month on the Sublunary Astrolabe →](https://anomalous3.github.io/sublunary/)**
+Lilly's orbs on a zodiac wheel, and what one bulb does with them.
+
 Void of course is famously contested, so Sublunary computes several
 definitions side by side, and the disagreement between them is itself
 something you can display.

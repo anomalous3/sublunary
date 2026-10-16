@@ -1,0 +1,74 @@
+blueprint:
+  name: Sublunary consensus light
+  description: >
+    Hue says which kind of planet the Moon is reaching for (warm: the seven
+    traditional bodies, cool: Uranus, Neptune, Pluto). Brightness says how many
+    void-of-course definitions agree she is reaching at all: bright when the
+    contact perfects in her current sign, faint when only Lilly's orbs reach
+    across the boundary, off when nothing is applying.
+  domain: automation
+  input:
+    contact_sensor:
+      name: Dominant contact sensor
+      selector:
+        entity:
+          filter:
+            integration: sublunary
+            domain: sensor
+    target_light:
+      name: Light(s)
+      selector:
+        target:
+          entity:
+            domain: light
+    warm_color:
+      name: Warm color (traditional planets)
+      default: [255, 140, 40]
+      selector:
+        color_rgb: {}
+    cool_color:
+      name: Cool color (outer planets)
+      default: [80, 140, 255]
+      selector:
+        color_rgb: {}
+    transition:
+      name: Transition (seconds)
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 600
+          unit_of_measurement: s
+
+mode: restart
+
+triggers:
+  # no "to:" so attribute changes (depth, in_sign) also trigger
+  - trigger: state
+    entity_id: !input contact_sensor
+  - trigger: homeassistant
+    event: start
+
+variables:
+  sensor: !input contact_sensor
+  warm: !input warm_color
+  cool: !input cool_color
+
+actions:
+  - choose:
+      - conditions: "{{ states(sensor) in ['none', 'unknown', 'unavailable'] }}"
+        sequence:
+          - action: light.turn_off
+            target: !input target_light
+            data:
+              transition: !input transition
+    default:
+      - action: light.turn_on
+        target: !input target_light
+        data:
+          rgb_color: "{{ warm if state_attr(sensor, 'tone') == 'warm' else cool }}"
+          brightness_pct: >-
+            {% set d = state_attr(sensor, 'depth') | float(0) %}
+            {% if state_attr(sensor, 'in_sign') %}{{ (60 + 40 * d) | round(0) | int }}
+            {% else %}{{ (15 + 10 * d) | round(0) | int }}{% endif %}
+          transition: !input transition

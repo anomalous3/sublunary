@@ -1,0 +1,12 @@
+{
+  "domain": "sublunary",
+  "name": "Sublunary",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "requirements": ["skyfield>=1.49"],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}

@@ -1,0 +1,109 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sublunary",
+        "description": "The realm of change beneath the Moon.",
+        "data": {
+          "definitions": "Void-of-course definitions",
+          "tick_minutes": "Refresh interval (minutes)"
+        },
+        "data_description": {
+          "definitions": "One binary sensor is created per definition.",
+          "tick_minutes": "How often contact depth updates between discrete events."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Sublunary is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sublunary options",
+        "data": {
+          "definitions": "Void-of-course definitions",
+          "tick_minutes": "Refresh interval (minutes)"
+        },
+        "data_description": {
+          "definitions": "One binary sensor is created per definition.",
+          "tick_minutes": "How often contact depth updates between discrete events."
+        }
+      }
+    }
+  },
+  "selector": {
+    "definitions": {
+      "options": {
+        "modern": "Modern (last aspect to ingress, with outer planets)",
+        "traditional": "Traditional (seven bodies)",
+        "lilly": "Lilly moieties, sign-bounded",
+        "lilly_unbounded": "Lilly moieties, no sign boundary"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "moon_sign": {
+        "name": "Moon sign",
+        "state": {
+          "aries": "Aries",
+          "taurus": "Taurus",
+          "gemini": "Gemini",
+          "cancer": "Cancer",
+          "leo": "Leo",
+          "virgo": "Virgo",
+          "libra": "Libra",
+          "scorpio": "Scorpio",
+          "sagittarius": "Sagittarius",
+          "capricorn": "Capricorn",
+          "aquarius": "Aquarius",
+          "pisces": "Pisces"
+        }
+      },
+      "moon_phase": {
+        "name": "Moon phase",
+        "state": {
+          "new_moon": "New moon",
+          "waxing_crescent": "Waxing crescent",
+          "first_quarter": "First quarter",
+          "waxing_gibbous": "Waxing gibbous",
+          "full_moon": "Full moon",
+          "waning_gibbous": "Waning gibbous",
+          "last_quarter": "Last quarter",
+          "waning_crescent": "Waning crescent"
+        }
+      },
+      "dominant_contact": {
+        "name": "Dominant contact",
+        "state": {
+          "none": "None",
+          "sun": "Sun",
+          "mercury": "Mercury",
+          "venus": "Venus",
+          "mars": "Mars",
+          "jupiter": "Jupiter",
+          "saturn": "Saturn",
+          "uranus": "Uranus",
+          "neptune": "Neptune",
+          "pluto": "Pluto"
+        }
+      }
+    },
+    "binary_sensor": {
+      "void_of_course_modern": {
+        "name": "Void of course (Modern)"
+      },
+      "void_of_course_traditional": {
+        "name": "Void of course (Traditional)"
+      },
+      "void_of_course_lilly": {
+        "name": "Void of course (Lilly)"
+      },
+      "void_of_course_lilly_unbounded": {
+        "name": "Void of course (Lilly, unbounded)"
+      }
+    }
+  }
+}

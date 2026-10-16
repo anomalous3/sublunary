@@ -1,0 +1,403 @@
+<title>Sublunary Astrolabe</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the wheel is the instrument; a reading panel beside it; the month runs underneath as a strip you can scrub. */
+  :root {
+    color-scheme: dark;
+    --ink: #0d0f17;          /* night room */
+    --ink-2: #151827;        /* raised surfaces */
+    --line: #262b40;         /* rules, tracks */
+    --fg: #dde0ea;           /* text */
+    --muted: #8b91a8;        /* secondary text */
+    --silver: #eef1f8;       /* the Moon */
+    --warm: rgb(255 140 40); /* traditional planets, the blueprint's default */
+    --cool: rgb(80 140 255); /* outer planets */
+    --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  html, body { background: var(--ink); color: var(--fg); }
+  body { font-family: var(--body); font-size: 15px; line-height: 1.5; }
+  .wrap {
+    max-width: 1120px; margin: 0 auto;
+    padding-block: 28px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 24px;
+  }
+  header { display: grid; gap: 6px; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 44px); line-height: 1.05; margin: 0; text-wrap: balance; letter-spacing: 0.01em; }
+  .lede { margin: 0; color: var(--muted); max-width: 62ch; }
+  .lede em { font-family: var(--display); font-size: 1.08em; color: var(--fg); }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .wheel { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
+  .wheel canvas { width: 100%; height: 100%; display: block; }
+
+  .panel { display: grid; gap: 20px; min-width: 0; }
+  .when { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .when #date { font-size: 18px; }
+  .when #time { color: var(--muted); }
+
+  .reading { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; align-items: center; padding: 16px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; }
+  .swatch { width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--line); background: var(--ink); transition: background-color 0.25s, box-shadow 0.25s; }
+  #bulbState { font-family: var(--display); font-size: 24px; line-height: 1.15; }
+  #bulbWhy { color: var(--muted); }
+
+  .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; margin: 0; }
+  .facts dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; align-self: center; }
+  .facts dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .defs { display: grid; gap: 6px; }
+  .defs h2, .month h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 4px; }
+  .def { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .def span:first-child { min-width: 0; }
+  .pill { font-family: var(--mono); font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .pill.void { color: var(--ink); background: var(--silver); border-color: var(--silver); }
+
+  .legend { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 62ch; }
+  .legend b { color: var(--fg); font-weight: 500; }
+
+  .month { display: grid; gap: 10px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  button, select { font: inherit; color: var(--fg); background: var(--ink-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--muted); }
+  button:focus-visible, select:focus-visible, #strip:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  .controls label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  .controls .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+  #strip { width: 100%; height: 132px; display: block; cursor: ew-resize; touch-action: none; border-radius: 8px; }
+  footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
+  footer code { font-family: var(--mono); font-size: 12.5px; }
+
+  @media (max-width: 760px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+    .controls .hint { margin-left: 0; width: 100%; }
+  }
+</style>
+
+<main class="wrap">
+  <header>
+    <h1>Sublunary Astrolabe</h1>
+    <p class="lede">A lunar month of <em>Lilly's orbs</em>, Oct 14 to Nov 11, 2026, and what one bulb does with them. Times are UTC. Every frame comes from the Sublunary engine.</p>
+  </header>
+
+  <section class="stage">
+    <div class="wheel"><canvas id="wheel" role="img" aria-label="Zodiac wheel: nine planet tracks with Lilly's applying zones, and the Moon's position as a hand"></canvas></div>
+    <aside class="panel">
+      <div class="when"><span id="date">Fri 16 Oct 2026</span><span id="time">01:00 UTC</span></div>
+      <div class="reading">
+        <div class="swatch" id="swatch"></div>
+        <div>
+          <div id="bulbState">Cool, 15%</div>
+          <div id="bulbWhy">Reaching Neptune by square, across the sign boundary</div>
+        </div>
+      </div>
+      <dl class="facts">
+        <dt>Moon</dt><dd id="moonPos">Sagittarius 23°</dd>
+        <dt>Phase</dt><dd id="phase">Waxing crescent</dd>
+      </dl>
+      <div class="defs">
+        <h2>Void of course?</h2>
+        <div class="def"><span>Modern, last aspect to ingress</span><span class="pill" id="def0">no</span></div>
+        <div class="def"><span>Traditional, seven bodies</span><span class="pill" id="def1">no</span></div>
+        <div class="def"><span>Lilly's moieties, sign-bounded</span><span class="pill" id="def2">no</span></div>
+        <div class="def"><span>Lilly's moieties, no boundary</span><span class="pill" id="def3">no</span></div>
+      </div>
+      <p class="legend">Each ring is one planet. The bands are where the Moon must stand to be within <b>Lilly's orbs</b> of an aspect: they begin at first contact and end at the dot where the aspect perfects. When the Moon's hand crosses a band, that band lights and the bulb takes its color. <b>Bright</b> means the aspect perfects in the Moon's current sign, so every definition agrees. <b>Faint</b> means only Lilly's orbs reach it across the sign boundary.</p>
+    </aside>
+  </section>
+
+  <section class="month">
+    <h2>The bulb's month</h2>
+    <div class="controls">
+      <button id="play" type="button" aria-pressed="true">Pause</button>
+      <label for="speed">Speed
+        <select id="speed">
+          <option value="2">1 hour per second</option>
+          <option value="12" selected>6 hours per second</option>
+          <option value="48">1 day per second</option>
+        </select>
+      </label>
+      <span class="hint">Drag the strip to scrub. Arrow keys step 30 minutes, space plays or pauses.</span>
+    </div>
+    <canvas id="strip" tabindex="0" aria-label="Bulb color and brightness across the month, with void periods under each definition"></canvas>
+  </section>
+
+  <footer>Orbs from Lilly's <i>Christian Astrology</i> (1647): Sun 17°, Moon 12.5°, Jupiter 12°, Saturn 10°, Venus 8°, Mars 7.5°, Mercury 7°. Uranus, Neptune and Pluto get a placeholder 5°. Positions from JPL DE440s via Skyfield. Bulb mapping from the <code>consensus_light</code> blueprint.</footer>
+</main>
+
+<script>
+const DATA = /*__DATA__*/null;
+const N = DATA.frames.length;
+const GLYPH = { sun: "☉", mercury: "☿", venus: "♀", mars: "♂", jupiter: "♃", saturn: "♄", uranus: "♅", neptune: "♆", pluto: "♇" };
+const SIGN_GLYPH = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+const ASPECT = { 0: "conjunction", 60: "sextile", 90: "square", 120: "trine", 180: "opposition" };
+const TARGETS = [0, 60, 90, 120, 180, 240, 270, 300];
+const VS = "︎"; // text presentation, never emoji
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const C = { ink: css("--ink"), ink2: css("--ink-2"), line: css("--line"), fg: css("--fg"), muted: css("--muted"), silver: css("--silver") };
+const WARM = [255, 140, 40], COOL = [80, 140, 255];
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const start = new Date(DATA.start);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// --- state ---------------------------------------------------------------
+let f = 98;                     // Oct 16 01:00 UTC: the night Sublunary first ran
+let playing = !reduced;
+let rate = 12;                  // frames per second (30-minute frames)
+
+const lerpAngle = (a, b, u) => a + (((b - a + 540) % 360) - 180) * u;
+function sample(fi) {
+  const i = Math.max(0, Math.min(N - 1, Math.floor(fi)));
+  const j = Math.min(N - 1, i + 1), u = fi - i;
+  const A = DATA.frames[i], B = DATA.frames[j];
+  return {
+    i, A,
+    moon: lerpAngle(A.m, B.m, u),
+    elong: lerpAngle(A.e, B.e, u),
+    planets: A.p.map((p, k) => lerpAngle(p, B.p[k], u)),
+    bri: (A.t === B.t && A.d && B.d && A.d[0] === B.d[0] && A.d[3] === B.d[3]) ? A.b + (B.b - A.b) * u : A.b,
+  };
+}
+
+// --- wheel ---------------------------------------------------------------
+const wheel = document.getElementById("wheel");
+const wctx = wheel.getContext("2d");
+let W = 0, dpr = 1;
+function sizeWheel() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = wheel.clientWidth;
+  wheel.width = W * dpr; wheel.height = W * dpr;
+}
+// 0° Aries at nine o'clock, longitude increasing counterclockwise, as in a chart
+const ang = (lon) => -(180 + lon) * Math.PI / 180;
+const pt = (lon, r, c) => [c + r * Math.cos(ang(lon)), c + r * Math.sin(ang(lon))];
+function arc(ctx, c, r, lon0, lon1) { ctx.arc(c, c, r, ang(lon0), ang(lon1), true); }
+
+function drawMoon(ctx, x, y, r, elong) {
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = C.ink2; ctx.fill();
+  const waxing = elong < 180;
+  const k = Math.cos(elong * Math.PI / 180); // +1 new, -1 full
+  ctx.beginPath();
+  // lit half: right side when waxing (northern hemisphere view)
+  ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2, !waxing);
+  // terminator: ellipse back to the top; bulges into the lit half while a crescent
+  ctx.ellipse(x, y, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, (k > 0) === waxing);
+  ctx.fillStyle = C.silver; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.stroke();
+  ctx.restore();
+}
+
+function drawWheel(s) {
+  const ctx = wctx, c = W / 2;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, W);
+  const R = c - 4;
+  const zIn = R * 0.88, tOut = R * 0.84, tIn = R * 0.40, bulbR = R * 0.30;
+  const tw = (tOut - tIn) / DATA.bodies.length;
+  const moonSign = DATA.frames[s.i].s;
+
+  // zodiac ring
+  for (let k = 0; k < 12; k++) {
+    ctx.beginPath(); arc(ctx, c, R, k * 30, k * 30 + 30); arc(ctx, c, zIn, k * 30 + 30, k * 30); ctx.closePath();
+    ctx.fillStyle = k === moonSign ? "rgba(238,241,248,0.10)" : (k % 2 ? C.ink2 : C.ink);
+    ctx.fill();
+    const [gx, gy] = pt(k * 30 + 15, (R + zIn) / 2, c);
+    ctx.fillStyle = k === moonSign ? C.fg : C.muted;
+    ctx.font = `${Math.max(11, R * 0.055)}px ${css("--body")}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  ctx.beginPath(); ctx.arc(c, c, R, 0, Math.PI * 2); ctx.arc(c, c, zIn, 0, Math.PI * 2);
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+  // sign boundaries run through the tracks: the walls the sign-bounded definitions care about
+  for (let k = 0; k < 12; k++) {
+    const [x0, y0] = pt(k * 30, bulbR + 6, c), [x1, y1] = pt(k * 30, R, c);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+    ctx.strokeStyle = k === moonSign || k === (moonSign + 1) % 12 ? "rgba(238,241,248,0.28)" : "rgba(139,145,168,0.14)";
+    ctx.stroke();
+  }
+
+  // planet tracks with Lilly's applying bands
+  const dom = DATA.frames[s.i].d;
+  DATA.bodies.forEach((body, k) => {
+    const r = tOut - tw * (k + 0.5);
+    const col = DATA.traditional[k] ? WARM : COOL;
+    const thr = DATA.thr[k], P = s.planets[k];
+    ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(139,145,168,0.10)"; ctx.lineWidth = 1; ctx.stroke();
+    for (const t of TARGETS) {
+      const p = (P + t) % 360, b0 = p - thr;
+      const into = ((s.moon - b0) % 360 + 360) % 360;
+      const active = into < thr;
+      const isDom = active && dom && dom[0] === k && TARGETS.includes(t) &&
+        (t === dom[1] || t === 360 - dom[1]);
+      // band: brightening toward perfection
+      const steps = 10;
+      for (let q = 0; q < steps; q++) {
+        ctx.beginPath(); arc(ctx, c, r, b0 + thr * q / steps, b0 + thr * (q + 1) / steps);
+        ctx.strokeStyle = rgba(col, (active ? 0.22 : 0.07) + (active ? 0.30 : 0.16) * (q + 1) / steps);
+        ctx.lineWidth = tw * 0.62; ctx.lineCap = "butt"; ctx.stroke();
+      }
+      if (active) { // filled up to the Moon: the depth
+        ctx.beginPath(); arc(ctx, c, r, b0, b0 + into);
+        ctx.strokeStyle = rgba(col, isDom ? 0.95 : 0.6); ctx.lineWidth = tw * 0.62; ctx.stroke();
+      }
+      const [dx, dy] = pt(p, r, c);
+      ctx.beginPath(); ctx.arc(dx, dy, t === 0 ? tw * 0.42 : tw * 0.16, 0, Math.PI * 2);
+      ctx.fillStyle = t === 0 ? C.ink : rgba(col, 0.9); ctx.fill();
+      if (t === 0) {
+        ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = 1.25; ctx.stroke();
+        ctx.fillStyle = rgba(col, 1);
+        ctx.font = `${Math.max(9, tw * 0.62)}px ${css("--body")}`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(GLYPH[body] + VS, dx, dy + 0.5);
+      }
+    }
+  });
+
+  // the bulb
+  const A = DATA.frames[s.i];
+  const col = A.t === 1 ? WARM : COOL;
+  ctx.beginPath(); ctx.arc(c, c, bulbR, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill();
+  if (A.t) {
+    const g = ctx.createRadialGradient(c, c, 0, c, c, bulbR);
+    g.addColorStop(0, rgba(col, Math.min(1, 0.25 + s.bri)));
+    g.addColorStop(0.55, rgba(col, s.bri * 0.75));
+    g.addColorStop(1, rgba(col, 0));
+    ctx.beginPath(); ctx.arc(c, c, bulbR, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  } else {
+    ctx.fillStyle = C.muted; ctx.font = `${Math.max(11, R * 0.05)}px ${css("--mono")}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("off", c, c);
+  }
+  ctx.beginPath(); ctx.arc(c, c, bulbR, 0, Math.PI * 2); ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.stroke();
+
+  // the Moon's hand
+  const [hx0, hy0] = pt(s.moon, bulbR + 4, c), [hx1, hy1] = pt(s.moon, zIn, c);
+  ctx.beginPath(); ctx.moveTo(hx0, hy0); ctx.lineTo(hx1, hy1);
+  ctx.strokeStyle = "rgba(238,241,248,0.75)"; ctx.lineWidth = 1.5; ctx.stroke();
+  const [mx, my] = pt(s.moon, (R + zIn) / 2, c);
+  drawMoon(ctx, mx, my, Math.max(6, R * 0.045), s.elong);
+}
+
+// --- strip ---------------------------------------------------------------
+const strip = document.getElementById("strip");
+const sctx = strip.getContext("2d");
+let SW = 0, SH = 0;
+const GUT = 92, BULB_H = 46, LANE_H = 9, LANE_GAP = 6;
+function sizeStrip() {
+  SW = strip.clientWidth; SH = strip.clientHeight;
+  strip.width = SW * dpr; strip.height = SH * dpr;
+}
+const LANES = ["Modern", "Traditional", "Lilly", "Unbounded"];
+function drawStrip() {
+  const ctx = sctx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = C.ink2; ctx.fillRect(0, 0, SW, SH);
+  const plotW = SW - GUT - 10, x = (i) => GUT + plotW * i / N, colW = plotW / N + 0.6;
+  ctx.font = `12px ${css("--body")}`; ctx.textBaseline = "middle"; ctx.textAlign = "right";
+  ctx.fillStyle = C.muted; ctx.fillText("Bulb", GUT - 10, 10 + BULB_H / 2);
+  ctx.fillStyle = C.ink; ctx.fillRect(GUT, 10, plotW, BULB_H);
+  for (let i = 0; i < N; i++) {
+    const F = DATA.frames[i];
+    if (!F.t) continue;
+    const col = F.t === 1 ? WARM : COOL;
+    // height and alpha both carry brightness, so faint reads as faint
+    const h = BULB_H * (0.25 + 0.75 * F.b);
+    ctx.fillStyle = rgba(col, 0.35 + 0.65 * F.b);
+    ctx.fillRect(x(i), 10 + BULB_H - h, colW, h);
+  }
+  LANES.forEach((name, k) => {
+    const y = 10 + BULB_H + 10 + k * (LANE_H + LANE_GAP);
+    ctx.fillStyle = C.muted; ctx.fillText(name, GUT - 10, y + LANE_H / 2);
+    ctx.fillStyle = C.ink; ctx.fillRect(GUT, y, plotW, LANE_H);
+    ctx.fillStyle = "rgba(238,241,248,0.78)";
+    for (let i = 0; i < N; i++) if (DATA.frames[i].v & (1 << k)) ctx.fillRect(x(i), y, colW, LANE_H);
+  });
+  // sign ingresses and week marks
+  const lanesBottom = 10 + BULB_H + 10 + 4 * (LANE_H + LANE_GAP) - LANE_GAP;
+  for (let i = 1; i < N; i++) if (DATA.frames[i].s !== DATA.frames[i - 1].s) {
+    ctx.fillStyle = "rgba(139,145,168,0.30)"; ctx.fillRect(x(i), 10, 1, lanesBottom - 10);
+  }
+  ctx.textAlign = "center"; ctx.fillStyle = C.muted; ctx.font = `11px ${css("--mono")}`;
+  for (let d = 0; d <= 28; d += 7) {
+    const i = Math.min(N - 1, d * 48), dt = new Date(start.getTime() + i * DATA.stepMin * 60000);
+    ctx.fillText(dt.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }), Math.min(SW - 24, Math.max(GUT + 18, x(i))), lanesBottom + 12);
+  }
+  // playhead
+  const px = x(f);
+  ctx.fillStyle = C.silver; ctx.fillRect(px - 0.75, 4, 1.5, lanesBottom - 2);
+  ctx.beginPath(); ctx.moveTo(px - 5, 2); ctx.lineTo(px + 5, 2); ctx.lineTo(px, 8); ctx.closePath(); ctx.fill();
+}
+
+// --- panel ---------------------------------------------------------------
+const el = (id) => document.getElementById(id);
+const PHASES = ["New moon", "Waxing crescent", "First quarter", "Waxing gibbous", "Full moon", "Waning gibbous", "Last quarter", "Waning crescent"];
+function updatePanel(s) {
+  const A = s.A, dt = new Date(start.getTime() + f * DATA.stepMin * 60000);
+  el("date").textContent = dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  el("time").textContent = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  const sw = el("swatch");
+  if (A.t) {
+    const col = A.t === 1 ? WARM : COOL;
+    sw.style.backgroundColor = rgba(col, 0.2 + 0.8 * s.bri);
+    sw.style.boxShadow = `0 0 ${10 + 36 * s.bri}px ${rgba(col, 0.25 + 0.5 * s.bri)}`;
+    const [k, angle, , inSign] = A.d;
+    el("bulbState").textContent = `${A.t === 1 ? "Warm" : "Cool"}, ${Math.round(s.bri * 100)}%`;
+    const name = DATA.bodies[k][0].toUpperCase() + DATA.bodies[k].slice(1);
+    el("bulbWhy").textContent = inSign
+      ? `Applying to ${name} by ${ASPECT[angle]}, perfects in this sign`
+      : `Reaching ${name} by ${ASPECT[angle]}, across the sign boundary`;
+  } else {
+    sw.style.backgroundColor = C.ink; sw.style.boxShadow = "none";
+    el("bulbState").textContent = "Off";
+    el("bulbWhy").textContent = "Nothing applying: void under every definition";
+  }
+  el("moonPos").textContent = `${SIGNS[A.s]} ${Math.floor(((s.moon % 30) + 30) % 30)}°`;
+  el("phase").textContent = PHASES[Math.floor(((s.elong + 22.5) % 360) / 45)];
+  for (let k = 0; k < 4; k++) {
+    const v = !!(A.v & (1 << k)), p = el("def" + k);
+    p.textContent = v ? "void" : "no"; p.classList.toggle("void", v);
+  }
+}
+
+// --- loop & controls -----------------------------------------------------
+function render() { const s = sample(f); drawWheel(s); drawStrip(); updatePanel(s); }
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { f += rate * dt; if (f >= N - 1) f = 0; render(); }
+  requestAnimationFrame(tick);
+}
+const playBtn = el("play");
+function setPlaying(p) { playing = p; playBtn.textContent = p ? "Pause" : "Play"; playBtn.setAttribute("aria-pressed", String(p)); }
+playBtn.addEventListener("click", () => setPlaying(!playing));
+el("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+function scrubAt(clientX) {
+  const r = strip.getBoundingClientRect(), plotW = SW - GUT - 10;
+  f = Math.max(0, Math.min(N - 1, (clientX - r.left - GUT) / plotW * N));
+  render();
+}
+let dragging = false;
+strip.addEventListener("pointerdown", (e) => { dragging = true; strip.setPointerCapture(e.pointerId); setPlaying(false); scrubAt(e.clientX); });
+strip.addEventListener("pointermove", (e) => { if (dragging) scrubAt(e.clientX); });
+strip.addEventListener("pointerup", () => { dragging = false; });
+window.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT") return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault(); setPlaying(false);
+    f = Math.max(0, Math.min(N - 1, Math.round(f) + (e.key === "ArrowRight" ? 1 : -1))); render();
+  }
+});
+new ResizeObserver(() => { sizeWheel(); sizeStrip(); render(); }).observe(document.querySelector(".wrap"));
+sizeWheel(); sizeStrip(); setPlaying(playing); render();
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(render);
+requestAnimationFrame(tick);
+</script>

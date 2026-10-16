@@ -1,12 +1,17 @@
 {
   "domain": "sublunary",
   "name": "Sublunary",
-  "codeowners": [],
+  "codeowners": [
+    "@anomalous3"
+  ],
   "config_flow": true,
-  "documentation": "https://github.com/",
+  "documentation": "https://github.com/anomalous3/sublunary",
   "integration_type": "service",
   "iot_class": "calculated",
-  "requirements": ["skyfield>=1.49"],
+  "issue_tracker": "https://github.com/anomalous3/sublunary/issues",
+  "requirements": [
+    "skyfield>=1.49"
+  ],
   "single_config_entry": true,
   "version": "0.1.0"
 }

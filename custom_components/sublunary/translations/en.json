@@ -78,6 +78,24 @@
       },
       "clock": {
         "name": "Clock"
+      },
+      "next_aspect": {
+        "name": "Next aspect",
+        "state": {
+          "none": "None",
+          "sun": "Sun",
+          "mercury": "Mercury",
+          "venus": "Venus",
+          "mars": "Mars",
+          "jupiter": "Jupiter",
+          "saturn": "Saturn",
+          "uranus": "Uranus",
+          "neptune": "Neptune",
+          "pluto": "Pluto"
+        }
+      },
+      "next_change": {
+        "name": "Next change"
       }
     },
     "binary_sensor": {

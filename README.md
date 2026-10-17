@@ -35,6 +35,8 @@ On first setup it downloads NASA JPL's `de440s.bsp` ephemeris (~32 MB, covers
 | `sensor.sublunary_moon_phase` | one of 8 phases | `illumination`, `elongation`, `next_phase`, `next_phase_at` |
 | `sensor.sublunary_dominant_contact` | body the Moon is applying to, or `none` | `aspect`, `depth` (0→1 toward perfection), `in_sign`, `tone` (warm/cool), `perfects`, `contacts` |
 | `binary_sensor.sublunary_void_of_course_<definition>` | on while void | `start`, `end`, `last_aspect`, `next_start`, `next_end` |
+| `sensor.sublunary_next_aspect` | next body the Moon perfects an aspect with | `aspect`, `perfects`, `in_sign`, `tone` |
+| `sensor.sublunary_next_change` | when the dominant contact (and the light) next changes | `to` (a body, or `none` for void), `aspect`, `in_sign`, `tone` |
 | `sensor.sublunary_clock` | the time Sublunary thinks it is | `simulated`, `speed`, `paused` |
 
 ## Void-of-course definitions

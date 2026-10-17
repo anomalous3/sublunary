@@ -49,6 +49,16 @@ async def test_entities_tonight(hass):
     for s in (sign, dom, trad, modern, lilly, phase):
         assert _no_numpy(dict(s.attributes)), s.entity_id
     assert sign.state == "sagittarius"
+    nxt_a = hass.states.get("sensor.sublunary_next_aspect")
+    nxt_c = hass.states.get("sensor.sublunary_next_change")
+    print(nxt_a.entity_id, nxt_a.state, dict(nxt_a.attributes))
+    print(nxt_c.entity_id, nxt_c.state, dict(nxt_c.attributes))
+    # next change: the 12:57 ingress, where the Neptune square becomes in-sign
+    assert nxt_c.state.startswith("2026-10-16T12:57")
+    assert nxt_c.attributes["to"] == "neptune" and nxt_c.attributes["in_sign"] is True
+    assert nxt_a.state == "neptune" and nxt_a.attributes["aspect"] == "square"
+    assert nxt_a.attributes["perfects"].startswith("2026-10-16T17:53")
+    assert nxt_a.attributes["in_sign"] is False   # perfects after the Moon leaves Sagittarius
     assert dom.state == "neptune"
     assert dom.attributes["in_sign"] is False and dom.attributes["tone"] == "cool"
     assert trad.state == "on" and trad.attributes["last_aspect"] == "sextile sun"
@@ -218,4 +228,15 @@ async def test_planet_colors_golden_dawn(hass):
     data = on[0].data
     assert list(data["rgb_color"]) == [70, 30, 180]          # Saturn, King-scale indigo
     assert 60 <= data["brightness_pct"] <= 100               # in sign: bright
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-15 21:30:00+00:00")
+async def test_next_change_into_void(hass):
+    entry = await _setup(hass)
+    dom = hass.states.get("sensor.sublunary_dominant_contact")
+    nxt = hass.states.get("sensor.sublunary_next_change")
+    assert dom.state == "sun" and dom.attributes["aspect"] == "sextile"
+    assert nxt.state.startswith("2026-10-15T21:55")
+    assert nxt.attributes["to"] == "none" and nxt.attributes["aspect"] is None
     assert await hass.config_entries.async_unload(entry.entry_id)

@@ -20,7 +20,47 @@ async def async_setup_entry(hass: HomeAssistant, entry: SublunaryConfigEntry,
                             async_add_entities: AddEntitiesCallback) -> None:
     c = entry.runtime_data
     async_add_entities([MoonSignSensor(c, "moon_sign"), MoonPhaseSensor(c, "moon_phase"),
-                        DominantContactSensor(c, "dominant_contact"), ClockSensor(c, "clock")])
+                        DominantContactSensor(c, "dominant_contact"), ClockSensor(c, "clock"),
+                        NextAspectSensor(c, "next_aspect"), NextChangeSensor(c, "next_change")])
+
+
+class NextAspectSensor(SublunaryEntity, SensorEntity):
+    """The next body the Moon perfects an aspect with (any of Sun through Pluto)."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["none", *BODIES]
+    _attr_icon = "mdi:debug-step-over"
+
+    @property
+    def native_value(self):
+        n = self.coordinator.data.next_aspect
+        return n.body if n else "none"
+
+    @property
+    def extra_state_attributes(self):
+        n = self.coordinator.data.next_aspect
+        if not n:
+            return {}
+        return {"aspect": n.aspect, "perfects": n.at.isoformat(), "in_sign": n.in_sign, "tone": n.tone}
+
+
+class NextChangeSensor(SublunaryEntity, SensorEntity):
+    """When the dominant contact (and so the light) next changes, and to what."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-end"
+
+    @property
+    def native_value(self):
+        n = self.coordinator.data.next_change
+        return n.at if n else None
+
+    @property
+    def extra_state_attributes(self):
+        n = self.coordinator.data.next_change
+        if not n:
+            return {}
+        return {"to": n.body or "none", "aspect": n.aspect, "in_sign": n.in_sign, "tone": n.tone}
 
 
 class ClockSensor(SublunaryEntity, SensorEntity):

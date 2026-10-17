@@ -50,6 +50,16 @@ class ContactInfo:
 
 
 @dataclass
+class Upcoming:
+    """A future dominant state (body None means nothing applying: the light goes off)."""
+    at: datetime | None
+    body: str | None = None
+    aspect: str | None = None
+    in_sign: bool | None = None
+    tone: str | None = None
+
+
+@dataclass
 class VoidInfo:
     active: bool
     start: datetime | None = None
@@ -74,6 +84,8 @@ class Snapshot:
     dominant: ContactInfo | None
     contacts: list[ContactInfo] = field(default_factory=list)
     voids: dict[str, VoidInfo] = field(default_factory=dict)
+    next_aspect: Upcoming | None = None   # next exact perfection, any body
+    next_change: Upcoming | None = None   # next time the dominant contact changes
     paused: bool = False
 
 
@@ -187,6 +199,29 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             for c in st.contacts
         ]
 
+        nxt_perf = min((c for c in self._timeline.contacts if c.perfect_jd > now),
+                       key=lambda c: c.perfect_jd, default=None)
+        next_aspect = None if nxt_perf is None else Upcoming(
+            at=to_dt(nxt_perf.perfect_jd), body=nxt_perf.body,
+            aspect=PTOLEMAIC[int(nxt_perf.angle)],
+            in_sign=nxt_perf.perfect_jd <= st.sign_end_jd,
+            tone="warm" if nxt_perf.traditional else "cool")
+
+        # walk discrete edges until the dominant contact (body, aspect, in/across) differs
+        def key(state):
+            c = state.dominant
+            return None if c is None else (c.body, c.angle, state.crosses_sign(c))
+        here, next_change = key(st), None
+        for e in self._timeline.edges(now)[:400]:
+            later = self._timeline.state(e + 1e-6)  # just past the edge (~0.1 s)
+            if key(later) != here:
+                c = later.dominant
+                next_change = Upcoming(at=to_dt(e)) if c is None else Upcoming(
+                    at=to_dt(e), body=c.body, aspect=PTOLEMAIC[int(c.angle)],
+                    in_sign=not later.crosses_sign(c),
+                    tone="warm" if c.traditional else "cool")
+                break
+
         t = eph.tt(now)
         el = float((eph.longitude("moon", t) - eph.longitude("sun", t)) % 360)
         phase = PHASE_NAMES[int(((el + 22.5) % 360) // 45)]
@@ -223,6 +258,8 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             dominant=contacts[0] if contacts else None,
             contacts=contacts,
             voids=voids,
+            next_aspect=next_aspect,
+            next_change=next_change,
         )
         return snap, (to_dt(min(edges)) if edges else None)
 

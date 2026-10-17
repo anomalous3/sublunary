@@ -59,6 +59,28 @@ Brightness shows how many definitions agree she's reaching at all: bright
 in-sign, faint when only Lilly's orbs reach across the sign boundary, off when
 nothing is applying. Import it by URL from the Blueprints page.
 
+## Blueprint: planet colors
+
+`blueprints/automation/sublunary/planet_colors.yaml`. The bulb takes the color
+of the planet the Moon is reaching for, with the same consensus brightness.
+
+| Body | Hybrid (default) | Golden Dawn |
+|---|---|---|
+| Sun | gold | orange |
+| Mercury | quicksilver (a cool LED white) | yellow |
+| Venus | green | emerald |
+| Mars | red | scarlet |
+| Jupiter | violet | violet |
+| Saturn | deep indigo | indigo |
+| Uranus | electric cyan | from Hybrid |
+| Neptune | sea blue | from Hybrid |
+| Pluto | magenta | from Hybrid |
+
+Hybrid uses what you'd see through a telescope where a planet has a color, and
+tradition where it's only white or grey. Choose **Custom** to set every color
+yourself (prefilled with Hybrid). Blues and violets crowd together on cheap
+bulbs, so check Neptune, Saturn and Jupiter on yours.
+
 ## Simulated clock
 
 ```yaml

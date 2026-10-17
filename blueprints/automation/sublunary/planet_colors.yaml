@@ -1,0 +1,165 @@
+blueprint:
+  name: Sublunary planet colors
+  description: >
+    The bulb takes the color of the planet the Moon is reaching for. Brightness
+    works as in the consensus light: bright when the contact perfects in her
+    current sign, faint when only Lilly's orbs reach across the boundary, off
+    when nothing is applying. Hybrid colors use what you'd see through a
+    telescope where a planet has a color, and tradition where it's only white
+    or grey. Golden Dawn uses the King scale for the seven classical planets.
+  domain: automation
+  input:
+    contact_sensor:
+      name: Dominant contact sensor
+      selector:
+        entity:
+          filter:
+            integration: sublunary
+            domain: sensor
+    target_light:
+      name: Light(s)
+      selector:
+        target:
+          entity:
+            domain: light
+    scheme:
+      name: Color scheme
+      default: hybrid
+      selector:
+        select:
+          options:
+            - label: Hybrid (telescope where it has color, tradition elsewhere)
+              value: hybrid
+            - label: Golden Dawn (outer planets from Hybrid)
+              value: golden_dawn
+            - label: Custom (the colors below)
+              value: custom
+    transition:
+      name: Transition (seconds)
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 600
+          unit_of_measurement: s
+    custom_colors:
+      name: Custom colors
+      description: Used when the scheme is Custom. Prefilled with Hybrid.
+      collapsed: true
+      input:
+        sun_color:
+          name: Sun (gold)
+          default: [255, 176, 32]
+          selector:
+            color_rgb: {}
+        mercury_color:
+          name: Mercury (quicksilver)
+          default: [190, 205, 255]
+          selector:
+            color_rgb: {}
+        venus_color:
+          name: Venus (green)
+          default: [40, 220, 90]
+          selector:
+            color_rgb: {}
+        mars_color:
+          name: Mars (red)
+          default: [255, 30, 10]
+          selector:
+            color_rgb: {}
+        jupiter_color:
+          name: Jupiter (violet)
+          default: [150, 60, 255]
+          selector:
+            color_rgb: {}
+        saturn_color:
+          name: Saturn (deep indigo)
+          default: [60, 40, 210]
+          selector:
+            color_rgb: {}
+        uranus_color:
+          name: Uranus (electric cyan)
+          default: [0, 225, 255]
+          selector:
+            color_rgb: {}
+        neptune_color:
+          name: Neptune (sea blue)
+          default: [20, 90, 255]
+          selector:
+            color_rgb: {}
+        pluto_color:
+          name: Pluto (magenta)
+          default: [235, 20, 140]
+          selector:
+            color_rgb: {}
+
+mode: restart
+
+triggers:
+  # no "to:" so attribute changes (depth, in_sign) also trigger
+  - trigger: state
+    entity_id: !input contact_sensor
+  - trigger: homeassistant
+    event: start
+  # saving an automation in the UI reloads automations: apply immediately
+  - trigger: event
+    event_type: automation_reloaded
+
+variables:
+  sensor: !input contact_sensor
+  scheme: !input scheme
+  base_transition: !input transition
+  palettes:
+    hybrid:
+      sun: [255, 176, 32]
+      mercury: [190, 205, 255]
+      venus: [40, 220, 90]
+      mars: [255, 30, 10]
+      jupiter: [150, 60, 255]
+      saturn: [60, 40, 210]
+      uranus: [0, 225, 255]
+      neptune: [20, 90, 255]
+      pluto: [235, 20, 140]
+    golden_dawn:
+      sun: [255, 120, 0]
+      mercury: [255, 225, 0]
+      venus: [0, 200, 90]
+      mars: [255, 20, 30]
+      jupiter: [140, 40, 255]
+      saturn: [70, 30, 180]
+      uranus: [0, 225, 255]
+      neptune: [20, 90, 255]
+      pluto: [235, 20, 140]
+  custom:
+    sun: !input sun_color
+    mercury: !input mercury_color
+    venus: !input venus_color
+    mars: !input mars_color
+    jupiter: !input jupiter_color
+    saturn: !input saturn_color
+    uranus: !input uranus_color
+    neptune: !input neptune_color
+    pluto: !input pluto_color
+  palette: "{{ custom if scheme == 'custom' else palettes[scheme] }}"
+  body: "{{ states(sensor) }}"
+  # under a simulated clock, fades shrink with it
+  fade: "{{ (base_transition / (state_attr(sensor, 'clock_speed') | float(1))) | round(1) }}"
+
+actions:
+  - choose:
+      - conditions: "{{ body not in palette }}"
+        sequence:
+          - action: light.turn_off
+            target: !input target_light
+            data:
+              transition: "{{ fade }}"
+    default:
+      - action: light.turn_on
+        target: !input target_light
+        data:
+          rgb_color: "{{ palette[body] }}"
+          brightness_pct: >-
+            {% set d = state_attr(sensor, 'depth') | float(0) %}
+            {% if state_attr(sensor, 'in_sign') %}{{ (60 + 40 * d) | round(0) | int }}
+            {% else %}{{ (15 + 10 * d) | round(0) | int }}{% endif %}
+          transition: "{{ fade }}"

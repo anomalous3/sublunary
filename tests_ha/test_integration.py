@@ -173,3 +173,49 @@ async def test_clock_stops_at_ephemeris_edge(hass, freezer):
     assert hass.states.get("sensor.sublunary_moon_sign").state != "unavailable"
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def _run_blueprint(hass, name, inputs):
+    """Instantiate an automation from one of our blueprints, run it, return light calls."""
+    import shutil
+    from homeassistant.setup import async_setup_component
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    dst = Path(hass.config.path("blueprints/automation/sublunary"))
+    dst.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ROOT / "blueprints/automation/sublunary" / name, dst / name)
+    on = async_mock_service(hass, "light", "turn_on")
+    off = async_mock_service(hass, "light", "turn_off")
+    assert await async_setup_component(hass, "automation", {"automation": [{
+        "id": "sublunary_test", "alias": "Sublunary planet colors",
+        "use_blueprint": {"path": f"sublunary/{name}", "input": {
+            "contact_sensor": "sensor.sublunary_dominant_contact",
+            "target_light": {"entity_id": "light.bedroom"}, **inputs}}}]})
+    await hass.async_block_till_done()
+    on.clear(); off.clear()
+    await hass.services.async_call("automation", "trigger",
+                                   {"entity_id": "automation.sublunary_planet_colors"}, blocking=True)
+    await hass.async_block_till_done()
+    return on, off
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_planet_colors_hybrid_tonight(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "planet_colors.yaml", {})
+    assert not off and len(on) == 1
+    data = on[0].data
+    assert list(data["rgb_color"]) == [20, 90, 255]          # Neptune, sea blue
+    assert 15 <= data["brightness_pct"] <= 25                # across the boundary: faint
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-17 01:00:00+00:00")
+async def test_planet_colors_golden_dawn(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "planet_colors.yaml", {"scheme": "golden_dawn"})
+    assert not off and len(on) == 1
+    data = on[0].data
+    assert list(data["rgb_color"]) == [70, 30, 180]          # Saturn, King-scale indigo
+    assert 60 <= data["brightness_pct"] <= 100               # in sign: bright
+    assert await hass.config_entries.async_unload(entry.entry_id)

@@ -103,7 +103,7 @@
       <div class="reading">
         <div class="swatch" id="swatch"></div>
         <div>
-          <div id="bulbState">Cool, 15%</div>
+          <div id="bulbState">Sea blue, 15%</div>
           <div id="bulbWhy">Reaching Neptune by square, across the sign boundary</div>
         </div>
       </div>
@@ -118,7 +118,7 @@
         <div class="def"><span>Lilly's moieties, sign-bounded</span><span class="pill" id="def2">no</span></div>
         <div class="def"><span>Lilly's moieties, no boundary</span><span class="pill" id="def3">no</span></div>
       </div>
-      <p class="legend">Each ring is one planet. The bands are where the Moon must stand to be within <b>Lilly's orbs</b> of an aspect: they begin at first contact and end at the dot where the aspect perfects. When the Moon's hand crosses a band, that band lights and the bulb takes its color. <b>Bright</b> means the aspect perfects in the Moon's current sign, so every definition agrees. <b>Faint</b> means only Lilly's orbs reach it across the sign boundary.</p>
+      <p class="legend">Each ring is one planet. The bands are where the Moon must stand to be within <b>Lilly's orbs</b> of an aspect: they begin at first contact and end at the dot where the aspect perfects. When the Moon's hand crosses a band, that band lights and the bulb takes the planet's color. <b>Bright</b> means the aspect perfects in the Moon's current sign, so every definition agrees. <b>Faint</b> means only Lilly's orbs reach it across the sign boundary.</p>
     </aside>
   </section>
 
@@ -126,6 +126,13 @@
     <h2>The bulb's month</h2>
     <div class="controls">
       <button id="play" type="button" aria-pressed="true">Pause</button>
+      <label for="palette">Colors
+        <select id="palette">
+          <option value="hybrid" selected>Hybrid planets</option>
+          <option value="golden_dawn">Golden Dawn</option>
+          <option value="consensus">Warm and cool</option>
+        </select>
+      </label>
       <label for="speed">Speed
         <select id="speed">
           <option value="2">1 hour per second</option>
@@ -138,7 +145,7 @@
     <canvas id="strip" tabindex="0" aria-label="Bulb color and brightness across the month, with void periods under each definition"></canvas>
   </section>
 
-  <footer>Orbs from Lilly's <i>Christian Astrology</i> (1647): Sun 17°, Moon 12.5°, Jupiter 12°, Saturn 10°, Venus 8°, Mars 7.5°, Mercury 7°. Uranus, Neptune and Pluto get a placeholder 5°. Positions from JPL DE440s via Skyfield. Bulb mapping from the <code>consensus_light</code> blueprint. Install Sublunary through HACS from <a href="https://github.com/anomalous3/sublunary">github.com/anomalous3/sublunary</a>.</footer>
+  <footer>Orbs from Lilly's <i>Christian Astrology</i> (1647): Sun 17°, Moon 12.5°, Jupiter 12°, Saturn 10°, Venus 8°, Mars 7.5°, Mercury 7°. Uranus, Neptune and Pluto get a placeholder 5°. Positions from JPL DE440s via Skyfield. Bulb mapping from the <code>planet_colors</code> and <code>consensus_light</code> blueprints: Hybrid uses telescope colors where a planet has one and tradition elsewhere, Golden Dawn the King scale (outer planets from Hybrid), warm and cool the traditional/outer split. Install Sublunary through HACS from <a href="https://github.com/anomalous3/sublunary">github.com/anomalous3/sublunary</a>.</footer>
 </main>
 
 <script>
@@ -153,6 +160,22 @@ const VS = "︎"; // text presentation, never emoji
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const C = { ink: css("--ink"), ink2: css("--ink-2"), line: css("--line"), fg: css("--fg"), muted: css("--muted"), silver: css("--silver") };
 const WARM = [255, 140, 40], COOL = [80, 140, 255];
+// mirrors blueprints/automation/sublunary/planet_colors.yaml, in DATA.bodies order
+const HYBRID = { sun: [255,176,32], mercury: [190,205,255], venus: [40,220,90], mars: [255,30,10],
+  jupiter: [150,60,255], saturn: [60,40,210], uranus: [0,225,255], neptune: [20,90,255], pluto: [235,20,140] };
+const GOLDEN_DAWN = { ...HYBRID, sun: [255,120,0], mercury: [255,225,0], venus: [0,200,90], mars: [255,20,30],
+  jupiter: [140,40,255], saturn: [70,30,180] };
+const COLOR_NAME = {
+  hybrid: { sun: "gold", mercury: "quicksilver", venus: "green", mars: "red", jupiter: "violet", saturn: "deep indigo", uranus: "electric cyan", neptune: "sea blue", pluto: "magenta" },
+  golden_dawn: { sun: "orange", mercury: "yellow", venus: "emerald", mars: "scarlet", jupiter: "violet", saturn: "indigo", uranus: "electric cyan", neptune: "sea blue", pluto: "magenta" },
+};
+let palette = "hybrid";
+function colorOf(k) {
+  const b = DATA.bodies[k];
+  if (palette === "hybrid") return HYBRID[b];
+  if (palette === "golden_dawn") return GOLDEN_DAWN[b];
+  return DATA.traditional[k] ? WARM : COOL;
+}
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 const start = new Date(DATA.start);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -240,7 +263,7 @@ function drawWheel(s) {
   const dom = DATA.frames[s.i].d;
   DATA.bodies.forEach((body, k) => {
     const r = tOut - tw * (k + 0.5);
-    const col = DATA.traditional[k] ? WARM : COOL;
+    const col = colorOf(k);
     const thr = DATA.thr[k], P = s.planets[k];
     ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2);
     ctx.strokeStyle = "rgba(139,145,168,0.10)"; ctx.lineWidth = 1; ctx.stroke();
@@ -276,7 +299,7 @@ function drawWheel(s) {
 
   // the bulb
   const A = DATA.frames[s.i];
-  const col = A.t === 1 ? WARM : COOL;
+  const col = A.t ? colorOf(A.d[0]) : WARM;
   ctx.beginPath(); ctx.arc(c, c, bulbR, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill();
   if (A.t) {
     const g = ctx.createRadialGradient(c, c, 0, c, c, bulbR);
@@ -319,7 +342,7 @@ function drawStrip() {
   for (let i = 0; i < N; i++) {
     const F = DATA.frames[i];
     if (!F.t) continue;
-    const col = F.t === 1 ? WARM : COOL;
+    const col = colorOf(F.d[0]);
     // height and alpha both carry brightness, so faint reads as faint
     const h = BULB_H * (0.25 + 0.75 * F.b);
     ctx.fillStyle = rgba(col, 0.35 + 0.65 * F.b);
@@ -357,12 +380,14 @@ function updatePanel(s) {
   el("time").textContent = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
   const sw = el("swatch");
   if (A.t) {
-    const col = A.t === 1 ? WARM : COOL;
+    const col = colorOf(A.d[0]);
     sw.style.backgroundColor = rgba(col, 0.2 + 0.8 * s.bri);
     sw.style.boxShadow = `0 0 ${10 + 36 * s.bri}px ${rgba(col, 0.25 + 0.5 * s.bri)}`;
     const [k, angle, , inSign] = A.d;
-    el("bulbState").textContent = `${A.t === 1 ? "Warm" : "Cool"}, ${Math.round(s.bri * 100)}%`;
     const name = DATA.bodies[k][0].toUpperCase() + DATA.bodies[k].slice(1);
+    const hue = palette === "consensus" ? (A.t === 1 ? "Warm" : "Cool")
+      : COLOR_NAME[palette][DATA.bodies[k]].replace(/^./, (ch) => ch.toUpperCase());
+    el("bulbState").textContent = `${hue}, ${Math.round(s.bri * 100)}%`;
     el("bulbWhy").textContent = inSign
       ? `Applying to ${name} by ${ASPECT[angle]}, perfects in this sign`
       : `Reaching ${name} by ${ASPECT[angle]}, across the sign boundary`;
@@ -391,6 +416,7 @@ const playBtn = el("play");
 function setPlaying(p) { playing = p; playBtn.textContent = p ? "Pause" : "Play"; playBtn.setAttribute("aria-pressed", String(p)); }
 playBtn.addEventListener("click", () => setPlaying(!playing));
 el("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+el("palette").addEventListener("change", (e) => { palette = e.target.value; render(); });
 function scrubAt(clientX) {
   const r = strip.getBoundingClientRect(), plotW = SW - GUT - 10;
   f = Math.max(0, Math.min(N - 1, (clientX - r.left - GUT) / plotW * N));

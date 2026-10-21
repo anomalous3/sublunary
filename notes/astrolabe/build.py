@@ -68,18 +68,40 @@ tpl = (HERE / "astrolabe.template.html").read_text()
 page = tpl.replace("/*__DATA__*/null", blob)
 (HERE / "astrolabe.html").write_text(page)  # fragment: the artifact host adds the document skeleton
 
-# GitHub Pages needs a whole document
 docs = HERE.parents[1] / "docs"
 docs.mkdir(exist_ok=True)
-(docs / "index.html").write_text(
-    '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-    '<meta name="description" content="A lunar month of Lilly\'s orbs on a zodiac wheel, and the bulb color '
-    'Sublunary would produce, frame by frame.">\n'
-    '<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}'
-    '[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);'
-    'padding-bottom:env(safe-area-inset-bottom,0px)}</style>\n'
-    + page.replace("</style>", "</style>\n</head>\n<body>", 1)
-    + "\n</body>\n</html>\n")
+
+
+def document(fragment, description):
+    """GitHub Pages needs a whole document around the fragment."""
+    return ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+            f'<meta name="description" content="{description}">\n'
+            '<style>*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}'
+            '[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);'
+            'padding-bottom:env(safe-area-inset-bottom,0px)}</style>\n'
+            + fragment.replace("</style>", "</style>\n</head>\n<body>", 1)
+            + "\n</body>\n</html>\n")
+
+
+(docs / "index.html").write_text(document(
+    page, "A lunar month of Lilly's orbs on a zodiac wheel, and the bulb color Sublunary would produce, frame by frame."))
 (docs / ".nojekyll").write_text("")
-print(f"{len(frames)} frames, {len(blob)/1024:.0f} KB")
+
+# --- Sublunary Houses: sign and natal-house colors -------------------------
+import importlib.util
+spec = importlib.util.spec_from_file_location("bp", HERE.parents[1] / "scripts" / "build_blueprints.py")
+bp = importlib.util.module_from_spec(spec); spec.loader.exec_module(bp)
+houses_data = {
+    "start": data["start"], "stepMin": STEP_MIN,
+    "moon": [f["m"] for f in frames],
+    "signs": list(SIGNS),
+    "element": [bp.ELEMENT_OF[s] for s in SIGNS],
+    "palettes": {"elements": [bp.ELEMENTS[s] for s in SIGNS], "golden_dawn": [bp.GD_SIGNS[s] for s in SIGNS]},
+}
+htpl = (HERE / "houses.template.html").read_text()
+hpage = htpl.replace("/*__DATA__*/null", json.dumps(houses_data, separators=(",", ":")))
+(HERE / "houses.html").write_text(hpage)
+(docs / "houses.html").write_text(document(
+    hpage, "The Moon's sign and natal house as light: Sublunary's sign and house color blueprints over a lunar month."))
+print(f"{len(frames)} frames, astrolabe {len(blob)/1024:.0f} KB, houses {len(hpage)/1024:.0f} KB")

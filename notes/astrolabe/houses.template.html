@@ -1,0 +1,424 @@
+<title>Sublunary Houses</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a natal wheel (Ascendant on the left, as charts are drawn) beside two bulbs; the month underneath as two color rows. */
+  :root {
+    color-scheme: dark;
+    --ink: #0d0f17;
+    --ink-2: #151827;
+    --line: #262b40;
+    --fg: #dde0ea;
+    --muted: #8b91a8;
+    --silver: #eef1f8;
+    --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  html, body { background: var(--ink); color: var(--fg); }
+  body { font-family: var(--body); font-size: 15px; line-height: 1.5; }
+  .wrap {
+    max-width: 1120px; margin: 0 auto;
+    padding-block: 28px 40px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    display: grid; gap: 24px;
+  }
+  header { display: grid; gap: 6px; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 44px); line-height: 1.05; margin: 0; text-wrap: balance; }
+  .lede { margin: 0; color: var(--muted); max-width: 64ch; }
+  a { color: var(--fg); text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  a:hover { text-decoration-color: var(--fg); }
+  a:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; border-radius: 2px; }
+
+  .stage { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .wheel { width: 100%; aspect-ratio: 1; max-width: 100%; }
+  .wheel canvas { width: 100%; height: 100%; display: block; }
+  .panel { display: grid; gap: 18px; min-width: 0; }
+  .when { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .when #date { font-size: 18px; }
+  .when #time { color: var(--muted); }
+
+  .bulbs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .bulb { display: grid; gap: 10px; justify-items: start; padding: 14px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+  .bulb .label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .swatch { width: 56px; height: 56px; border-radius: 50%; border: 1px solid var(--line); transition: background-color 0.3s, box-shadow 0.3s; }
+  .bulb .name { font-family: var(--display); font-size: 21px; line-height: 1.15; }
+  .bulb .why { color: var(--muted); font-size: 13.5px; }
+
+  .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; margin: 0; }
+  .facts dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; align-self: center; }
+  .facts dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  details.chart { background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  details.chart summary { cursor: pointer; font-weight: 500; }
+  details.chart summary:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  .chart form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin-top: 12px; }
+  .chart label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+  .chart .wide { grid-column: 1 / -1; }
+  input, select, button { font: inherit; color: var(--fg); background: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; width: 100%; }
+  button { cursor: pointer; background: var(--ink-2); width: auto; padding: 6px 14px; }
+  button:hover, select:hover, input:hover { border-color: var(--muted); }
+  input:focus-visible, select:focus-visible, button:focus-visible, #strip:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  .chart .actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .chart .note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12.5px; }
+  .chart .err { color: #ff9b8a; }
+  .example { font-size: 12px; font-family: var(--mono); color: var(--ink); background: var(--silver); border-radius: 999px; padding: 1px 9px; }
+
+  .month { display: grid; gap: 10px; }
+  .month h2 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .controls label { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  .controls select { width: auto; }
+  .controls .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+  #strip { width: 100%; height: 96px; display: block; cursor: ew-resize; touch-action: none; border-radius: 8px; }
+  footer { color: var(--muted); font-size: 13px; max-width: 72ch; }
+
+  @media (max-width: 760px) {
+    .stage { grid-template-columns: minmax(0, 1fr); }
+    .controls .hint { margin-left: 0; width: 100%; }
+    .chart form { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+
+<main class="wrap">
+  <header>
+    <h1>Sublunary Houses</h1>
+    <p class="lede">Where the Moon is, as light: her sign, and the house of a birth chart she is passing through, Oct 14 to Nov 11, 2026 (UTC). These are the colors Sublunary's sign and house blueprints send. Companion to the <a href="https://anomalous3.github.io/sublunary/">Sublunary Astrolabe</a>; the integration lives at <a href="https://github.com/anomalous3/sublunary">github.com/anomalous3/sublunary</a>.</p>
+  </header>
+
+  <section class="stage">
+    <div class="wheel"><canvas id="wheel" role="img" aria-label="Natal wheel: the zodiac colored by sign, the houses of the chart colored by their natural signs, and the Moon's position as a hand"></canvas></div>
+    <aside class="panel">
+      <div class="when"><span id="date">Fri 16 Oct 2026</span><span id="time">01:00 UTC</span></div>
+      <div class="bulbs">
+        <div class="bulb"><span class="label">Sign bulb</span><div class="swatch" id="signSwatch"></div><div class="name" id="signName">Sagittarius</div><div class="why" id="signWhy">Fire</div></div>
+        <div class="bulb"><span class="label">House bulb</span><div class="swatch" id="houseSwatch"></div><div class="name" id="houseName">3rd house</div><div class="why" id="houseWhy">Colored as Gemini, air</div></div>
+      </div>
+      <dl class="facts">
+        <dt>Moon</dt><dd id="moonPos">Sagittarius 23°</dd>
+        <dt>Next sign</dt><dd id="nextSign">Capricorn, 16 Oct 12:57</dd>
+        <dt>Next house</dt><dd id="nextHouse">4th, 17 Oct 23:54</dd>
+        <dt>Chart</dt><dd id="chartInfo">Example chart, Placidus</dd>
+      </dl>
+      <details class="chart" id="chartBox">
+        <summary>Your birth chart <span class="example" id="exampleTag">example</span></summary>
+        <form id="chartForm" novalidate>
+          <label for="bDate">Birth date<input id="bDate" type="date" required></label>
+          <label for="bTime">Birth time (local)<input id="bTime" type="time" required></label>
+          <label class="wide" for="bTz">Time zone where you were born<input id="bTz" list="tzList" placeholder="America/Chicago" autocomplete="off" required></label>
+          <datalist id="tzList"></datalist>
+          <label for="bLat">Latitude (north +)<input id="bLat" type="number" step="0.0001" min="-90" max="90" required></label>
+          <label for="bLon">Longitude (east +)<input id="bLon" type="number" step="0.0001" min="-180" max="180" required></label>
+          <label class="wide" for="bSys">House system
+            <select id="bSys">
+              <option value="placidus">Placidus</option>
+              <option value="whole_sign">Whole Sign</option>
+              <option value="equal">Equal</option>
+              <option value="porphyry">Porphyry</option>
+            </select>
+          </label>
+          <div class="actions"><button type="submit">Use this chart</button><button type="button" id="useExample">Back to the example</button><span class="err" id="formErr" role="alert"></span></div>
+          <p class="note">Computed in your browser and remembered only in this browser. The example is a test chart: 14:30, 15 June 1990, Chicago.</p>
+        </form>
+      </details>
+    </aside>
+  </section>
+
+  <section class="month">
+    <h2>The bulbs' month</h2>
+    <div class="controls">
+      <button id="play" type="button" aria-pressed="true">Pause</button>
+      <label for="palette">Colors
+        <select id="palette">
+          <option value="elements" selected>Elements</option>
+          <option value="golden_dawn">Golden Dawn spectrum</option>
+        </select>
+      </label>
+      <label for="speed">Speed
+        <select id="speed">
+          <option value="2">1 hour per second</option>
+          <option value="12" selected>6 hours per second</option>
+          <option value="48">1 day per second</option>
+        </select>
+      </label>
+      <span class="hint">Drag the strip to scrub. Arrow keys step 30 minutes, space plays or pauses.</span>
+    </div>
+    <canvas id="strip" tabindex="0" aria-label="Sign and house colors across the month"></canvas>
+  </section>
+
+  <footer>Houses use the colors of their natural signs: 1st Aries, 2nd Taurus, and so on. Placidus falls back to Porphyry above 66° latitude, as in the integration. Moon positions from JPL DE440s via Skyfield; house cusps computed here from sidereal time and the obliquity of the ecliptic.</footer>
+</main>
+
+<script>
+const DATA = /*__DATA__*/null;
+const N = DATA.moon.length;
+const SIGNS = DATA.signs.map((s) => s[0].toUpperCase() + s.slice(1));
+const SIGN_GLYPH = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+const VS = "︎";
+const ORD = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th"];
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const C = { ink: css("--ink"), ink2: css("--ink-2"), line: css("--line"), fg: css("--fg"), muted: css("--muted"), silver: css("--silver") };
+const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const start = new Date(DATA.start);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const D2R = Math.PI / 180, norm = (x) => ((x % 360) + 360) % 360;
+
+// --- houses (mirrors sublunary/houses.py) -------------------------------
+function angles(jdUT, lat, lon) {
+  const d = jdUT - 2451545.0, T = d / 36525;
+  const gmst = norm(280.46061837 + 360.98564736629 * d + 0.000387933 * T * T - T * T * T / 38710000);
+  const ramc = norm(gmst + lon);
+  const eps = (23.439291111 - 0.0130041667 * T - 1.6667e-7 * T * T + 5.0278e-7 * T * T * T) * D2R;
+  const r = ramc * D2R, phi = lat * D2R;
+  const mc = norm(Math.atan2(Math.sin(r), Math.cos(r) * Math.cos(eps)) / D2R);
+  let asc = norm(Math.atan2(Math.cos(r), -(Math.sin(eps) * Math.tan(phi) + Math.cos(eps) * Math.sin(r))) / D2R);
+  if (norm(asc - mc) > 180) asc = norm(asc + 180);
+  return { ramc, eps, asc, mc };
+}
+const raToLon = (ra, eps) => norm(Math.atan2(Math.sin(ra * D2R), Math.cos(ra * D2R) * Math.cos(eps)) / D2R);
+function placidusCusp(ramc, eps, phi, f, above) {
+  let lon = norm(ramc + (above ? 30 : 210));
+  for (let k = 0; k < 60; k++) {
+    const dec = Math.asin(Math.sin(eps) * Math.sin(lon * D2R));
+    const ad = Math.asin(Math.max(-1, Math.min(1, Math.tan(phi) * Math.tan(dec)))) / D2R;
+    const ra = above ? ramc + f * (90 + ad) : ramc + 180 - f * (90 - ad);
+    const next = raToLon(ra, eps);
+    if (Math.abs(((next - lon) + 540) % 360 - 180) < 1e-9) return next;
+    lon = next;
+  }
+  return lon;
+}
+function computeHouses(jdUT, lat, lon, system) {
+  const { ramc, eps, asc, mc } = angles(jdUT, lat, lon);
+  if (system === "placidus" && Math.abs(lat) >= 66) system = "porphyry";
+  let cusps;
+  if (system === "whole_sign") { const f = Math.floor(asc / 30) * 30; cusps = [...Array(12)].map((_, i) => norm(f + 30 * i)); }
+  else if (system === "equal") cusps = [...Array(12)].map((_, i) => norm(asc + 30 * i));
+  else if (system === "porphyry") {
+    const ic = norm(mc + 180), q1 = norm(ic - asc), q2 = norm(asc + 180 - ic);
+    const c = [asc, asc + q1 / 3, asc + 2 * q1 / 3, ic, ic + q2 / 3, ic + 2 * q2 / 3].map(norm);
+    cusps = [...c, ...c.map((x) => norm(x + 180))];
+  } else {
+    const phi = lat * D2R;
+    const c11 = placidusCusp(ramc, eps, phi, 1 / 3, true), c12 = placidusCusp(ramc, eps, phi, 2 / 3, true);
+    const c2 = placidusCusp(ramc, eps, phi, 2 / 3, false), c3 = placidusCusp(ramc, eps, phi, 1 / 3, false);
+    const first = [asc, c2, c3, norm(mc + 180), norm(c11 + 180), norm(c12 + 180)];
+    cusps = [...first, ...first.map((x) => norm(x + 180))];
+  }
+  return { system, cusps, asc, mc };
+}
+function houseOf(h, lon) {
+  for (let i = 0; i < 12; i++) {
+    const a = h.cusps[i], b = h.cusps[(i + 1) % 12];
+    if (norm(lon - a) < norm(b - a)) return i + 1;
+  }
+  return 12;
+}
+
+// local wall time in an IANA zone -> UTC milliseconds
+function zonedToUTC(dateStr, timeStr, tz) {
+  const [y, mo, d] = dateStr.split("-").map(Number), [h, mi] = timeStr.split(":").map(Number);
+  const guess = Date.UTC(y, mo - 1, d, h, mi);
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const offsetAt = (ms) => {
+    const p = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second) - ms;
+  };
+  let utc = guess - offsetAt(guess);
+  utc = guess - offsetAt(utc); // second pass settles DST edges
+  return utc;
+}
+
+// --- chart state ----------------------------------------------------------
+const EXAMPLE = { date: "1990-06-15", time: "14:30", tz: "America/Chicago", lat: 41.88, lon: -87.63, sys: "placidus" };
+let chart = null, isExample = true, houseOfFrame = [];
+function setChart(c, example) {
+  const jd = zonedToUTC(c.date, c.time, c.tz) / 86400000 + 2440587.5;
+  chart = computeHouses(jd, c.lat, c.lon, c.sys);
+  isExample = example;
+  houseOfFrame = DATA.moon.map((m) => houseOf(chart, m));
+  el("exampleTag").hidden = !example;
+  const sysName = { placidus: "Placidus", whole_sign: "Whole Sign", equal: "Equal", porphyry: "Porphyry" }[chart.system];
+  el("chartInfo").textContent = `${example ? "Example chart" : "Your chart"}, ${sysName}${chart.system !== c.sys ? " (Placidus is undefined this far north or south)" : ""}; ASC ${place(chart.asc)}`;
+  for (const [id, v] of [["bDate", c.date], ["bTime", c.time], ["bTz", c.tz], ["bLat", c.lat], ["bLon", c.lon], ["bSys", c.sys]]) el(id).value = v;
+}
+const place = (lon) => `${SIGNS[Math.floor(norm(lon) / 30)]} ${Math.floor(norm(lon) % 30)}°`;
+
+// --- drawing --------------------------------------------------------------
+const el = (id) => document.getElementById(id);
+let palette = "elements", f = 98, playing = !reduced, rate = 12, dpr = 1;
+const signColor = (i) => DATA.palettes[palette][i];
+const houseColor = (h) => DATA.palettes[palette][h - 1];   // natural sign of the house
+const lerpAngle = (a, b, u) => a + (((b - a + 540) % 360) - 180) * u;
+const moonAt = (fi) => { const i = Math.max(0, Math.min(N - 1, Math.floor(fi))), j = Math.min(N - 1, i + 1); return norm(lerpAngle(DATA.moon[i], DATA.moon[j], fi - i)); };
+
+const wheel = el("wheel"), wctx = wheel.getContext("2d");
+let W = 0;
+// the Ascendant sits at nine o'clock; longitude runs counterclockwise
+const ang = (lon) => -(180 + (lon - (chart ? chart.asc : 0))) * D2R;
+const pt = (lon, r, c) => [c + r * Math.cos(ang(lon)), c + r * Math.sin(ang(lon))];
+const arc = (ctx, c, r, a, b) => ctx.arc(c, c, r, ang(a), ang(b), true);
+
+function drawWheel(moon) {
+  const ctx = wctx, c = W / 2, R = c - 4;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, W);
+  const zIn = R * 0.84, hOut = R * 0.80, hIn = R * 0.52;
+  const moonSign = Math.floor(moon / 30), moonHouse = houseOf(chart, moon);
+  // signs
+  for (let k = 0; k < 12; k++) {
+    const col = signColor(k), on = k === moonSign;
+    ctx.beginPath(); arc(ctx, c, R, k * 30, k * 30 + 30); arc(ctx, c, zIn, k * 30 + 30, k * 30); ctx.closePath();
+    ctx.fillStyle = rgba(col, on ? 0.62 : 0.16); ctx.fill();
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.stroke();
+    const [gx, gy] = pt(k * 30 + 15, (R + zIn) / 2, c);
+    ctx.fillStyle = on ? C.ink : C.fg; ctx.font = `${Math.max(11, R * 0.06)}px ${css("--body")}`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  // houses, colored by their natural signs
+  for (let h = 1; h <= 12; h++) {
+    const a = chart.cusps[h - 1], b = chart.cusps[h % 12], span = norm(b - a), on = h === moonHouse;
+    ctx.beginPath(); arc(ctx, c, hOut, a, a + span); arc(ctx, c, hIn, a + span, a); ctx.closePath();
+    ctx.fillStyle = rgba(houseColor(h), on ? 0.55 : 0.10); ctx.fill();
+    const [x0, y0] = pt(a, hIn, c), [x1, y1] = pt(a, R, c);
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+    const angle = h === 1 || h === 4 || h === 7 || h === 10;
+    ctx.strokeStyle = angle ? "rgba(238,241,248,0.6)" : "rgba(139,145,168,0.35)"; ctx.lineWidth = angle ? 1.5 : 1; ctx.stroke();
+    const [lx, ly] = pt(a + span / 2, (hOut + hIn) / 2, c);
+    ctx.fillStyle = on ? C.fg : C.muted; ctx.font = `${Math.max(10, R * 0.05)}px ${css("--mono")}`;
+    ctx.fillText(String(h), lx, ly);
+  }
+  for (const [lon, label] of [[chart.asc, "ASC"], [chart.mc, "MC"]]) {
+    const [tx, ty] = pt(lon, hIn - R * 0.07, c);
+    ctx.fillStyle = C.silver; ctx.font = `600 ${Math.max(10, R * 0.045)}px ${css("--body")}`; ctx.fillText(label, tx, ty);
+  }
+  // center: the two bulbs, sign outside and house inside
+  const bR = hIn - R * 0.14;
+  ctx.beginPath(); ctx.arc(c, c, bR, 0, Math.PI * 2); ctx.fillStyle = C.ink; ctx.fill();
+  for (const [col, r] of [[signColor(moonSign), bR], [houseColor(moonHouse), bR * 0.55]]) {
+    const g = ctx.createRadialGradient(c, c, 0, c, c, r);
+    g.addColorStop(0, rgba(col, 0.95)); g.addColorStop(0.6, rgba(col, 0.6)); g.addColorStop(1, rgba(col, 0.08));
+    ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  }
+  // the Moon's hand
+  const [hx0, hy0] = pt(moon, bR + 4, c), [hx1, hy1] = pt(moon, R, c);
+  ctx.beginPath(); ctx.moveTo(hx0, hy0); ctx.lineTo(hx1, hy1); ctx.strokeStyle = "rgba(238,241,248,0.85)"; ctx.lineWidth = 1.5; ctx.stroke();
+  const [mx, my] = pt(moon, R * 0.92 + 0.5, c);
+  ctx.beginPath(); ctx.arc(mx, my, Math.max(5, R * 0.035), 0, Math.PI * 2); ctx.fillStyle = C.silver; ctx.fill();
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+const strip = el("strip"), sctx = strip.getContext("2d");
+let SW = 0, SH = 0;
+const GUT = 64, ROW = 26;
+function drawStrip() {
+  const ctx = sctx;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = C.ink2; ctx.fillRect(0, 0, SW, SH);
+  const plotW = SW - GUT - 10, x = (i) => GUT + plotW * i / N, colW = plotW / N + 0.6;
+  ctx.font = `12px ${css("--body")}`; ctx.textBaseline = "middle"; ctx.textAlign = "right"; ctx.fillStyle = C.muted;
+  ctx.fillText("Sign", GUT - 10, 10 + ROW / 2); ctx.fillText("House", GUT - 10, 10 + ROW + 8 + ROW / 2);
+  for (let i = 0; i < N; i++) {
+    ctx.fillStyle = rgba(signColor(Math.floor(DATA.moon[i] / 30)), 0.85); ctx.fillRect(x(i), 10, colW, ROW);
+    ctx.fillStyle = rgba(houseColor(houseOfFrame[i]), 0.85); ctx.fillRect(x(i), 10 + ROW + 8, colW, ROW);
+  }
+  const bottom = 10 + 2 * ROW + 8;
+  ctx.textAlign = "center"; ctx.fillStyle = C.muted; ctx.font = `11px ${css("--mono")}`;
+  for (let d = 0; d <= 28; d += 7) {
+    const i = Math.min(N - 1, d * 48), dt = new Date(start.getTime() + i * DATA.stepMin * 60000);
+    ctx.fillText(dt.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }), Math.min(SW - 24, Math.max(GUT + 18, x(i))), bottom + 14);
+  }
+  const px = x(f);
+  ctx.fillStyle = C.silver; ctx.fillRect(px - 0.75, 4, 1.5, bottom - 2);
+  ctx.beginPath(); ctx.moveTo(px - 5, 2); ctx.lineTo(px + 5, 2); ctx.lineTo(px, 8); ctx.closePath(); ctx.fill();
+}
+
+const fmtWhen = (i) => new Date(start.getTime() + i * DATA.stepMin * 60000)
+  .toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
+function nextChange(i, keyOf) {
+  const here = keyOf(i);
+  for (let j = i + 1; j < N; j++) if (keyOf(j) !== here) return j;
+  return -1;
+}
+function swatch(id, col) {
+  el(id).style.backgroundColor = rgba(col, 0.92);
+  el(id).style.boxShadow = `0 0 26px ${rgba(col, 0.45)}`;
+}
+function updatePanel(moon) {
+  const i = Math.max(0, Math.min(N - 1, Math.floor(f)));
+  const dt = new Date(start.getTime() + f * DATA.stepMin * 60000);
+  el("date").textContent = dt.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  el("time").textContent = dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  const s = Math.floor(moon / 30), h = houseOf(chart, moon);
+  swatch("signSwatch", signColor(s)); swatch("houseSwatch", houseColor(h));
+  el("signName").textContent = SIGNS[s];
+  el("signWhy").textContent = palette === "elements" ? DATA.element[s][0].toUpperCase() + DATA.element[s].slice(1) : "Golden Dawn spectrum";
+  el("houseName").textContent = `${ORD[h - 1]} house`;
+  el("houseWhy").textContent = `Colored as ${SIGNS[h - 1]}${palette === "elements" ? ", " + DATA.element[h - 1] : ""}`;
+  el("moonPos").textContent = place(moon);
+  const ns = nextChange(i, (j) => Math.floor(DATA.moon[j] / 30));
+  el("nextSign").textContent = ns < 0 ? "after this month" : `${SIGNS[Math.floor(DATA.moon[ns] / 30)]}, ${fmtWhen(ns)}`;
+  const nh = nextChange(i, (j) => houseOfFrame[j]);
+  el("nextHouse").textContent = nh < 0 ? "after this month" : `${ORD[houseOfFrame[nh] - 1]}, ${fmtWhen(nh)}`;
+}
+
+function render() { const m = moonAt(f); drawWheel(m); drawStrip(); updatePanel(m); }
+function size() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = wheel.clientWidth; wheel.width = W * dpr; wheel.height = W * dpr;
+  SW = strip.clientWidth; SH = strip.clientHeight; strip.width = SW * dpr; strip.height = SH * dpr;
+}
+
+// --- controls -------------------------------------------------------------
+const playBtn = el("play");
+function setPlaying(p) { playing = p; playBtn.textContent = p ? "Pause" : "Play"; playBtn.setAttribute("aria-pressed", String(p)); }
+playBtn.addEventListener("click", () => setPlaying(!playing));
+el("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+el("palette").addEventListener("change", (e) => { palette = e.target.value; render(); });
+let dragging = false;
+const scrubAt = (cx) => { const r = strip.getBoundingClientRect(); f = Math.max(0, Math.min(N - 1, (cx - r.left - GUT) / (SW - GUT - 10) * N)); render(); };
+strip.addEventListener("pointerdown", (e) => { dragging = true; strip.setPointerCapture(e.pointerId); setPlaying(false); scrubAt(e.clientX); });
+strip.addEventListener("pointermove", (e) => { if (dragging) scrubAt(e.clientX); });
+strip.addEventListener("pointerup", () => { dragging = false; });
+window.addEventListener("keydown", (e) => {
+  if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target.tagName)) return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault(); setPlaying(false); f = Math.max(0, Math.min(N - 1, Math.round(f) + (e.key === "ArrowRight" ? 1 : -1))); render();
+  }
+});
+
+try { for (const tz of Intl.supportedValuesOf("timeZone")) { const o = document.createElement("option"); o.value = tz; el("tzList").append(o); } } catch (_) {}
+const STORE = "sublunary.chart";
+el("chartForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const c = { date: el("bDate").value, time: el("bTime").value, tz: el("bTz").value.trim(),
+              lat: parseFloat(el("bLat").value), lon: parseFloat(el("bLon").value), sys: el("bSys").value };
+  let msg = "";
+  if (!c.date || !c.time) msg = "Enter a birth date and time.";
+  else if (!(Math.abs(c.lat) <= 90) || !(Math.abs(c.lon) <= 180)) msg = "Latitude must be within ±90 and longitude within ±180.";
+  else { try { new Intl.DateTimeFormat("en-US", { timeZone: c.tz }); } catch (_) { msg = `"${c.tz}" isn't a time zone name. Try one like Europe/London.`; } }
+  el("formErr").textContent = msg;
+  if (msg) return;
+  setChart(c, false); render();
+  try { localStorage.setItem(STORE, JSON.stringify(c)); } catch (_) {}
+});
+el("useExample").addEventListener("click", () => {
+  try { localStorage.removeItem(STORE); } catch (_) {}
+  el("formErr").textContent = ""; setChart(EXAMPLE, true); render();
+});
+
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (_) {}
+setChart(saved || EXAMPLE, !saved);
+new ResizeObserver(() => { size(); render(); }).observe(document.querySelector(".wrap"));
+size(); setPlaying(playing); render();
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(render);
+let last = performance.now();
+(function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { f += rate * dt; if (f >= N - 1) f = 0; render(); }
+  requestAnimationFrame(tick);
+})(performance.now());
+</script>

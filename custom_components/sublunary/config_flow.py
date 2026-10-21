@@ -40,8 +40,8 @@ def _schema(default_tz: str) -> vol.Schema:
 def _validate(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str]]:
     data = {**user_input, CONF_TICK_MINUTES: int(user_input[CONF_TICK_MINUTES])}
     if not data.get(CONF_BIRTH):
-        for k in (CONF_BIRTH, CONF_BIRTH_LOCATION):
-            data.pop(k, None)
+        for k in (CONF_BIRTH, CONF_BIRTH_LOCATION, CONF_BIRTH_TZ, CONF_HOUSE_SYSTEM):
+            data.pop(k, None)  # no natal chart: keep none of its fields
         return data, {}
     try:
         datetime.fromisoformat(data[CONF_BIRTH])

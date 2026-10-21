@@ -57,6 +57,8 @@ class Upcoming:
     aspect: str | None = None
     in_sign: bool | None = None
     tone: str | None = None
+    void_starts: datetime | None = None   # set when a (modern) void comes first
+    void_ends: datetime | None = None
 
 
 @dataclass
@@ -199,13 +201,21 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             for c in st.contacts
         ]
 
-        nxt_perf = min((c for c in self._timeline.contacts if c.perfect_jd > now),
+        # the aspect after the one being shown now; a void may come first
+        shown = st.dominant
+        nxt_perf = min((c for c in self._timeline.contacts if c.perfect_jd > now and c is not shown),
                        key=lambda c: c.perfect_jd, default=None)
         next_aspect = None if nxt_perf is None else Upcoming(
             at=to_dt(nxt_perf.perfect_jd), body=nxt_perf.body,
             aspect=PTOLEMAIC[int(nxt_perf.angle)],
             in_sign=nxt_perf.perfect_jd <= st.sign_end_jd,
             tone="warm" if nxt_perf.traditional else "cool")
+        if next_aspect is not None:
+            void_first = next((p for p in self._periods.get("modern", [])
+                               if now <= p.start_jd < nxt_perf.perfect_jd), None)
+            if void_first is not None:
+                next_aspect.void_starts = to_dt(void_first.start_jd)
+                next_aspect.void_ends = to_dt(void_first.end_jd)
 
         # walk discrete edges until the dominant contact (body, aspect, in/across) differs
         def key(state):

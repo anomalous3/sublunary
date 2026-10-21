@@ -25,23 +25,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: SublunaryConfigEntry,
 
 
 class NextAspectSensor(SublunaryEntity, SensorEntity):
-    """The next body the Moon perfects an aspect with (any of Sun through Pluto)."""
+    """The aspect after the one being shown now, or "void" if the Moon goes void first
+    (modern definition); the aspect after the void is still in the attributes."""
 
     _attr_device_class = SensorDeviceClass.ENUM
-    _attr_options = ["none", *BODIES]
+    _attr_options = ["none", "void", *BODIES]
     _attr_icon = "mdi:debug-step-over"
 
     @property
     def native_value(self):
         n = self.coordinator.data.next_aspect
-        return n.body if n else "none"
+        if not n:
+            return "none"
+        return "void" if n.void_starts else n.body
 
     @property
     def extra_state_attributes(self):
         n = self.coordinator.data.next_aspect
         if not n:
             return {}
-        return {"aspect": n.aspect, "perfects": n.at.isoformat(), "in_sign": n.in_sign, "tone": n.tone}
+        attrs = {"aspect": n.aspect, "perfects": n.at.isoformat(), "in_sign": n.in_sign, "tone": n.tone}
+        if n.void_starts:
+            attrs = {"void_starts": n.void_starts.isoformat(), "void_ends": n.void_ends.isoformat(),
+                     "then": n.body, **attrs}
+        return attrs
 
 
 class NextChangeSensor(SublunaryEntity, SensorEntity):

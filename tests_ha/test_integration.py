@@ -56,9 +56,9 @@ async def test_entities_tonight(hass):
     # next change: the 12:57 ingress, where the Neptune square becomes in-sign
     assert nxt_c.state.startswith("2026-10-16T12:57")
     assert nxt_c.attributes["to"] == "neptune" and nxt_c.attributes["in_sign"] is True
-    assert nxt_a.state == "neptune" and nxt_a.attributes["aspect"] == "square"
-    assert nxt_a.attributes["perfects"].startswith("2026-10-16T17:53")
-    assert nxt_a.attributes["in_sign"] is False   # perfects after the Moon leaves Sagittarius
+    # Neptune is what's shown now, so next aspect is the one after it: Venus's sextile
+    assert nxt_a.state == "venus" and nxt_a.attributes["aspect"] == "sextile"
+    assert "void_starts" not in nxt_a.attributes
     assert dom.state == "neptune"
     assert dom.attributes["in_sign"] is False and dom.attributes["tone"] == "cool"
     assert trad.state == "on" and trad.attributes["last_aspect"] == "sextile sun"
@@ -87,16 +87,20 @@ async def test_config_flow(hass):
     assert result["options"] == {"tick_minutes": 10}
 
 
-async def test_blueprint_parses(hass):
-    bp = Blueprint(load_yaml(ROOT / "blueprints/automation/sublunary/consensus_light.yaml"),
+@pytest.mark.parametrize("name,sensor_input,sensor", [
+    ("consensus_light.yaml", "contact_sensor", "sensor.sublunary_dominant_contact"),
+    ("planet_colors.yaml", "contact_sensor", "sensor.sublunary_dominant_contact"),
+    ("sign_colors.yaml", "sign_sensor", "sensor.sublunary_moon_sign"),
+    ("house_colors.yaml", "house_sensor", "sensor.sublunary_moon_house"),
+])
+async def test_blueprint_parses(hass, name, sensor_input, sensor):
+    bp = Blueprint(load_yaml(ROOT / "blueprints/automation/sublunary" / name),
                    expected_domain="automation", schema=BLUEPRINT_SCHEMA)
-    assert set(bp.inputs) == {"contact_sensor", "target_light", "warm_color", "cool_color", "transition"}
+    assert {sensor_input, "lights", "power", "transition"} <= set(bp.inputs)
     inputs = BlueprintInputs(bp, {"use_blueprint": {"path": "x.yaml", "input": {
-        "contact_sensor": "sensor.sublunary_dominant_contact",
-        "target_light": {"entity_id": "light.bedroom"}}}})
+        sensor_input: sensor, "lights": ["light.bedroom"]}}})
     inputs.validate()
-    config = inputs.async_substitute()
-    validated = await async_validate_config_item(hass, "test", config)
+    validated = await async_validate_config_item(hass, "test", inputs.async_substitute())
     assert validated is not None and validated.validation_error is None, validated.validation_error
 
 
@@ -185,7 +189,7 @@ async def test_clock_stops_at_ephemeris_edge(hass, freezer):
     await hass.async_block_till_done()
 
 
-async def _run_blueprint(hass, name, inputs):
+async def _run_blueprint(hass, name, inputs, light_state="on", name_override=None):
     """Instantiate an automation from one of our blueprints, run it, return light calls."""
     import shutil
     from homeassistant.setup import async_setup_component
@@ -199,9 +203,11 @@ async def _run_blueprint(hass, name, inputs):
     assert await async_setup_component(hass, "automation", {"automation": [{
         "id": "sublunary_test", "alias": "Sublunary planet colors",
         "use_blueprint": {"path": f"sublunary/{name}", "input": {
-            "contact_sensor": "sensor.sublunary_dominant_contact",
-            "target_light": {"entity_id": "light.bedroom"}, **inputs}}}]})
+            **({"sign_sensor": "sensor.sublunary_moon_sign"} if name_override == "sign_sensor"
+               else {"contact_sensor": "sensor.sublunary_dominant_contact"}),
+            "lights": ["light.bedroom"], **inputs}}}]})
     await hass.async_block_till_done()
+    hass.states.async_set("light.bedroom", light_state)
     on.clear(); off.clear()
     await hass.services.async_call("automation", "trigger",
                                    {"entity_id": "automation.sublunary_planet_colors"}, blocking=True)
@@ -239,4 +245,54 @@ async def test_next_change_into_void(hass):
     assert dom.state == "sun" and dom.attributes["aspect"] == "sextile"
     assert nxt.state.startswith("2026-10-15T21:55")
     assert nxt.attributes["to"] == "none" and nxt.attributes["aspect"] is None
+    # after the Sun sextile the Moon goes void before her next aspect
+    na = hass.states.get("sensor.sublunary_next_aspect")
+    assert na.state == "void"
+    assert na.attributes["void_starts"].startswith("2026-10-15T21:55")
+    assert na.attributes["void_ends"].startswith("2026-10-16T12:57")
+    assert na.attributes["then"] == "neptune" and na.attributes["aspect"] == "square"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_power_only_when_on_leaves_off_lights_alone(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "planet_colors.yaml", {}, light_state="off")
+    assert not on and not off
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-15 21:30:00+00:00")
+async def test_sun_is_warm_white(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "planet_colors.yaml", {})
+    assert len(on) == 1 and on[0].data["color_temp_kelvin"] == 2700 and "rgb_color" not in on[0].data
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-15 23:00:00+00:00")   # between the Sun sextile and Neptune: void
+async def test_void_dim_moonlight_and_full_control_off(hass):
+    entry = await _setup(hass)
+    assert hass.states.get("sensor.sublunary_dominant_contact").state == "none"
+    on, off = await _run_blueprint(hass, "planet_colors.yaml", {})
+    assert not off and len(on) == 1
+    assert on[0].data["color_temp_kelvin"] == 4000 and on[0].data["brightness_pct"] == 3
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-15 23:00:00+00:00")
+async def test_void_off_under_full_control(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "consensus_light.yaml",
+                                   {"power": "full_control", "void_style": "off"}, light_state="off")
+    assert not on and len(off) == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_sign_colors_elements(hass):
+    entry = await _setup(hass)
+    on, off = await _run_blueprint(hass, "sign_colors.yaml", {}, name_override="sign_sensor")
+    assert len(on) == 1 and list(on[0].data["rgb_color"]) == [255, 60, 10]   # Sagittarius: fire
+    assert on[0].data["brightness_pct"] == 70
     assert await hass.config_entries.async_unload(entry.entry_id)

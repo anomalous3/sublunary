@@ -9,14 +9,23 @@
           "birth": "Birth date and time (local)",
           "birth_timezone": "Birth time zone",
           "birth_location": "Birth place",
-          "house_system": "House system"
+          "house_system": "House system",
+          "birth_place": "Birth place"
         },
         "data_description": {
           "tick_minutes": "How often contact depth updates between discrete events.",
           "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
           "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
-          "birth_location": "Required when a birth time is set.",
-          "house_system": "Placidus falls back to Porphyry above about 66° latitude."
+          "birth_location": "Filled in by the birth place lookup, or pick it on the map.",
+          "house_system": "Placidus falls back to Porphyry above about 66° latitude.",
+          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map."
+        }
+      },
+      "place": {
+        "title": "Which birth place?",
+        "description": "Pick the city you were born in. Cities of 5,000 people or more, from GeoNames.",
+        "data": {
+          "place": "Birth place"
         }
       }
     },
@@ -25,7 +34,8 @@
     },
     "error": {
       "invalid_birth": "That birth date and time couldn't be read.",
-      "birth_location_required": "Pick a birth place on the map to use a birth time."
+      "birth_location_required": "Pick a birth place on the map to use a birth time.",
+      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map."
     }
   },
   "options": {
@@ -37,20 +47,30 @@
           "birth": "Birth date and time (local)",
           "birth_timezone": "Birth time zone",
           "birth_location": "Birth place",
-          "house_system": "House system"
+          "house_system": "House system",
+          "birth_place": "Birth place"
         },
         "data_description": {
           "tick_minutes": "How often contact depth updates between discrete events.",
           "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
           "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
-          "birth_location": "Required when a birth time is set.",
-          "house_system": "Placidus falls back to Porphyry above about 66° latitude."
+          "birth_location": "Filled in by the birth place lookup, or pick it on the map.",
+          "house_system": "Placidus falls back to Porphyry above about 66° latitude.",
+          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map."
+        }
+      },
+      "place": {
+        "title": "Which birth place?",
+        "description": "Pick the city you were born in. Cities of 5,000 people or more, from GeoNames.",
+        "data": {
+          "place": "Birth place"
         }
       }
     },
     "error": {
       "invalid_birth": "That birth date and time couldn't be read.",
-      "birth_location_required": "Pick a birth place on the map to use a birth time."
+      "birth_location_required": "Pick a birth place on the map to use a birth time.",
+      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map."
     }
   },
   "entity": {

@@ -31,8 +31,9 @@ On first setup it downloads NASA JPL's `de440s.bsp` ephemeris (~32 MB, covers
 ## Natal houses (optional)
 
 In Sublunary's options (Settings → Devices & services → Sublunary →
-Configure), add your birth date and time, the time zone you were born in, your
-birth place, and a house system (Placidus, Whole Sign, Equal or Porphyry).
+Configure), add your birth date and time and type your birth place: it's looked
+up offline among cities of 5,000+ and fills in the coordinates and the time
+zone you were born in (or pick the place on the map). Then choose a house system (Placidus, Whole Sign, Equal or Porphyry).
 That adds `sensor.sublunary_moon_house`: the natal house the Moon is passing
 through, with the next house change, your Ascendant, MC and cusps. Birth data
 stays in your Home Assistant's own config. Placidus falls back to Porphyry
@@ -157,4 +158,4 @@ fails if the two drift apart.
 
 ## License
 
-MIT. Ephemeris data: NASA JPL. Orbs: William Lilly, who would have had opinions.
+MIT. Ephemeris data: NASA JPL. City data: [GeoNames](https://www.geonames.org/), CC BY 4.0 (`scripts/build_cities.py`). Orbs: William Lilly, who would have had opinions.

@@ -65,6 +65,10 @@
   .chart .actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
   .chart .note { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12.5px; }
   .chart .err { color: #ff9b8a; }
+  .results { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .results:empty { display: none; }
+  .results button { width: 100%; text-align: left; background: var(--ink); font-size: 13.5px; }
+  .results .status { color: var(--muted); font-size: 12.5px; }
   .example { font-size: 12px; font-family: var(--mono); color: var(--ink); background: var(--silver); border-radius: 999px; padding: 1px 9px; }
 
   .month { display: grid; gap: 10px; }
@@ -108,6 +112,10 @@
         <form id="chartForm" novalidate>
           <label for="bDate">Birth date<input id="bDate" type="date" required></label>
           <label for="bTime">Birth time (local)<input id="bTime" type="time" required></label>
+          <label class="wide" for="bPlace">Birth place
+            <input id="bPlace" placeholder="Chicago, or Springfield, IL" autocomplete="off" aria-describedby="placeHelp">
+          </label>
+          <ul class="wide results" id="placeResults" aria-live="polite"></ul>
           <label class="wide" for="bTz">Time zone where you were born<input id="bTz" list="tzList" placeholder="America/Chicago" autocomplete="off" required></label>
           <datalist id="tzList"></datalist>
           <label for="bLat">Latitude (north +)<input id="bLat" type="number" step="0.0001" min="-90" max="90" required></label>
@@ -121,7 +129,7 @@
             </select>
           </label>
           <div class="actions"><button type="submit">Use this chart</button><button type="button" id="useExample">Back to the example</button><span class="err" id="formErr" role="alert"></span></div>
-          <p class="note">Computed in your browser and remembered only in this browser. The example is a test chart: 14:30, 15 June 1990, Chicago.</p>
+          <p class="note" id="placeHelp">Choosing a place fills in its coordinates and time zone. Places are cities of 5,000+ from GeoNames (CC BY 4.0), searched in your browser; for a smaller town, enter its coordinates. Your chart is computed and remembered only in this browser. The example is a test chart: 14:30, 15 June 1990, Chicago.</p>
         </form>
       </details>
     </aside>
@@ -233,7 +241,7 @@ function zonedToUTC(dateStr, timeStr, tz) {
 }
 
 // --- chart state ----------------------------------------------------------
-const EXAMPLE = { date: "1990-06-15", time: "14:30", tz: "America/Chicago", lat: 41.88, lon: -87.63, sys: "placidus" };
+const EXAMPLE = { date: "1990-06-15", time: "14:30", place: "Chicago, IL, US", tz: "America/Chicago", lat: 41.88, lon: -87.63, sys: "placidus" };
 let chart = null, isExample = true, houseOfFrame = [];
 function setChart(c, example) {
   const jd = zonedToUTC(c.date, c.time, c.tz) / 86400000 + 2440587.5;
@@ -243,7 +251,7 @@ function setChart(c, example) {
   el("exampleTag").hidden = !example;
   const sysName = { placidus: "Placidus", whole_sign: "Whole Sign", equal: "Equal", porphyry: "Porphyry" }[chart.system];
   el("chartInfo").textContent = `${example ? "Example chart" : "Your chart"}, ${sysName}${chart.system !== c.sys ? " (Placidus is undefined this far north or south)" : ""}; ASC ${place(chart.asc)}`;
-  for (const [id, v] of [["bDate", c.date], ["bTime", c.time], ["bTz", c.tz], ["bLat", c.lat], ["bLon", c.lon], ["bSys", c.sys]]) el(id).value = v;
+  for (const [id, v] of [["bDate", c.date], ["bTime", c.time], ["bPlace", c.place || ""], ["bTz", c.tz], ["bLat", c.lat], ["bLon", c.lon], ["bSys", c.sys]]) el(id).value = v;
 }
 const place = (lon) => `${SIGNS[Math.floor(norm(lon) / 30)]} ${Math.floor(norm(lon) % 30)}°`;
 
@@ -393,7 +401,7 @@ try { for (const tz of Intl.supportedValuesOf("timeZone")) { const o = document.
 const STORE = "sublunary.chart";
 el("chartForm").addEventListener("submit", (e) => {
   e.preventDefault();
-  const c = { date: el("bDate").value, time: el("bTime").value, tz: el("bTz").value.trim(),
+  const c = { date: el("bDate").value, time: el("bTime").value, place: el("bPlace").value.trim(), tz: el("bTz").value.trim(),
               lat: parseFloat(el("bLat").value), lon: parseFloat(el("bLon").value), sys: el("bSys").value };
   let msg = "";
   if (!c.date || !c.time) msg = "Enter a birth date and time.";
@@ -408,6 +416,51 @@ el("useExample").addEventListener("click", () => {
   try { localStorage.removeItem(STORE); } catch (_) {}
   el("formErr").textContent = ""; setChart(EXAMPLE, true); render();
 });
+
+// --- birth place lookup (cities.txt is published beside this page) ------
+const fold = (x) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+let cities = null, citiesLoading = null;
+function loadCities() {
+  citiesLoading ??= fetch("cities.txt").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then((t) => (cities = t.split("\n").filter((l) => l && l[0] !== "#").map((l) => {
+      const [n, cc, a1, la, lo, tz] = l.split("\t"); return [fold(n), n, cc, a1, +la, +lo, tz];
+    })));
+  return citiesLoading;
+}
+function searchCities(q, limit = 8) {
+  const parts = q.split(",").map(fold).filter(Boolean);
+  if (!parts.length || !cities) return [];
+  const [name, ...quals] = parts, exact = [], prefix = [];
+  for (const r of cities) {
+    if (quals.length && !quals.every((x) => x === r[2].toLowerCase() || x === r[3].toLowerCase())) continue;
+    if (r[0] === name) { exact.push(r); if (exact.length >= limit) break; }
+    else if (prefix.length < limit && r[0].startsWith(name)) prefix.push(r);
+  }
+  return [...exact, ...prefix].slice(0, limit);
+}
+const placeLabel = (r) => `${r[1]}, ${r[3] && !/^\d+$/.test(r[3]) ? r[3] + ", " : ""}${r[2]}`;
+const results = el("placeResults");
+function status(text) { results.replaceChildren(Object.assign(document.createElement("li"), { className: "status", textContent: text })); }
+async function showMatches() {
+  const q = el("bPlace").value;
+  if (q.trim().length < 2) { results.replaceChildren(); return; }
+  if (!cities) { status("Loading places…"); try { await loadCities(); } catch (_) { status("Places couldn't load here. Enter coordinates and time zone by hand."); return; } }
+  if (el("bPlace").value !== q) return; // typed on while loading
+  const found = searchCities(q);
+  if (!found.length) { status("No city by that name. Check the spelling, or enter coordinates."); return; }
+  results.replaceChildren(...found.map((r) => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.textContent = `${placeLabel(r)} · ${r[6]}`;
+    b.addEventListener("click", () => {
+      el("bPlace").value = placeLabel(r); el("bLat").value = r[4]; el("bLon").value = r[5]; el("bTz").value = r[6];
+      results.replaceChildren(); el("bLat").focus();
+    });
+    li.append(b); return li;
+  }));
+}
+let placeTimer = 0;
+el("bPlace").addEventListener("focus", () => { loadCities().catch(() => {}); });
+el("bPlace").addEventListener("input", () => { clearTimeout(placeTimer); placeTimer = setTimeout(showMatches, 150); });
 
 let saved = null;
 try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (_) {}

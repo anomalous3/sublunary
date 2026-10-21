@@ -47,6 +47,7 @@ class MoonHouseSensor(SublunaryEntity, SensorEntity):
             return f"{SIGNS[int(lon // 30)].capitalize()} {lon % 30:.2f}"
         return {
             "house_system": hs.system,
+            "birth_place": self.coordinator.config_entry.options.get("birth_place"),
             "next_house": d.next_house,
             "next_house_at": d.next_house_at.isoformat() if d.next_house_at else None,
             "ascendant": place(hs.ascendant),

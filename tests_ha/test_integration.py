@@ -343,3 +343,27 @@ async def test_config_flow_natal_validation(hass):
         "birth_location": {"latitude": 41.88, "longitude": -87.63}, "house_system": "whole_sign"})
     assert r["type"] is FlowResultType.CREATE_ENTRY
     assert r["options"]["house_system"] == "whole_sign" and r["options"]["birth_timezone"] == "America/Chicago"
+
+
+async def test_birth_place_lookup_flow(hass):
+    r = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {
+        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_place": "Nowhereville Xyz"})
+    assert r["type"] is FlowResultType.FORM and r["errors"] == {"birth_place": "place_not_found"}
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {
+        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_place": "springfield, il", "house_system": "placidus"})
+    assert r["type"] is FlowResultType.FORM and r["step_id"] == "place"
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"place": "0"})
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    o = r["options"]
+    assert o["birth_timezone"] == "America/Chicago"
+    assert abs(o["birth_location"]["latitude"] - 39.80) < 0.01 and abs(o["birth_location"]["longitude"] + 89.64) < 0.01
+    assert o["birth_place"].startswith("Springfield, IL, US")
+
+
+async def test_place_search_accents_and_order():
+    from custom_components.sublunary import places
+    sp = places.search("sao paulo")
+    assert sp and sp[0]["name"] == "São Paulo" and sp[0]["timezone"] == "America/Sao_Paulo"
+    ch = places.search("Chicago")
+    assert ch[0]["country"] == "US" and ch[0]["admin1"] == "IL"   # most populous first

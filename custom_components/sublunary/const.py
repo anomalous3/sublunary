@@ -6,6 +6,7 @@ CONF_TICK_MINUTES = "tick_minutes"
 CONF_BIRTH = "birth"                  # local date and time, "YYYY-MM-DD HH:MM:SS"
 CONF_BIRTH_TZ = "birth_timezone"      # IANA zone, for historical offsets and DST
 CONF_BIRTH_LOCATION = "birth_location"  # {"latitude": .., "longitude": ..}
+CONF_BIRTH_PLACE = "birth_place"      # a name, looked up offline (places.py); stored as the chosen label
 CONF_HOUSE_SYSTEM = "house_system"
 HOUSE_SYSTEMS = ("placidus", "whole_sign", "equal", "porphyry")
 

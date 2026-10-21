@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import math
+import zoneinfo
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -22,11 +23,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_TICK_MINUTES, DEFAULT_TICK_MINUTES, DEFINITIONS,
+    CONF_BIRTH, CONF_BIRTH_LOCATION, CONF_BIRTH_TZ, CONF_HOUSE_SYSTEM, CONF_TICK_MINUTES, DEFAULT_TICK_MINUTES, DEFINITIONS,
     DOMAIN, HORIZON_DAYS, PHASE_NAMES, REBUILD_MARGIN_DAYS,
 )
 from .engine.ephemeris import MODERN, TRADITIONAL, Ephemeris
-from .engine.events import PTOLEMAIC, lunar_phases
+from .engine import houses as house_lib
+from .engine.events import PTOLEMAIC, SIGNS, find_crossings, lunar_phases
 from .engine.moieties import lilly_void
 from .engine.timeline import Timeline
 from .engine.voc import void_of_course
@@ -86,9 +88,23 @@ class Snapshot:
     dominant: ContactInfo | None
     contacts: list[ContactInfo] = field(default_factory=list)
     voids: dict[str, VoidInfo] = field(default_factory=dict)
+    house: int | None = None              # Moon's natal house, when a natal chart is set
+    next_house: int | None = None
+    next_house_at: datetime | None = None
     next_aspect: Upcoming | None = None   # next exact perfection, any body
     next_change: Upcoming | None = None   # next time the dominant contact changes
     paused: bool = False
+
+
+def _parse_natal(options) -> tuple[datetime, float, float, str] | None:
+    """Birth moment in UTC, latitude, longitude, house system; None without a natal chart."""
+    birth, loc = options.get(CONF_BIRTH), options.get(CONF_BIRTH_LOCATION)
+    if not birth or not loc:
+        return None
+    tz = zoneinfo.ZoneInfo(options.get(CONF_BIRTH_TZ) or "UTC")
+    local = datetime.fromisoformat(birth).replace(tzinfo=tz)
+    return (local.astimezone(timezone.utc), float(loc["latitude"]), float(loc["longitude"]),
+            options.get(CONF_HOUSE_SYSTEM, "placidus"))
 
 
 class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
@@ -97,6 +113,9 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         super().__init__(hass, _LOGGER, name=DOMAIN, config_entry=entry,
                          update_interval=timedelta(minutes=tick))
         self.definitions = DEFINITIONS
+        self.natal = _parse_natal(entry.options)
+        self.houses: house_lib.Houses | None = None
+        self._house_entries: list[tuple[float, int]] = []
         self._data_dir = hass.config.path(DOMAIN)
         self._eph: Ephemeris | None = None
         self._timeline: Timeline | None = None
@@ -174,6 +193,11 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         }
         self._periods = {d: builders[d]() for d in self.definitions}
         self._phases = lunar_phases(eph, jd0, jd1)
+        if self.houses is not None:
+            index = {c: i + 1 for i, c in enumerate(self.houses.cusps)}
+            moon = lambda t: eph.longitude("moon", t)
+            self._house_entries = [(j, index[c]) for j, c, _ in
+                                   find_crossings(eph, moon, list(self.houses.cusps), jd0, jd1, 0.25)]
         self._built_from, self._built_until = jd0, jd1
         _LOGGER.debug("Sublunary timeline rebuilt through JD %.2f", jd1)
 
@@ -181,6 +205,10 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
         if self._eph is None:
             self._eph = Ephemeris(self._data_dir)  # downloads de440s on first run
         eph = self._eph
+        if self.natal is not None and self.houses is None:
+            birth_utc, lat, lon, system = self.natal
+            self.houses = house_lib.compute(eph.ts.from_datetime(birth_utc), lat, lon, system)
+            self._timeline = None  # rebuild so house crossings are included
         to_dt = lambda jd: eph.tt(jd).utc_datetime()
         now = eph.ts.from_datetime(now_utc).tt
         if (self._timeline is None or now > self._built_until - REBUILD_MARGIN_DAYS
@@ -254,6 +282,14 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             edges += [cur.end_jd] if cur else []
             edges += [upcoming.start_jd] if upcoming else []
 
+        house = next_house = next_house_at = None
+        if self.houses is not None:
+            house = self.houses.house_of(float(eph.longitude("moon", eph.tt(now))))
+            nh = next(((j, h) for j, h in self._house_entries if j > now), None)
+            if nh:
+                next_house, next_house_at = nh[1], to_dt(nh[0])
+                edges.append(nh[0])
+
         snap = Snapshot(
             now=now_utc,
             simulated=self.simulated,
@@ -270,6 +306,9 @@ class SublunaryCoordinator(DataUpdateCoordinator[Snapshot]):
             voids=voids,
             next_aspect=next_aspect,
             next_change=next_change,
+            house=house,
+            next_house=next_house,
+            next_house_at=next_house_at,
         )
         return snap, (to_dt(min(edges)) if edges else None)
 

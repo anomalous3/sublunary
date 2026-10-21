@@ -204,6 +204,7 @@ async def _run_blueprint(hass, name, inputs, light_state="on", name_override=Non
         "id": "sublunary_test", "alias": "Sublunary planet colors",
         "use_blueprint": {"path": f"sublunary/{name}", "input": {
             **({"sign_sensor": "sensor.sublunary_moon_sign"} if name_override == "sign_sensor"
+               else {"house_sensor": "sensor.sublunary_moon_house"} if name_override == "house_sensor"
                else {"contact_sensor": "sensor.sublunary_dominant_contact"}),
             "lights": ["light.bedroom"], **inputs}}}]})
     await hass.async_block_till_done()
@@ -296,3 +297,49 @@ async def test_sign_colors_elements(hass):
     assert len(on) == 1 and list(on[0].data["rgb_color"]) == [255, 60, 10]   # Sagittarius: fire
     assert on[0].data["brightness_pct"] == 70
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+NATAL = {"tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_timezone": "America/Chicago",
+         "birth_location": {"latitude": 41.88, "longitude": -87.63}, "house_system": "placidus"}
+
+
+@pytest.mark.freeze_time("2026-10-16 01:00:00+00:00")
+async def test_moon_house_natal_chart(hass):
+    _link_kernel(hass)
+    entry = MockConfigEntry(domain="sublunary", data={}, options=NATAL)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    h = hass.states.get("sensor.sublunary_moon_house")
+    print(h.state, dict(h.attributes))
+    # Swiss Ephemeris, same chart: ASC 194.650 (Libra 14.65), MC 107.242, cusp 3 252.915, cusp 4 287.242
+    assert h.attributes["ascendant"] == "Libra 14.65"
+    assert h.attributes["midheaven"] == "Cancer 17.24"
+    assert h.attributes["cusps"]["3"] == "Sagittarius 12.91" and h.attributes["cusps"]["4"] == "Capricorn 17.24"
+    assert h.state == "3"                       # Moon at Sagittarius 23
+    assert h.attributes["next_house"] == 4 and h.attributes["next_house_at"].startswith("2026-10-17")
+    # the house blueprint maps the 3rd house to Gemini, an air sign
+    on, off = await _run_blueprint(hass, "house_colors.yaml", {}, name_override="house_sensor")
+    assert len(on) == 1 and list(on[0].data["rgb_color"]) == [0, 200, 255]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_no_natal_no_house_sensor(hass):
+    _link_kernel(hass)
+    entry = MockConfigEntry(domain="sublunary", data={}, options=OPTIONS)
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.sublunary_moon_house") is None
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_config_flow_natal_validation(hass):
+    r = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"tick_minutes": 5, "birth": "1990-06-15 14:30:00"})
+    assert r["type"] is FlowResultType.FORM and r["errors"] == {"birth_location": "birth_location_required"}
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {
+        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_timezone": "America/Chicago",
+        "birth_location": {"latitude": 41.88, "longitude": -87.63}, "house_system": "whole_sign"})
+    assert r["type"] is FlowResultType.CREATE_ENTRY
+    assert r["options"]["house_system"] == "whole_sign" and r["options"]["birth_timezone"] == "America/Chicago"

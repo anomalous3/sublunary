@@ -3,6 +3,11 @@
 DOMAIN = "sublunary"
 
 CONF_TICK_MINUTES = "tick_minutes"
+CONF_BIRTH = "birth"                  # local date and time, "YYYY-MM-DD HH:MM:SS"
+CONF_BIRTH_TZ = "birth_timezone"      # IANA zone, for historical offsets and DST
+CONF_BIRTH_LOCATION = "birth_location"  # {"latitude": .., "longitude": ..}
+CONF_HOUSE_SYSTEM = "house_system"
+HOUSE_SYSTEMS = ("placidus", "whole_sign", "equal", "porphyry")
 
 # every definition is always computed; users enable/disable the entities
 DEFINITIONS = ("modern", "traditional", "lilly", "lilly_unbounded")

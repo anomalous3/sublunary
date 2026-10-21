@@ -22,6 +22,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: SublunaryConfigEntry,
     async_add_entities([MoonSignSensor(c, "moon_sign"), MoonPhaseSensor(c, "moon_phase"),
                         DominantContactSensor(c, "dominant_contact"), ClockSensor(c, "clock"),
                         NextAspectSensor(c, "next_aspect"), NextChangeSensor(c, "next_change")])
+    if c.natal is not None:
+        async_add_entities([MoonHouseSensor(c, "moon_house")])
+
+
+class MoonHouseSensor(SublunaryEntity, SensorEntity):
+    """The natal house the Moon is passing through."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [str(i) for i in range(1, 13)]
+    _attr_icon = "mdi:home-circle-outline"
+
+    @property
+    def native_value(self):
+        h = self.coordinator.data.house
+        return str(h) if h else None
+
+    @property
+    def extra_state_attributes(self):
+        d, hs = self.coordinator.data, self.coordinator.houses
+        if hs is None:
+            return {}
+        def place(lon):
+            return f"{SIGNS[int(lon // 30)].capitalize()} {lon % 30:.2f}"
+        return {
+            "house_system": hs.system,
+            "next_house": d.next_house,
+            "next_house_at": d.next_house_at.isoformat() if d.next_house_at else None,
+            "ascendant": place(hs.ascendant),
+            "midheaven": place(hs.midheaven),
+            "cusps": {str(i + 1): place(c) for i, c in enumerate(hs.cusps)},
+        }
 
 
 class NextAspectSensor(SublunaryEntity, SensorEntity):

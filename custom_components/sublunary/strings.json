@@ -5,15 +5,27 @@
         "title": "Sublunary",
         "description": "The realm of change beneath the Moon. Every void-of-course definition gets its own binary sensor; enable or disable them from the entity settings.",
         "data": {
-          "tick_minutes": "Refresh interval (minutes)"
+          "tick_minutes": "Refresh interval (minutes)",
+          "birth": "Birth date and time (local)",
+          "birth_timezone": "Birth time zone",
+          "birth_location": "Birth place",
+          "house_system": "House system"
         },
         "data_description": {
-          "tick_minutes": "How often contact depth updates between discrete events."
+          "tick_minutes": "How often contact depth updates between discrete events.",
+          "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
+          "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
+          "birth_location": "Required when a birth time is set.",
+          "house_system": "Placidus falls back to Porphyry above about 66° latitude."
         }
       }
     },
     "abort": {
       "single_instance_allowed": "Sublunary is already configured."
+    },
+    "error": {
+      "invalid_birth": "That birth date and time couldn't be read.",
+      "birth_location_required": "Pick a birth place on the map to use a birth time."
     }
   },
   "options": {
@@ -21,12 +33,24 @@
       "init": {
         "title": "Sublunary options",
         "data": {
-          "tick_minutes": "Refresh interval (minutes)"
+          "tick_minutes": "Refresh interval (minutes)",
+          "birth": "Birth date and time (local)",
+          "birth_timezone": "Birth time zone",
+          "birth_location": "Birth place",
+          "house_system": "House system"
         },
         "data_description": {
-          "tick_minutes": "How often contact depth updates between discrete events."
+          "tick_minutes": "How often contact depth updates between discrete events.",
+          "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
+          "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
+          "birth_location": "Required when a birth time is set.",
+          "house_system": "Placidus falls back to Porphyry above about 66° latitude."
         }
       }
+    },
+    "error": {
+      "invalid_birth": "That birth date and time couldn't be read.",
+      "birth_location_required": "Pick a birth place on the map to use a birth time."
     }
   },
   "entity": {
@@ -97,6 +121,23 @@
       },
       "next_change": {
         "name": "Next change"
+      },
+      "moon_house": {
+        "name": "Moon house",
+        "state": {
+          "1": "1st",
+          "2": "2nd",
+          "3": "3rd",
+          "4": "4th",
+          "5": "5th",
+          "6": "6th",
+          "7": "7th",
+          "8": "8th",
+          "9": "9th",
+          "10": "10th",
+          "11": "11th",
+          "12": "12th"
+        }
       }
     },
     "binary_sensor": {
@@ -132,6 +173,16 @@
     "reset_clock": {
       "name": "Reset clock",
       "description": "Return to real time."
+    }
+  },
+  "selector": {
+    "house_system": {
+      "options": {
+        "placidus": "Placidus",
+        "whole_sign": "Whole Sign",
+        "equal": "Equal",
+        "porphyry": "Porphyry"
+      }
     }
   }
 }

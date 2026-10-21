@@ -27,6 +27,17 @@ something you can display.
 On first setup it downloads NASA JPL's `de440s.bsp` ephemeris (~32 MB, covers
 1849–2150) into `config/sublunary/`, so the first start needs internet.
 
+## Natal houses (optional)
+
+In Sublunary's options (Settings → Devices & services → Sublunary →
+Configure), add your birth date and time, the time zone you were born in, your
+birth place, and a house system (Placidus, Whole Sign, Equal or Porphyry).
+That adds `sensor.sublunary_moon_house`: the natal house the Moon is passing
+through, with the next house change, your Ascendant, MC and cusps. Birth data
+stays in your Home Assistant's own config. Placidus falls back to Porphyry
+above about 66° latitude, where it stops being defined. Cusps agree with the
+Swiss Ephemeris to a few arcseconds (`tests/validate_houses.py`).
+
 ## Entities
 
 | Entity | State | Notable attributes |
@@ -37,6 +48,7 @@ On first setup it downloads NASA JPL's `de440s.bsp` ephemeris (~32 MB, covers
 | `binary_sensor.sublunary_void_of_course_<definition>` | on while void | `start`, `end`, `last_aspect`, `next_start`, `next_end` |
 | `sensor.sublunary_next_aspect` | the aspect after the one being shown now, or `void` if the Moon goes void first (modern definition) | `aspect`, `perfects`, `in_sign`, `tone`; when void: `void_starts`, `void_ends`, `then` |
 | `sensor.sublunary_next_change` | when the dominant contact (and the light) next changes | `to` (a body, or `none` for void), `aspect`, `in_sign`, `tone` |
+| `sensor.sublunary_moon_house` | natal house 1-12 (only with a natal chart) | `next_house`, `next_house_at`, `ascendant`, `midheaven`, `cusps`, `house_system` |
 | `sensor.sublunary_clock` | the time Sublunary thinks it is | `simulated`, `speed`, `paused` |
 
 ## Void-of-course definitions

@@ -407,111 +407,112 @@ function startAudio() {
   bus.connect(dry).connect(comp); bus.connect(verb).connect(wet).connect(comp);
   comp.connect(master).connect(ctx.destination);
   const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400; lp.connect(bus);
-  // the Moon's own level, under the listener's hand (the drone and her orbs together)
-  const moonBus = ctx.createGain(); moonBus.gain.value = mix.moon; moonBus.connect(lp);
+
+  // Automation, the careful way. Each parameter moves only in straight ramps laid end to end,
+  // and a running ramp is never cancelled: cancelling one snaps the value back to where the ramp
+  // began, a click, and at twenty updates a second the clicks pile up. A new ramp waits for the
+  // last to finish; the next update simply asks again. Voices live only while they sound, so no
+  // node carries a long schedule, and silent oscillators cost nothing.
+  const LOOK = 0.03;
+  const ramp = (param, v) => { param.value = v; return { param, v1: v, t1: 0 }; };
+  function rampTo(r, want, secs, eps) {
+    const t = ctx.currentTime + LOOK;
+    if (r.t1 > t || Math.abs(want - r.v1) < (want === 0 ? 1e-9 : eps)) return;  // silence is always reached exactly
+    r.param.setValueAtTime(r.v1, t);
+    r.param.linearRampToValueAtTime(want, t + secs);
+    r.v1 = want; r.t1 = t + secs;
+  }
+  const settled = (r) => r.v1 === 0 && ctx.currentTime > r.t1 + 0.05;
+
+  // the Moon's own level (the drone and her orbs together) and the planets' chord, each under a slider
+  const moonBus = ctx.createGain(), moonLevel = ramp(moonBus.gain, mix.moon);
+  moonBus.connect(lp);
+  const pairBus = ctx.createGain(), pairLevel = ramp(pairBus.gain, 0);
+  const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 2000;
+  pairBus.connect(pairLp).connect(lp);
   // the drone
   for (const [mult, g] of [[1, 0.09], [2, 0.035]]) {
     const o = ctx.createOscillator(), gn = ctx.createGain();
     o.type = "sine"; o.frequency.value = ROOT * mult; gn.gain.value = g;
     o.connect(gn).connect(moonBus); o.start();
   }
-  // one voice per orb, silent until the Moon is inside it
-  const voices = caps.map((c) => {
-    const body = DATA.bodies[c.k], t = TIMBRE[body];
+  // a small overtone recipe per planet, made once
+  const WAVE = {};
+  for (const [body, t] of Object.entries(TIMBRE)) {
     const real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
-    t.forEach((a, n) => { imag[n + 1] = a; });
-    const o = ctx.createOscillator(), gn = ctx.createGain();
-    o.setPeriodicWave(ctx.createPeriodicWave(real, imag));
-    o.frequency.value = ROOT * RATIO[c.a] * REGISTER[body];
-    o.detune.value = (Math.random() - 0.5) * 6;
-    gn.gain.value = 0;
-    o.connect(gn).connect(moonBus); o.start();
-    return gn;
-  });
-  // one voice per planet pair, under the Moon's: the aspect's interval above the slower
-  // planet's home (its register's A), in the faster planet's timbre. Squares and oppositions
-  // get a twin a few hertz sharp, so they beat, fast at the edge of orb, slowing as they tighten.
-  const pairBus = ctx.createGain(); pairBus.gain.value = 1;
-  const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 2000;
-  pairBus.connect(pairLp).connect(lp);
-  const pairVoices = pairs.map((p) => {
-    const fast = DATA.bodies[REGISTER[DATA.bodies[p.i]] >= REGISTER[DATA.bodies[p.j]] ? p.i : p.j];
-    const t = TIMBRE[fast], real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
     t.forEach((x, n) => { imag[n + 1] = x; });
-    const wave = ctx.createPeriodicWave(real, imag);
-    const home = ROOT * Math.min(4, 2 * Math.min(REGISTER[DATA.bodies[p.i]], REGISTER[DATA.bodies[p.j]]));  // outer pairs at A3, the rest at A4
-    const v = { home, a: -1, beat: 0, o: [], g: [] };
-    for (let n = 0; n < 2; n++) {
+    WAVE[body] = ctx.createPeriodicWave(real, imag);
+  }
+  function voice(body, freqs, out) {
+    const v = { o: [], n: [], g: [], f: [] };
+    freqs.forEach((fr) => {
       const o = ctx.createOscillator(), g = ctx.createGain();
-      o.setPeriodicWave(wave); o.frequency.value = home; g.gain.value = 0;
-      o.connect(g).connect(pairBus); o.start();
-      v.o.push(o); v.g.push(g);
-    }
+      o.setPeriodicWave(WAVE[body]);
+      v.f.push(ramp(o.frequency, fr)); v.g.push(ramp(g.gain, 0));
+      o.detune.value = (Math.random() - 0.5) * 6;
+      o.connect(g).connect(out); o.start();
+      v.o.push(o); v.n.push(g);
+    });
     return v;
-  });
+  }
+  function release(v) { v.o.forEach((o, n) => { o.stop(); o.disconnect(); v.n[n].disconnect(); }); }
+
+  // the Moon's orbs: one voice per lit orb, its aspect's interval above her drone.
+  // The planet pairs: one voice per held aspect, the interval above the slower planet's home
+  // (its register's A, outer pairs at A3, the rest at A4), in the faster planet's timbre.
+  // Squares and oppositions carry a quieter twin a few hertz sharp, so they shimmer, quick at
+  // the edge of orb and slowing as they tighten.
+  const moonVoices = new Map(), pairVoices = new Map();
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
-  // Each setTargetAtTime adds an event to the parameter's schedule. Calling it every frame
-  // for 72 voices piled up thousands of events a second and eventually froze the audio thread.
-  // So: at most 20 updates a second, only for voices whose level really changed, and the
-  // pending schedule is cleared first, so each voice carries a single event.
-  const target = new Float32Array(voices.length), pairTarget = new Float32Array(pairs.length * 2);
-  let lastSet = 0, busTarget = 1;
-  // Pops came from cancelling halfway along an exponential curve. Instead: drop the schedule, pin the
-  // value the parameter has now, and ramp in a straight line. At most two events per parameter.
-  const glide = (param, want, now, secs) => {
-    param.cancelScheduledValues(now);
-    param.setValueAtTime(param.value, now);
-    param.linearRampToValueAtTime(want, now + secs);
-  };
+  let lastSet = 0;
   return {
-    ctx, master,
-    mix(which) {
+    ctx, master, moonVoices, pairVoices,
+    mix() { lastSet = -1; this.set(caps, pairs); setTimeout(() => { lastSet = -1; this.set(caps, pairs); }, 300); },  // and on every update
+    set(list, plist) {
       const now = ctx.currentTime;
-      if (which === "moon") glide(moonBus.gain, mix.moon, now, 0.15);
-      else { busTarget = -1; this.set(caps, pairs, true); }
-    },
-    set(list, plist, force) {
-      const now = ctx.currentTime;
-      if (now - lastSet < 0.05 && !force) return;
+      if (now - lastSet < 0.05) return;
       lastSet = now;
+      let moonD = 0;
       list.forEach((c, n) => {
-        const d = c.depth || 0, reg = REGISTER[DATA.bodies[c.k]];
+        const d = c.depth || 0, body = DATA.bodies[c.k], reg = REGISTER[body];
+        if (d > moonD) moonD = d;
         const want = d > 0 ? 0.11 * Math.pow(d, 1.2) / Math.sqrt(reg) : 0;
-        if (Math.abs(want - target[n]) < 0.0005) return;
-        target[n] = want;
-        glide(voices[n].gain, want, now, 0.25);
+        let v = moonVoices.get(n);
+        if (!v && want > 0) moonVoices.set(n, v = voice(body, [ROOT * RATIO[c.a] * reg], moonBus));
+        if (!v) return;
+        rampTo(v.g[0], want, 0.12, 0.0005);
+        if (want === 0 && settled(v.g[0])) { release(v); moonVoices.delete(n); }
       });
-      // the pairs: a crowded sky is turned down as a whole, so fifteen held aspects stay a bed
-      let sum = 0, moonD = 0;
-      list.forEach((c) => { if ((c.depth || 0) > moonD) moonD = c.depth; });
+      // a crowded sky is turned down as a whole, so fifteen held aspects stay a bed
+      let sum = 0;
+      const live = new Set();
       plist.forEach((p, n) => {
-        const v = pairVoices[n], d = p.depth;
+        const d = p.depth;
         sum += d;
-        if (d > 0 && p.a !== v.a) {   // a new aspect: retune while silent (aspects never overlap in orb)
-          v.a = p.a;
-          for (const o of v.o) glide(o.frequency, v.home * RATIO[p.a], now, 0.05);
-          v.beat = 0;
-        }
+        if (d <= 0) return;
+        const key = n + ":" + p.a;
+        live.add(key);
         const hard = p.a === 90 || p.a === 180;
-        if (d > 0 && hard) {
-          const beat = 0.5 + 3 * (1 - d);
-          if (Math.abs(beat - v.beat) > 0.05) {
-            v.beat = beat;
-            const fr = v.o[1].frequency;
-            glide(fr, v.home * RATIO[p.a] + beat, now, 0.3);
-          }
+        const want = 0.04 * Math.pow(d, 1.2);
+        let v = pairVoices.get(key);
+        const bi = DATA.bodies[p.i], bj = DATA.bodies[p.j];
+        const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[bi], REGISTER[bj])) * RATIO[p.a];
+        if (!v) pairVoices.set(key, v = voice(REGISTER[bi] >= REGISTER[bj] ? bi : bj, hard ? [freq, freq + 2] : [freq], pairBus));
+        rampTo(v.g[0], hard ? want * 0.85 : want, 0.3, 0.0003);
+        if (hard) {
+          rampTo(v.g[1], want * 0.35, 0.3, 0.0003);          // a partial beat, a shimmer more than a pulse
+          rampTo(v.f[1], freq + 0.5 + 3 * (1 - d), 0.3, 0.05);
         }
-        const want = d > 0 ? 0.04 * Math.pow(d, 1.2) : 0;
-        const w0 = hard ? want * 0.85 : want, w1 = hard ? want * 0.35 : 0;  // a partial beat, a shimmer more than a pulse
-        [w0, w1].forEach((w, m) => {
-          if (Math.abs(w - pairTarget[n * 2 + m]) < 0.0003) return;
-          pairTarget[n * 2 + m] = w;
-          glide(v.g[m].gain, w, now, 0.8);
-        });
       });
+      for (const [key, v] of pairVoices) {
+        if (live.has(key)) continue;
+        v.g.forEach((r) => rampTo(r, 0, 0.5, 0));
+        if (v.g.every(settled)) { release(v); pairVoices.delete(key); }
+      }
       // and the chord steps back while the Moon is inside an orb, so her notes stay in front
-      const bus = (1 / Math.sqrt(1 + sum)) * (1 - 0.45 * Math.min(1, moonD * 2));
-      if (Math.abs(bus - busTarget) > 0.01) { busTarget = bus; glide(pairBus.gain, bus * 1.8 * mix.planets, now, 0.8); }
+      const level = (1 / Math.sqrt(1 + sum)) * (1 - 0.45 * Math.min(1, moonD * 2)) * 1.8 * mix.planets;
+      rampTo(pairLevel, level, 0.25, 0.005);
+      rampTo(moonLevel, mix.moon, 0.1, 0.005);
     },
   };
 }

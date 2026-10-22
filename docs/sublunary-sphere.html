@@ -116,7 +116,7 @@ function eclVec(lon, lat, r = 1) {
 // --- scene ----------------------------------------------------------------
 const canvas = document.getElementById("sky");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));  // 72 translucent caps: full Retina is all cost
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07080d);
 const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
@@ -198,10 +198,10 @@ DATA.bodies.forEach((body, k) => {
   const rho = DATA.rho[k] * D2R, color = col3(HYBRID[body]);
   ASPECTS.forEach((a) => {
     const grp = new THREE.Group();
-    const fill = new THREE.Mesh(new THREE.SphereGeometry(R * 1.003, 48, 8, 0, Math.PI * 2, 0, rho),
+    const fill = new THREE.Mesh(new THREE.SphereGeometry(R * 1.003, 32, 6, 0, Math.PI * 2, 0, rho),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
-    const edgePts = [...Array(73)].map((_, i) => {
-      const t = i * 5 * D2R;
+    const edgePts = [...Array(49)].map((_, i) => {
+      const t = i * 7.5 * D2R;
       return new THREE.Vector3(R * 1.004 * Math.sin(rho) * Math.cos(t), R * 1.004 * Math.cos(rho), R * 1.004 * Math.sin(rho) * Math.sin(t));
     });
     const edge = circle(edgePts, color, a === 0 ? 0.55 : 0.22, false);
@@ -269,6 +269,13 @@ const start = new Date(DATA.start);
 let f = (288 * 24 + 1) / DATA.stepHours;   // 16 Oct 2026, 01:00 UTC
 let playing = !reduced, rate = 4, showAspects = true;
 
+const shown = new Map(), scrubEl = document.getElementById("scrub");
+function setText(id, text) { if (shown.get(id) !== text) { shown.set(id, text); document.getElementById(id).textContent = text; } }
+function setHTML(node, html) { if (shown.get(node) !== html) { shown.set(node, html); node.innerHTML = html; } }
+function setStyle(node, bg, glow) {
+  const key = bg + glow;
+  if (shown.get(node) !== key) { shown.set(node, key); node.style.backgroundColor = bg; node.style.boxShadow = glow; }
+}
 function update() {
   const s = sampleAt(f);
   const mv = eclVec(s.mlon, s.mlat, R);
@@ -322,18 +329,18 @@ function update() {
   rahu.visible = ketu.visible = nodeDots[0].visible = nodeDots[1].visible = orbit.visible;
   // reading
   const dt = new Date(start.getTime() + f * DATA.stepHours * 3600000);
-  document.getElementById("when").textContent = dt.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  setText("when", dt.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC");
   const bulb = document.getElementById("bulb"), what = document.getElementById("what");
   if (best) {
-    const body = DATA.bodies[best.k], c = HYBRID[body];
-    bulb.style.backgroundColor = `rgba(${c.join(",")},${0.3 + 0.7 * best.depth})`;
-    bulb.style.boxShadow = `0 0 ${8 + 22 * best.depth}px rgba(${c.join(",")},0.55)`;
-    what.innerHTML = `${body[0].toUpperCase() + body.slice(1)}, ${ASPECT_NAME[Math.min(best.a, 360 - best.a)]}<small>depth ${best.depth.toFixed(2)}, measured on the sphere</small>`;
+    const body = DATA.bodies[best.k], c = HYBRID[body], d = best.depth.toFixed(2);
+    setStyle(bulb, `rgba(${c.join(",")},${(0.3 + 0.7 * best.depth).toFixed(2)})`, `0 0 ${Math.round(8 + 22 * best.depth)}px rgba(${c.join(",")},0.55)`);
+    setHTML(what, `${body[0].toUpperCase() + body.slice(1)}, ${ASPECT_NAME[Math.min(best.a, 360 - best.a)]}<small>depth ${d}, measured on the sphere</small>`);
   } else {
-    bulb.style.backgroundColor = "#0d0f17"; bulb.style.boxShadow = "none";
-    what.innerHTML = "Void<small>the Moon is inside no orb</small>";
+    setStyle(bulb, "#0d0f17", "none");
+    setHTML(what, "Void<small>the Moon is inside no orb</small>");
   }
-  document.getElementById("scrub").value = String(Math.round(f));
+  const sv = String(Math.round(f));
+  if (scrubEl.value !== sv) scrubEl.value = sv;
   if (audio) audio.set(caps);
 }
 
@@ -381,13 +388,26 @@ function startAudio() {
     return gn;
   });
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
+  // Each setTargetAtTime adds an event to the parameter's schedule. Calling it every frame
+  // for 72 voices piled up thousands of events a second and eventually froze the audio thread.
+  // So: at most 20 updates a second, only for voices whose level really changed, and the
+  // pending schedule is cleared first, so each voice carries a single event.
+  const target = new Float32Array(voices.length);
+  let lastSet = 0;
   return {
     ctx, master,
     set(list) {
       const now = ctx.currentTime;
+      if (now - lastSet < 0.05) return;
+      lastSet = now;
       list.forEach((c, n) => {
         const d = c.depth || 0, reg = REGISTER[DATA.bodies[c.k]];
-        voices[n].gain.setTargetAtTime(d > 0 ? 0.05 * Math.pow(d, 1.4) / Math.sqrt(reg) : 0, now, 0.18);
+        const want = d > 0 ? 0.05 * Math.pow(d, 1.4) / Math.sqrt(reg) : 0;
+        if (Math.abs(want - target[n]) < 0.0005) return;
+        target[n] = want;
+        const g = voices[n].gain;
+        if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else g.cancelScheduledValues(now);
+        g.setTargetAtTime(want, now, 0.18);
       });
     },
   };

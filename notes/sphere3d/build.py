@@ -34,6 +34,7 @@ frames = [[round(float(m_lon[i]), 2), round(float(m_lat[i]), 2), round(float(nod
 data = {
     "start": eph.tt(jd0).utc_iso(), "stepHours": STEP_H,
     "bodies": list(MODERN), "rho": [round(contact_distance(b, LILLY_ORBS), 2) for b in MODERN],
+    "orbs": [LILLY_ORBS[b] for b in MODERN],
     "frames": frames,
 }
 blob = json.dumps(data, separators=(",", ":"))

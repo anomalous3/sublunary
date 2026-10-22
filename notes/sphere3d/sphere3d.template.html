@@ -32,6 +32,9 @@
   .bulb { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: #0d0f17; transition: background-color .3s, box-shadow .3s; }
   #what { line-height: 1.35; }
   #what small { display: block; color: var(--muted); font-size: 12.5px; }
+  .pairline { font-size: 15px; line-height: 1.5; letter-spacing: 0.02em; min-height: 1.5em; }
+  .pairline span { display: inline-block; margin-right: 0.55em; }
+  .pairline small { color: var(--muted); font-size: 12px; }
   .legend { color: var(--muted); font-size: 12.5px; line-height: 1.45; margin: 0; }
   .legend b { color: var(--fg); font-weight: 500; }
   .controls {
@@ -59,7 +62,8 @@
     <div class="bulb" id="bulb"></div>
     <div id="what">Void<small>nothing applying</small></div>
   </div>
-  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky. With <b>Sound</b> on, the Moon is a low drone and each lit orb sounds its aspect above her, in Kepler's consonances: sextile a minor third, square a fourth, trine a fifth, opposition an octave.</p>
+  <div class="pairline" id="pairline" aria-label="Aspects between the planets now"></div>
+  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky. With <b>Sound</b> on, the Moon is a low drone and each lit orb sounds its aspect above her, in Kepler's consonances: sextile a minor third, square a fourth, trine a fifth, opposition an octave. Underneath, the <b>planets' own aspects</b>: a chord joins two planets while they hold one, and sounds its interval above the slower planet, softly; squares and oppositions beat.</p>
 </section>
 
 <section class="hud controls">
@@ -80,6 +84,7 @@
   <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Date in 2026">
   <label for="aspects"><input id="aspects" type="checkbox" checked> Aspect orbs</label>
   <label for="orbit"><input id="orbit" type="checkbox" checked> Moon's orbit</label>
+  <label for="pairs"><input id="pairs" type="checkbox" checked> Planet aspects</label>
   <span class="links">2026, JPL DE440s · <a href="https://github.com/anomalous3/sublunary">Sublunary</a></span>
 </section>
 
@@ -212,6 +217,17 @@ const planets = DATA.bodies.map((body) => {
   return { m, g };
 });
 
+// planet to planet: a chord through the sphere joins two planets while they hold an aspect
+// within their combined moieties, the straight aspect lines of a chart wheel, here in space
+const PAIR_GLYPH = { 0: "☌", 60: "⚹", 90: "□", 120: "△", 180: "☍" };
+const pairs = [];
+for (let i = 0; i < NB; i++) for (let j = i + 1; j < NB; j++) pairs.push({ i, j, rho: (DATA.orbs[i] + DATA.orbs[j]) / 2, depth: 0, a: -1 });
+const chordGeom = new THREE.BufferGeometry();
+chordGeom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pairs.length * 6), 3));
+chordGeom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(pairs.length * 6), 3));
+const chords = new THREE.LineSegments(chordGeom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+scene.add(chords);
+
 // the Moon, her trail, her orbit and its nodes
 const moon = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 16), new THREE.MeshBasicMaterial({ color: 0xeef1f8 }));
 const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
@@ -285,6 +301,7 @@ function update() {
     const plon = lon + c.a, plat = lat * Math.cos(c.a * D2R);
     const pv = eclVec(plon, plat, 1);
     c.grp.quaternion.setFromUnitVectors(UP, pv);
+    c.pv = pv;
     const rho = DATA.rho[c.k];
     const dist = Math.acos(Math.max(-1, Math.min(1, pv.dot(mUnit)))) / D2R;
     const applying = wrap(s.mlon - plon) <= 0;
@@ -295,6 +312,31 @@ function update() {
     c.depth = depth;
     if (depth > 0 && (!best || depth > best.depth)) best = { k: c.k, a: c.a, depth };
   }
+  // planet pairs, measured on the sphere like the Moon's contacts: planet i against j's aspect points
+  const showPairs = document.getElementById("pairs").checked;
+  const cp = chordGeom.attributes.position.array, cc = chordGeom.attributes.color.array;
+  const lit = [];
+  pairs.forEach((p, n) => {
+    const vi = planets[p.i].m.position.clone().normalize();
+    let depth = 0, a = -1;
+    for (let q = 0; q < ASPECTS.length; q++) {
+      const c = caps[p.j * ASPECTS.length + q];
+      const dist = Math.acos(Math.max(-1, Math.min(1, vi.dot(c.pv)))) / D2R;
+      if (dist < p.rho && 1 - dist / p.rho > depth) { depth = 1 - dist / p.rho; a = Math.min(c.a, 360 - c.a); }
+    }
+    p.depth = showPairs ? depth : 0; p.a = a;
+    const A = planets[p.i].m.position, Bp = planets[p.j].m.position;
+    cp.set([A.x, A.y, A.z, Bp.x, Bp.y, Bp.z], n * 6);
+    const w = p.depth > 0 ? 0.15 + p.depth * 0.85 : 0, ci = HYBRID[DATA.bodies[p.i]], cj = HYBRID[DATA.bodies[p.j]];
+    cc.set([ci[0] / 255 * w, ci[1] / 255 * w, ci[2] / 255 * w, cj[0] / 255 * w, cj[1] / 255 * w, cj[2] / 255 * w], n * 6);
+    if (p.depth > 0) lit.push(p);
+  });
+  chordGeom.attributes.position.needsUpdate = true; chordGeom.attributes.color.needsUpdate = true;
+  lit.sort((x, y) => y.depth - x.depth);
+  setHTML(document.getElementById("pairline"), showPairs && lit.length
+    ? lit.slice(0, 8).map((p) => `<span style="opacity:${(0.45 + 0.55 * p.depth).toFixed(2)}">${GLYPH[DATA.bodies[p.i]]}${VS}${PAIR_GLYPH[p.a]}${VS}${GLYPH[DATA.bodies[p.j]]}${VS}</span>`).join(" ")
+      + (lit.length > 8 ? ` <small>+${lit.length - 8}</small>` : "")
+    : "");
   // trail: the last three days, fading
   const tp = trailGeom.attributes.position.array, tc = trailGeom.attributes.color.array;
   for (let n = 0; n < TRAIL; n++) {
@@ -333,7 +375,7 @@ function update() {
   }
   const sv = String(Math.round(f));
   if (scrubEl.value !== sv) scrubEl.value = sv;
-  if (audio) audio.set(caps);
+  if (audio) audio.set(caps, pairs);
 }
 
 // --- sound: the Moon as a drone, each lit orb its aspect's interval above her ---------
@@ -379,16 +421,41 @@ function startAudio() {
     o.connect(gn).connect(lp); o.start();
     return gn;
   });
+  // one voice per planet pair, under the Moon's: the aspect's interval above the slower
+  // planet's home (its register's A), in the faster planet's timbre. Squares and oppositions
+  // get a twin a few hertz sharp, so they beat, fast at the edge of orb, slowing as they tighten.
+  const pairBus = ctx.createGain(); pairBus.gain.value = 1;
+  const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 1400;
+  pairBus.connect(pairLp).connect(lp);
+  const pairVoices = pairs.map((p) => {
+    const fast = DATA.bodies[REGISTER[DATA.bodies[p.i]] >= REGISTER[DATA.bodies[p.j]] ? p.i : p.j];
+    const t = TIMBRE[fast], real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
+    t.forEach((x, n) => { imag[n + 1] = x; });
+    const wave = ctx.createPeriodicWave(real, imag);
+    const home = ROOT * Math.min(4, REGISTER[DATA.bodies[p.i]], REGISTER[DATA.bodies[p.j]]);
+    const v = { home, a: -1, beat: 0, o: [], g: [] };
+    for (let n = 0; n < 2; n++) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.setPeriodicWave(wave); o.frequency.value = home; g.gain.value = 0;
+      o.connect(g).connect(pairBus); o.start();
+      v.o.push(o); v.g.push(g);
+    }
+    return v;
+  });
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
   // Each setTargetAtTime adds an event to the parameter's schedule. Calling it every frame
   // for 72 voices piled up thousands of events a second and eventually froze the audio thread.
   // So: at most 20 updates a second, only for voices whose level really changed, and the
   // pending schedule is cleared first, so each voice carries a single event.
-  const target = new Float32Array(voices.length);
-  let lastSet = 0;
+  const target = new Float32Array(voices.length), pairTarget = new Float32Array(pairs.length * 2);
+  let lastSet = 0, busTarget = 1;
+  const glide = (param, want, now, tc) => {
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else param.cancelScheduledValues(now);
+    param.setTargetAtTime(want, now, tc);
+  };
   return {
     ctx, master,
-    set(list) {
+    set(list, plist) {
       const now = ctx.currentTime;
       if (now - lastSet < 0.05) return;
       lastSet = now;
@@ -401,6 +468,35 @@ function startAudio() {
         if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else g.cancelScheduledValues(now);
         g.setTargetAtTime(want, now, 0.18);
       });
+      // the pairs: a crowded sky is turned down as a whole, so fifteen held aspects stay a bed
+      let sum = 0;
+      plist.forEach((p, n) => {
+        const v = pairVoices[n], d = p.depth;
+        sum += d;
+        if (d > 0 && p.a !== v.a) {   // a new aspect: retune while silent (aspects never overlap in orb)
+          v.a = p.a;
+          for (const o of v.o) { o.frequency.cancelScheduledValues(now); o.frequency.setValueAtTime(v.home * RATIO[p.a], now); }
+          v.beat = 0;
+        }
+        const hard = p.a === 90 || p.a === 180;
+        if (d > 0 && hard) {
+          const beat = 0.5 + 3 * (1 - d);
+          if (Math.abs(beat - v.beat) > 0.05) {
+            v.beat = beat;
+            const fr = v.o[1].frequency;
+            fr.cancelScheduledValues(now); fr.setValueAtTime(v.home * RATIO[p.a] + beat, now);
+          }
+        }
+        const want = d > 0 ? 0.016 * Math.pow(d, 1.6) : 0;
+        const w0 = hard ? want * 0.7 : want, w1 = hard ? want * 0.7 : 0;
+        [w0, w1].forEach((w, m) => {
+          if (Math.abs(w - pairTarget[n * 2 + m]) < 0.0003) return;
+          pairTarget[n * 2 + m] = w;
+          glide(v.g[m].gain, w, now, 0.6);
+        });
+      });
+      const bus = 1 / Math.sqrt(1 + sum);
+      if (Math.abs(bus - busTarget) > 0.01) { busTarget = bus; glide(pairBus.gain, bus * 1.6, now, 1.2); }
     },
   };
 }
@@ -435,6 +531,7 @@ scrub.addEventListener("input", () => {
 });
 document.getElementById("aspects").addEventListener("change", (e) => { showAspects = e.target.checked; update(); });
 document.getElementById("orbit").addEventListener("change", update);
+document.getElementById("pairs").addEventListener("change", update);
 window.addEventListener("keydown", (e) => { if (e.key === " " && e.target.tagName !== "INPUT") { e.preventDefault(); setPlaying(!playing); } });
 
 function resize() {

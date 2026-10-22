@@ -79,7 +79,9 @@
       <option value="0.3333333">1 hour per second</option>
       <option value="1">3 hours per second</option>
       <option value="2">6 hours per second</option>
-      <option value="8" selected>1 day per second</option>
+      <option value="2.6666667">8 hours per second</option>
+      <option value="4" selected>12 hours per second</option>
+      <option value="8">1 day per second</option>
       <option value="24">3 days per second</option>
     </select>
   </label>
@@ -265,7 +267,7 @@ function sampleAt(f) {
 const wrap = (x) => ((x + 540) % 360) - 180;
 const start = new Date(DATA.start);
 let f = (288 * 24 + 1) / DATA.stepHours;   // 16 Oct 2026, 01:00 UTC
-let playing = !reduced, rate = 8, showAspects = true;
+let playing = !reduced, rate = 4, showAspects = true;
 
 function update() {
   const s = sampleAt(f);
@@ -410,13 +412,13 @@ document.getElementById("speed").addEventListener("change", (e) => {
   live = e.target.value === "now";
   if (live) {
     const fn = frameNow();
-    if (fn < 0 || fn >= N - 1) { e.target.value = "8"; live = false; rate = 8; return; }  // outside 2026
+    if (fn < 0 || fn >= N - 1) { e.target.value = "4"; live = false; rate = 4; return; }  // outside 2026
     f = fn; setPlaying(true); update();
   } else rate = Number(e.target.value);
 });
 scrub.addEventListener("input", () => {
   setPlaying(false); f = Number(scrub.value);
-  if (live) { live = false; rate = 8; document.getElementById("speed").value = "8"; }
+  if (live) { live = false; rate = 4; document.getElementById("speed").value = "4"; }
   update();
 });
 document.getElementById("aspects").addEventListener("change", (e) => { showAspects = e.target.checked; update(); });

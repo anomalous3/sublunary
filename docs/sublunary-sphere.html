@@ -67,11 +67,12 @@
     <div class="bulb" id="bulb"></div>
     <div id="what">Void<small>nothing applying</small></div>
   </div>
-  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky.</p>
+  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky. With <b>Sound</b> on, the Moon is a low drone and each lit orb sounds its aspect above her, in Kepler's consonances: sextile a minor third, square a fourth, trine a fifth, opposition an octave.</p>
 </section>
 
 <section class="hud controls">
   <button id="play" type="button" aria-pressed="true">Pause</button>
+  <button id="sound" type="button" aria-pressed="false" title="The Moon's drone, with each orb she enters sounding its aspect's interval (Kepler's consonances)">Sound</button>
   <label for="speed">Speed
     <select id="speed">
       <option value="2">6 hours per second</option>
@@ -287,6 +288,7 @@ function update() {
     c.grp.visible = showAspects || c.a === 0 || depth > 0;
     c.fill.material.opacity = depth > 0 ? 0.12 + 0.4 * depth : c.base;
     c.edge.material.opacity = depth > 0 ? 0.95 : (c.a === 0 ? 0.5 : 0.14);
+    c.depth = depth;
     if (depth > 0 && (!best || depth > best.depth)) best = { k: c.k, a: c.a, depth };
   }
   // trail: the last three days, fading
@@ -327,7 +329,71 @@ function update() {
     what.innerHTML = "Void<small>the Moon is inside no orb</small>";
   }
   document.getElementById("scrub").value = String(Math.round(f));
+  if (audio) audio.set(caps);
 }
+
+// --- sound: the Moon as a drone, each lit orb its aspect's interval above her ---------
+// Kepler, Harmonices Mundi IV: the arc an aspect leaves, against the whole circle
+const RATIO = { 0: 1, 60: 6 / 5, 300: 6 / 5, 90: 4 / 3, 270: 4 / 3, 120: 3 / 2, 240: 3 / 2, 180: 2 };
+// register by speed, fast planets high and slow ones deep, as Kepler had it
+const REGISTER = { mercury: 8, venus: 8, sun: 4, mars: 4, jupiter: 2, saturn: 2, uranus: 1, neptune: 1, pluto: 1 };
+// a small overtone recipe per planet, for its voice
+const TIMBRE = { sun: [1, .5, .3, .15], mercury: [1, .2, .35, .1, .2], venus: [1, .35, .1], mars: [1, .6, .45, .3, .2],
+  jupiter: [1, .45, .25, .12], saturn: [1, .1, .3, .05, .15], uranus: [1, 0, .4, 0, .25], neptune: [1, .15, .05], pluto: [1, .7, .2, .4] };
+const ROOT = 110;
+let audio = null;
+function startAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.0001;
+  const comp = ctx.createDynamicsCompressor();
+  // a soft room: decaying stereo noise as the impulse
+  const verb = ctx.createConvolver(), len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+  verb.buffer = ir;
+  const wet = ctx.createGain(); wet.gain.value = 0.35;
+  const dry = ctx.createGain(); dry.gain.value = 0.8;
+  const bus = ctx.createGain();
+  bus.connect(dry).connect(comp); bus.connect(verb).connect(wet).connect(comp);
+  comp.connect(master).connect(ctx.destination);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400; lp.connect(bus);
+  // the drone
+  for (const [mult, g] of [[1, 0.09], [2, 0.035]]) {
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.type = "sine"; o.frequency.value = ROOT * mult; gn.gain.value = g;
+    o.connect(gn).connect(lp); o.start();
+  }
+  // one voice per orb, silent until the Moon is inside it
+  const voices = caps.map((c) => {
+    const body = DATA.bodies[c.k], t = TIMBRE[body];
+    const real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
+    t.forEach((a, n) => { imag[n + 1] = a; });
+    const o = ctx.createOscillator(), gn = ctx.createGain();
+    o.setPeriodicWave(ctx.createPeriodicWave(real, imag));
+    o.frequency.value = ROOT * RATIO[c.a] * REGISTER[body];
+    o.detune.value = (Math.random() - 0.5) * 6;
+    gn.gain.value = 0;
+    o.connect(gn).connect(lp); o.start();
+    return gn;
+  });
+  master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
+  return {
+    ctx, master,
+    set(list) {
+      const now = ctx.currentTime;
+      list.forEach((c, n) => {
+        const d = c.depth || 0, reg = REGISTER[DATA.bodies[c.k]];
+        voices[n].gain.setTargetAtTime(d > 0 ? 0.05 * Math.pow(d, 1.4) / Math.sqrt(reg) : 0, now, 0.18);
+      });
+    },
+  };
+}
+const soundBtn = document.getElementById("sound");
+soundBtn.addEventListener("click", async () => {
+  if (!audio) { audio = startAudio(); soundBtn.textContent = "Sound off"; soundBtn.setAttribute("aria-pressed", "true"); update(); return; }
+  const on = audio.ctx.state === "running";
+  if (on) await audio.ctx.suspend(); else await audio.ctx.resume();
+  soundBtn.textContent = on ? "Sound" : "Sound off"; soundBtn.setAttribute("aria-pressed", String(!on));
+});
 
 // --- controls and loop --------------------------------------------------------
 const playBtn = document.getElementById("play"), scrub = document.getElementById("scrub");

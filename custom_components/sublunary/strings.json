@@ -6,19 +6,23 @@
         "description": "The realm of change beneath the Moon. Every void-of-course definition gets its own binary sensor; enable or disable them from the entity settings.",
         "data": {
           "tick_minutes": "Refresh interval (minutes)",
-          "birth": "Birth date and time (local)",
           "birth_timezone": "Birth time zone",
           "birth_location": "Birth place",
           "house_system": "House system",
+          "birth_year": "Birth year",
+          "birth_month": "Birth month (1-12)",
+          "birth_day": "Birth day",
+          "birth_time": "Birth time (local)",
           "birth_place": "Birth place"
         },
         "data_description": {
           "tick_minutes": "How often contact depth updates between discrete events.",
-          "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
           "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
           "birth_location": "Filled in by the birth place lookup, or pick it on the map.",
           "house_system": "Placidus falls back to Porphyry above about 66° latitude.",
-          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map."
+          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map.",
+          "birth_year": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
+          "birth_time": "As local clock time where you were born; the time zone handles daylight saving."
         }
       },
       "place": {
@@ -33,9 +37,10 @@
       "single_instance_allowed": "Sublunary is already configured."
     },
     "error": {
-      "invalid_birth": "That birth date and time couldn't be read.",
+      "invalid_birth": "That isn't a real date. Check the month and day.",
       "birth_location_required": "Pick a birth place on the map to use a birth time.",
-      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map."
+      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map.",
+      "birth_incomplete": "Fill in the year, month, day and time of birth, or leave all four empty."
     }
   },
   "options": {
@@ -44,19 +49,23 @@
         "title": "Sublunary options",
         "data": {
           "tick_minutes": "Refresh interval (minutes)",
-          "birth": "Birth date and time (local)",
           "birth_timezone": "Birth time zone",
           "birth_location": "Birth place",
           "house_system": "House system",
+          "birth_year": "Birth year",
+          "birth_month": "Birth month (1-12)",
+          "birth_day": "Birth day",
+          "birth_time": "Birth time (local)",
           "birth_place": "Birth place"
         },
         "data_description": {
           "tick_minutes": "How often contact depth updates between discrete events.",
-          "birth": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
           "birth_timezone": "The zone where you were born, so historical daylight saving is handled.",
           "birth_location": "Filled in by the birth place lookup, or pick it on the map.",
           "house_system": "Placidus falls back to Porphyry above about 66° latitude.",
-          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map."
+          "birth_place": "Type a city, like \"Chicago\" or \"Springfield, IL\", to look it up offline. It fills in the map and the time zone. Or leave it empty and use the map.",
+          "birth_year": "Optional. With a birth place, Sublunary tracks which of your natal houses the Moon is in. Stored only in your Home Assistant.",
+          "birth_time": "As local clock time where you were born; the time zone handles daylight saving."
         }
       },
       "place": {
@@ -68,9 +77,10 @@
       }
     },
     "error": {
-      "invalid_birth": "That birth date and time couldn't be read.",
+      "invalid_birth": "That isn't a real date. Check the month and day.",
       "birth_location_required": "Pick a birth place on the map to use a birth time.",
-      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map."
+      "place_not_found": "No city by that name. Check the spelling, or pick the place on the map.",
+      "birth_incomplete": "Fill in the year, month, day and time of birth, or leave all four empty."
     }
   },
   "entity": {

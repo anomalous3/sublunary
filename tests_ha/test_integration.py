@@ -336,10 +336,11 @@ async def test_no_natal_no_house_sensor(hass):
 
 async def test_config_flow_natal_validation(hass):
     r = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
-    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"tick_minutes": 5, "birth": "1990-06-15 14:30:00"})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"tick_minutes": 5, "birth_year": 1990, "birth_month": 6, "birth_day": 15, "birth_time": "14:30:00"})
     assert r["type"] is FlowResultType.FORM and r["errors"] == {"birth_location": "birth_location_required"}
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {
-        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_timezone": "America/Chicago",
+        "tick_minutes": 5, "birth_year": 1990, "birth_month": 6, "birth_day": 15, "birth_time": "14:30:00",
+        "birth_timezone": "America/Chicago",
         "birth_location": {"latitude": 41.88, "longitude": -87.63}, "house_system": "whole_sign"})
     assert r["type"] is FlowResultType.CREATE_ENTRY
     assert r["options"]["house_system"] == "whole_sign" and r["options"]["birth_timezone"] == "America/Chicago"
@@ -348,10 +349,10 @@ async def test_config_flow_natal_validation(hass):
 async def test_birth_place_lookup_flow(hass):
     r = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {
-        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_place": "Nowhereville Xyz"})
+        "tick_minutes": 5, "birth_year": 1990, "birth_month": 6, "birth_day": 15, "birth_time": "14:30:00", "birth_place": "Nowhereville Xyz"})
     assert r["type"] is FlowResultType.FORM and r["errors"] == {"birth_place": "place_not_found"}
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {
-        "tick_minutes": 5, "birth": "1990-06-15 14:30:00", "birth_place": "springfield, il", "house_system": "placidus"})
+        "tick_minutes": 5, "birth_year": 1990, "birth_month": 6, "birth_day": 15, "birth_time": "14:30:00", "birth_place": "springfield, il", "house_system": "placidus"})
     assert r["type"] is FlowResultType.FORM and r["step_id"] == "place"
     r = await hass.config_entries.flow.async_configure(r["flow_id"], {"place": "0"})
     assert r["type"] is FlowResultType.CREATE_ENTRY
@@ -367,3 +368,31 @@ async def test_place_search_accents_and_order():
     assert sp and sp[0]["name"] == "São Paulo" and sp[0]["timezone"] == "America/Sao_Paulo"
     ch = places.search("Chicago")
     assert ch[0]["country"] == "US" and ch[0]["admin1"] == "IL"   # most populous first
+
+
+async def test_birth_fields_typed_and_round_trip(hass):
+    # an impossible date and a half-filled form both explain themselves
+    r = await hass.config_entries.flow.async_init("sublunary", context={"source": config_entries.SOURCE_USER})
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {
+        "tick_minutes": 5, "birth_year": 1990, "birth_month": 2, "birth_day": 30, "birth_time": "14:30:00",
+        "birth_location": {"latitude": 41.88, "longitude": -87.63}})
+    assert r["errors"] == {"birth_day": "invalid_birth"}
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {"tick_minutes": 5, "birth_year": 1990})
+    assert r["errors"] == {"birth_month": "birth_incomplete"}
+    r = await hass.config_entries.flow.async_configure(r["flow_id"], {
+        "tick_minutes": 5, "birth_year": 1990, "birth_month": 6, "birth_day": 15, "birth_time": "14:30:00",
+        "birth_location": {"latitude": 41.88, "longitude": -87.63}, "birth_timezone": "America/Chicago"})
+    assert r["type"] is FlowResultType.CREATE_ENTRY and r["options"]["birth"] == "1990-06-15 14:30:00"
+    for k in ("birth_year", "birth_month", "birth_day", "birth_time"):
+        assert k not in r["options"]
+
+    # an existing entry (stored as one string) opens with the parts filled in
+    _link_kernel(hass)
+    entry = MockConfigEntry(domain="sublunary", data={}, options=NATAL)
+    entry.add_to_hass(hass)
+    r = await hass.config_entries.options.async_init(entry.entry_id)
+    schema = r["data_schema"].schema
+    suggested = {str(k): k.description["suggested_value"] for k in schema
+                 if k.description and "suggested_value" in k.description}
+    assert suggested["birth_year"] == 1990 and suggested["birth_month"] == 6
+    assert suggested["birth_day"] == 15 and suggested["birth_time"] == "14:30:00"

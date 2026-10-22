@@ -47,6 +47,7 @@
   button:hover, select:hover { border-color: var(--muted); }
   button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
   label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  .vol { width: 72px; accent-color: var(--silver); }
   #scrub { flex: 1 1 220px; min-width: 0; accent-color: var(--silver); }
   .links { color: var(--muted); font-size: 12.5px; }
   a { color: var(--fg); text-decoration-color: var(--muted); text-underline-offset: 3px; }
@@ -69,6 +70,8 @@
 <section class="hud controls">
   <button id="play" type="button" aria-pressed="true">Pause</button>
   <button id="sound" type="button" aria-pressed="false" title="The Moon's drone, with each orb she enters sounding its aspect's interval (Kepler's consonances)">Sound</button>
+  <label for="vmoon" title="The Moon's drone and her notes">Moon <input id="vmoon" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
+  <label for="vplanets" title="The planets' own aspects, the chord underneath">Planets <input id="vplanets" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
   <label for="speed">Speed
     <select id="speed">
       <option value="now">Now, in real time</option>
@@ -388,10 +391,12 @@ const TIMBRE = { sun: [1, .5, .3, .15], mercury: [1, .2, .35, .1, .2], venus: [1
   jupiter: [1, .45, .25, .12], saturn: [1, .1, .3, .05, .15], uranus: [1, 0, .4, 0, .25], neptune: [1, .15, .05], pluto: [1, .7, .2, .4] };
 const ROOT = 110;
 let audio = null;
+const mix = { moon: 1, planets: 1 };
 function startAudio() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const master = ctx.createGain(); master.gain.value = 0.0001;
-  const comp = ctx.createDynamicsCompressor();
+  const comp = ctx.createDynamicsCompressor();  // gentle: the default (-24 dB, 12:1) ducked the Moon under the chord
+  comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
   // a soft room: decaying stereo noise as the impulse
   const verb = ctx.createConvolver(), len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
   for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
@@ -402,11 +407,13 @@ function startAudio() {
   bus.connect(dry).connect(comp); bus.connect(verb).connect(wet).connect(comp);
   comp.connect(master).connect(ctx.destination);
   const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2400; lp.connect(bus);
+  // the Moon's own level, under the listener's hand (the drone and her orbs together)
+  const moonBus = ctx.createGain(); moonBus.gain.value = mix.moon; moonBus.connect(lp);
   // the drone
   for (const [mult, g] of [[1, 0.09], [2, 0.035]]) {
     const o = ctx.createOscillator(), gn = ctx.createGain();
     o.type = "sine"; o.frequency.value = ROOT * mult; gn.gain.value = g;
-    o.connect(gn).connect(lp); o.start();
+    o.connect(gn).connect(moonBus); o.start();
   }
   // one voice per orb, silent until the Moon is inside it
   const voices = caps.map((c) => {
@@ -418,21 +425,21 @@ function startAudio() {
     o.frequency.value = ROOT * RATIO[c.a] * REGISTER[body];
     o.detune.value = (Math.random() - 0.5) * 6;
     gn.gain.value = 0;
-    o.connect(gn).connect(lp); o.start();
+    o.connect(gn).connect(moonBus); o.start();
     return gn;
   });
   // one voice per planet pair, under the Moon's: the aspect's interval above the slower
   // planet's home (its register's A), in the faster planet's timbre. Squares and oppositions
   // get a twin a few hertz sharp, so they beat, fast at the edge of orb, slowing as they tighten.
   const pairBus = ctx.createGain(); pairBus.gain.value = 1;
-  const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 1400;
+  const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 2000;
   pairBus.connect(pairLp).connect(lp);
   const pairVoices = pairs.map((p) => {
     const fast = DATA.bodies[REGISTER[DATA.bodies[p.i]] >= REGISTER[DATA.bodies[p.j]] ? p.i : p.j];
     const t = TIMBRE[fast], real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
     t.forEach((x, n) => { imag[n + 1] = x; });
     const wave = ctx.createPeriodicWave(real, imag);
-    const home = ROOT * Math.min(4, REGISTER[DATA.bodies[p.i]], REGISTER[DATA.bodies[p.j]]);
+    const home = ROOT * Math.min(4, 2 * Math.min(REGISTER[DATA.bodies[p.i]], REGISTER[DATA.bodies[p.j]]));  // outer pairs at A3, the rest at A4
     const v = { home, a: -1, beat: 0, o: [], g: [] };
     for (let n = 0; n < 2; n++) {
       const o = ctx.createOscillator(), g = ctx.createGain();
@@ -449,33 +456,40 @@ function startAudio() {
   // pending schedule is cleared first, so each voice carries a single event.
   const target = new Float32Array(voices.length), pairTarget = new Float32Array(pairs.length * 2);
   let lastSet = 0, busTarget = 1;
-  const glide = (param, want, now, tc) => {
-    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(now); else param.cancelScheduledValues(now);
-    param.setTargetAtTime(want, now, tc);
+  // Pops came from cancelling halfway along an exponential curve. Instead: drop the schedule, pin the
+  // value the parameter has now, and ramp in a straight line. At most two events per parameter.
+  const glide = (param, want, now, secs) => {
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(param.value, now);
+    param.linearRampToValueAtTime(want, now + secs);
   };
   return {
     ctx, master,
-    set(list, plist) {
+    mix(which) {
       const now = ctx.currentTime;
-      if (now - lastSet < 0.05) return;
+      if (which === "moon") glide(moonBus.gain, mix.moon, now, 0.15);
+      else { busTarget = -1; this.set(caps, pairs, true); }
+    },
+    set(list, plist, force) {
+      const now = ctx.currentTime;
+      if (now - lastSet < 0.05 && !force) return;
       lastSet = now;
       list.forEach((c, n) => {
         const d = c.depth || 0, reg = REGISTER[DATA.bodies[c.k]];
-        const want = d > 0 ? 0.05 * Math.pow(d, 1.4) / Math.sqrt(reg) : 0;
+        const want = d > 0 ? 0.11 * Math.pow(d, 1.2) / Math.sqrt(reg) : 0;
         if (Math.abs(want - target[n]) < 0.0005) return;
         target[n] = want;
-        const g = voices[n].gain;
-        if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(now); else g.cancelScheduledValues(now);
-        g.setTargetAtTime(want, now, 0.18);
+        glide(voices[n].gain, want, now, 0.25);
       });
       // the pairs: a crowded sky is turned down as a whole, so fifteen held aspects stay a bed
-      let sum = 0;
+      let sum = 0, moonD = 0;
+      list.forEach((c) => { if ((c.depth || 0) > moonD) moonD = c.depth; });
       plist.forEach((p, n) => {
         const v = pairVoices[n], d = p.depth;
         sum += d;
         if (d > 0 && p.a !== v.a) {   // a new aspect: retune while silent (aspects never overlap in orb)
           v.a = p.a;
-          for (const o of v.o) { o.frequency.cancelScheduledValues(now); o.frequency.setValueAtTime(v.home * RATIO[p.a], now); }
+          for (const o of v.o) glide(o.frequency, v.home * RATIO[p.a], now, 0.05);
           v.beat = 0;
         }
         const hard = p.a === 90 || p.a === 180;
@@ -484,19 +498,20 @@ function startAudio() {
           if (Math.abs(beat - v.beat) > 0.05) {
             v.beat = beat;
             const fr = v.o[1].frequency;
-            fr.cancelScheduledValues(now); fr.setValueAtTime(v.home * RATIO[p.a] + beat, now);
+            glide(fr, v.home * RATIO[p.a] + beat, now, 0.3);
           }
         }
-        const want = d > 0 ? 0.016 * Math.pow(d, 1.6) : 0;
-        const w0 = hard ? want * 0.7 : want, w1 = hard ? want * 0.7 : 0;
+        const want = d > 0 ? 0.04 * Math.pow(d, 1.2) : 0;
+        const w0 = hard ? want * 0.85 : want, w1 = hard ? want * 0.35 : 0;  // a partial beat, a shimmer more than a pulse
         [w0, w1].forEach((w, m) => {
           if (Math.abs(w - pairTarget[n * 2 + m]) < 0.0003) return;
           pairTarget[n * 2 + m] = w;
-          glide(v.g[m].gain, w, now, 0.6);
+          glide(v.g[m].gain, w, now, 0.8);
         });
       });
-      const bus = 1 / Math.sqrt(1 + sum);
-      if (Math.abs(bus - busTarget) > 0.01) { busTarget = bus; glide(pairBus.gain, bus * 1.6, now, 1.2); }
+      // and the chord steps back while the Moon is inside an orb, so her notes stay in front
+      const bus = (1 / Math.sqrt(1 + sum)) * (1 - 0.45 * Math.min(1, moonD * 2));
+      if (Math.abs(bus - busTarget) > 0.01) { busTarget = bus; glide(pairBus.gain, bus * 1.8 * mix.planets, now, 0.8); }
     },
   };
 }
@@ -532,6 +547,8 @@ scrub.addEventListener("input", () => {
 document.getElementById("aspects").addEventListener("change", (e) => { showAspects = e.target.checked; update(); });
 document.getElementById("orbit").addEventListener("change", update);
 document.getElementById("pairs").addEventListener("change", update);
+for (const [id, which] of [["vmoon", "moon"], ["vplanets", "planets"]])
+  document.getElementById(id).addEventListener("input", (e) => { mix[which] = Number(e.target.value); if (audio) audio.mix(which); });
 window.addEventListener("keydown", (e) => { if (e.key === " " && e.target.tagName !== "INPUT") { e.preventDefault(); setPlaying(!playing); } });
 
 function resize() {

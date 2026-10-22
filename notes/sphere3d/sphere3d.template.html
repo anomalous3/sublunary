@@ -1,0 +1,349 @@
+<title>The Sublunary Sphere</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the sky fills the page; a reading in the top corner, controls along the bottom edge. */
+  :root {
+    color-scheme: dark;
+    --ink: #07080d;
+    --panel: rgba(13, 15, 23, 0.78);
+    --line: #262b40;
+    --fg: #dde0ea;
+    --muted: #8b91a8;
+    --silver: #eef1f8;
+    --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  html, body { height: 100%; margin: 0; background: var(--ink); color: var(--fg); font-family: var(--body); font-size: 14px; overflow: hidden; }
+  #sky { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  .hud { position: fixed; pointer-events: none; }
+  .hud > * { pointer-events: auto; }
+  .reading {
+    top: calc(14px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px));
+    max-width: min(380px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; backdrop-filter: blur(6px);
+  }
+  h1 { font-family: var(--display); font-weight: 400; font-size: 26px; line-height: 1.1; margin: 0; }
+  .when { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+  .contact { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; }
+  .bulb { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: #0d0f17; transition: background-color .3s, box-shadow .3s; }
+  #what { line-height: 1.35; }
+  #what small { display: block; color: var(--muted); font-size: 12.5px; }
+  .legend { color: var(--muted); font-size: 12.5px; line-height: 1.45; margin: 0; }
+  .legend b { color: var(--fg); font-weight: 500; }
+  .controls {
+    left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px;
+    display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; backdrop-filter: blur(6px);
+  }
+  button, select { font: inherit; color: var(--fg); background: #151827; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--muted); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  #scrub { flex: 1 1 220px; min-width: 0; accent-color: var(--silver); }
+  .links { color: var(--muted); font-size: 12.5px; }
+  a { color: var(--fg); text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  @media (max-width: 560px) { .legend { display: none; } h1 { font-size: 22px; } }
+</style>
+
+<canvas id="sky" aria-label="The celestial sphere: the ecliptic and the twelve signs, the planets with Lilly's orbs as glowing caps, and the Moon on her tilted orbit with its nodes, Rahu and Ketu"></canvas>
+
+<section class="hud reading">
+  <h1>The Sublunary Sphere</h1>
+  <div class="when" id="when">16 Oct 2026, 00:00 UTC</div>
+  <div class="contact">
+    <div class="bulb" id="bulb"></div>
+    <div id="what">Void<small>nothing applying</small></div>
+  </div>
+  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky.</p>
+</section>
+
+<section class="hud controls">
+  <button id="play" type="button" aria-pressed="true">Pause</button>
+  <label for="speed">Speed
+    <select id="speed">
+      <option value="2">6 hours per second</option>
+      <option value="8" selected>1 day per second</option>
+      <option value="24">3 days per second</option>
+    </select>
+  </label>
+  <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Date in 2026">
+  <label for="aspects"><input id="aspects" type="checkbox" checked> Aspect orbs</label>
+  <label for="orbit"><input id="orbit" type="checkbox" checked> Moon's orbit</label>
+  <span class="links">2026, JPL DE440s · <a href="https://github.com/anomalous3/sublunary">Sublunary</a></span>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const N = DATA.frames.length, NB = DATA.bodies.length;
+const D2R = Math.PI / 180, R = 10;
+const HYBRID = { sun: [255, 214, 170], mercury: [190, 205, 255], venus: [40, 220, 90], mars: [255, 30, 10],
+  jupiter: [150, 60, 255], saturn: [60, 40, 210], uranus: [0, 225, 255], neptune: [20, 90, 255], pluto: [235, 20, 140] };
+const GLYPH = { sun: "☉", mercury: "☿", venus: "♀", mars: "♂", jupiter: "♃", saturn: "♄", uranus: "♅", neptune: "♆", pluto: "♇" };
+const ASPECTS = [0, 60, 90, 120, 180, 240, 270, 300];
+const ASPECT_NAME = { 0: "conjunction", 60: "sextile", 90: "square", 120: "trine", 180: "opposition" };
+const SIGN_GLYPH = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+const VS = "︎";
+const col3 = (c) => new THREE.Color(c[0] / 255, c[1] / 255, c[2] / 255);
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ecliptic (lon, lat) -> scene position: ecliptic north is +Y, longitude runs counterclockwise seen from above
+function eclVec(lon, lat, r = 1) {
+  const l = lon * D2R, b = lat * D2R;
+  return new THREE.Vector3(r * Math.cos(b) * Math.cos(l), r * Math.sin(b), -r * Math.cos(b) * Math.sin(l));
+}
+
+// --- scene ----------------------------------------------------------------
+const canvas = document.getElementById("sky");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x07080d);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
+camera.position.set(9, 9, 26);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+controls.minDistance = 14; controls.maxDistance = 60;
+controls.autoRotate = !reduced; controls.autoRotateSpeed = 0.25;
+
+// distant stars
+{
+  const g = new THREE.BufferGeometry(), n = 1600, pos = new Float32Array(n * 3);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < n; i++) {
+    const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, r = 120 + rnd() * 60, s = Math.sqrt(1 - u * u);
+    pos.set([r * s * Math.cos(th), r * u, r * s * Math.sin(th)], i * 3);
+  }
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x8b91a8, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.55 })));
+}
+
+// faint body of the sphere, so the far side reads as far
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(R * 0.995, 64, 32),
+  new THREE.MeshBasicMaterial({ color: 0x0d0f17, transparent: true, opacity: 0.35, depthWrite: false })));
+
+function circle(points, color, opacity, dashed) {
+  const g = new THREE.BufferGeometry().setFromPoints(points);
+  const m = dashed
+    ? new THREE.LineDashedMaterial({ color, transparent: true, opacity, dashSize: 0.25, gapSize: 0.25 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  const line = new THREE.LineLoop(g, m);
+  if (dashed) line.computeLineDistances();
+  return line;
+}
+// ecliptic (the Sun's path, in the Sun's warm white), sign boundaries, celestial equator
+scene.add(circle([...Array(361)].map((_, i) => eclVec(i, 0, R)), 0xffd6aa, 0.75));
+for (let k = 0; k < 12; k++) {
+  const pts = [...Array(61)].map((_, i) => eclVec(k * 30, -90 + i * 3, R));
+  const g = new THREE.BufferGeometry().setFromPoints(pts);
+  scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0x8b91a8, transparent: true, opacity: 0.12 })));
+}
+{
+  const eps = 23.44 * D2R;
+  const pts = [...Array(361)].map((_, i) => {
+    const a = i * D2R; // equator: tilt the ecliptic about the equinox line (x axis)
+    return new THREE.Vector3(R * Math.cos(a), R * Math.sin(a) * Math.sin(-eps) * -1, -R * Math.sin(a) * Math.cos(eps));
+  });
+  scene.add(circle(pts, 0x8b91a8, 0.28, true));
+}
+
+// text sprites
+function label(text, { color = "#dde0ea", size = 64, font = "Instrument Sans", scale = 0.9 } = {}) {
+  const c = document.createElement("canvas"), ctx = c.getContext("2d");
+  ctx.font = `${size}px "${font}", "Apple Symbols", "DejaVu Sans", sans-serif`;
+  const w = Math.ceil(ctx.measureText(text).width) + 16;
+  c.width = w; c.height = size * 1.4;
+  ctx.font = `${size}px "${font}", "Apple Symbols", "DejaVu Sans", sans-serif`;
+  ctx.fillStyle = color; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+  ctx.fillText(text, w / 2, c.height / 2);
+  const tex = new THREE.CanvasTexture(c);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  s.scale.set(scale * w / c.height, scale, 1);
+  return s;
+}
+for (let k = 0; k < 12; k++) {
+  const s = label(SIGN_GLYPH[k] + VS, { color: "#8b91a8", scale: 0.85 });
+  s.position.copy(eclVec(k * 30 + 15, 0, R * 1.09));
+  scene.add(s);
+}
+
+// Earth at the center
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 16), new THREE.MeshBasicMaterial({ color: 0x1d3a6e })));
+scene.add(circle([...Array(73)].map((_, i) => eclVec(i * 5, 0, 0.44)), 0x5a7bd0, 0.8));
+
+// orbs: spherical caps of angular radius rho, built around +Y and rotated into place
+const UP = new THREE.Vector3(0, 1, 0);
+const caps = [];
+DATA.bodies.forEach((body, k) => {
+  const rho = DATA.rho[k] * D2R, color = col3(HYBRID[body]);
+  ASPECTS.forEach((a) => {
+    const grp = new THREE.Group();
+    const fill = new THREE.Mesh(new THREE.SphereGeometry(R * 1.003, 48, 8, 0, Math.PI * 2, 0, rho),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const edgePts = [...Array(73)].map((_, i) => {
+      const t = i * 5 * D2R;
+      return new THREE.Vector3(R * 1.004 * Math.sin(rho) * Math.cos(t), R * 1.004 * Math.cos(rho), R * 1.004 * Math.sin(rho) * Math.sin(t));
+    });
+    const edge = circle(edgePts, color, a === 0 ? 0.55 : 0.22, false);
+    grp.add(fill, edge);
+    scene.add(grp);
+    caps.push({ k, a, grp, fill, edge, base: a === 0 ? 0.08 : 0.026 });
+  });
+});
+
+// planets and their glyphs
+const planets = DATA.bodies.map((body) => {
+  const color = col3(HYBRID[body]);
+  const m = new THREE.Mesh(new THREE.SphereGeometry(body === "sun" ? 0.34 : 0.2, 24, 12), new THREE.MeshBasicMaterial({ color }));
+  const g = label(GLYPH[body] + VS, { color: `rgb(${HYBRID[body].join(",")})`, scale: 0.8 });
+  scene.add(m, g);
+  return { m, g };
+});
+
+// the Moon, her trail, her orbit and its nodes
+const moon = new THREE.Mesh(new THREE.SphereGeometry(0.3, 32, 16), new THREE.MeshBasicMaterial({ color: 0xeef1f8 }));
+const moonGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+  const c = document.createElement("canvas"); c.width = c.height = 128;
+  const ctx = c.getContext("2d"), g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,0.9)"); g.addColorStop(0.35, "rgba(255,255,255,0.25)"); g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+})(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+moonGlow.scale.set(2.4, 2.4, 1);
+scene.add(moon, moonGlow);
+const TRAIL = 24; // 3 days of 3-hour frames
+const trailGeom = new THREE.BufferGeometry();
+trailGeom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3));
+trailGeom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(TRAIL * 3), 3));
+const trail = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }));
+scene.add(trail);
+
+const INCL = 5.145;
+const orbitGeom = new THREE.BufferGeometry();
+orbitGeom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(181 * 3), 3));
+orbitGeom.setAttribute("color", new THREE.BufferAttribute(new Float32Array(181 * 3), 3));
+const orbit = new THREE.LineLoop(orbitGeom, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.85 }));
+scene.add(orbit);
+const rahu = label("☊ Rahu", { color: "#eef1f8", scale: 0.75 }), ketu = label("☋ Ketu", { color: "#8b91a8", scale: 0.75 });
+const nodeDots = [0, 1].map((i) => new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 8), new THREE.MeshBasicMaterial({ color: i ? 0x8b91a8 : 0xeef1f8 })));
+scene.add(rahu, ketu, ...nodeDots);
+
+// point on the Moon's mean orbit at argument u past the ascending node
+function orbitPoint(node, u, r) {
+  const i = INCL * D2R;
+  const lat = Math.asin(Math.sin(i) * Math.sin(u * D2R)) / D2R;
+  const lon = node + Math.atan2(Math.cos(i) * Math.sin(u * D2R), Math.cos(u * D2R)) / D2R;
+  return eclVec(lon, lat, r);
+}
+
+// --- state ----------------------------------------------------------------
+const lerpA = (a, b, u) => a + (((b - a + 540) % 360) - 180) * u;
+function sampleAt(f) {
+  const i = Math.max(0, Math.min(N - 1, Math.floor(f))), j = Math.min(N - 1, i + 1), u = f - i;
+  const A = DATA.frames[i], B = DATA.frames[j];
+  const s = { mlon: lerpA(A[0], B[0], u), mlat: A[1] + (B[1] - A[1]) * u, node: lerpA(A[2], B[2], u), p: [] };
+  for (let k = 0; k < NB; k++) s.p.push([lerpA(A[3 + 2 * k], B[3 + 2 * k], u), A[4 + 2 * k] + (B[4 + 2 * k] - A[4 + 2 * k]) * u]);
+  return s;
+}
+const wrap = (x) => ((x + 540) % 360) - 180;
+const start = new Date(DATA.start);
+let f = (288 * 24 + 1) / DATA.stepHours;   // 16 Oct 2026, 01:00 UTC
+let playing = !reduced, rate = 8, showAspects = true;
+
+function update() {
+  const s = sampleAt(f);
+  const mv = eclVec(s.mlon, s.mlat, R);
+  moon.position.copy(mv); moonGlow.position.copy(mv);
+  const mUnit = mv.clone().normalize();
+  // planets, caps, contact on the sphere
+  let best = null;
+  for (let k = 0; k < NB; k++) {
+    const [lon, lat] = s.p[k];
+    planets[k].m.position.copy(eclVec(lon, lat, R * 1.006));
+    planets[k].g.position.copy(eclVec(lon, lat + 1.9, R * 1.03));
+  }
+  for (const c of caps) {
+    const [lon, lat] = s.p[c.k];
+    const plon = lon + c.a, plat = lat * Math.cos(c.a * D2R);
+    const pv = eclVec(plon, plat, 1);
+    c.grp.quaternion.setFromUnitVectors(UP, pv);
+    const rho = DATA.rho[c.k];
+    const dist = Math.acos(Math.max(-1, Math.min(1, pv.dot(mUnit)))) / D2R;
+    const applying = wrap(s.mlon - plon) <= 0;
+    const depth = applying && dist < rho ? 1 - dist / rho : 0;
+    c.grp.visible = showAspects || c.a === 0 || depth > 0;
+    c.fill.material.opacity = depth > 0 ? 0.12 + 0.4 * depth : c.base;
+    c.edge.material.opacity = depth > 0 ? 0.95 : (c.a === 0 ? 0.5 : 0.14);
+    if (depth > 0 && (!best || depth > best.depth)) best = { k: c.k, a: c.a, depth };
+  }
+  // trail: the last three days, fading
+  const tp = trailGeom.attributes.position.array, tc = trailGeom.attributes.color.array;
+  for (let n = 0; n < TRAIL; n++) {
+    const fs = Math.max(0, f - (TRAIL - 1 - n));
+    const t = sampleAt(fs), v = eclVec(t.mlon, t.mlat, R * 1.002);
+    tp.set([v.x, v.y, v.z], n * 3);
+    const w = n / (TRAIL - 1);
+    tc.set([0.93 * w, 0.95 * w, 0.97 * w], n * 3);
+  }
+  trailGeom.attributes.position.needsUpdate = true; trailGeom.attributes.color.needsUpdate = true;
+  // the orbit: brighter where she is north of the ecliptic
+  const op = orbitGeom.attributes.position.array, oc = orbitGeom.attributes.color.array;
+  for (let n = 0; n <= 180; n++) {
+    const u = n * 2, v = orbitPoint(s.node, u, R * 0.999);
+    op.set([v.x, v.y, v.z], n * 3);
+    const north = Math.sin(u * D2R) > 0;
+    oc.set(north ? [0.93, 0.95, 0.97] : [0.42, 0.45, 0.55], n * 3);
+  }
+  orbitGeom.attributes.position.needsUpdate = true; orbitGeom.attributes.color.needsUpdate = true;
+  orbit.visible = document.getElementById("orbit").checked;
+  const r1 = eclVec(s.node, 0, R), k1 = eclVec(s.node + 180, 0, R);
+  nodeDots[0].position.copy(r1); nodeDots[1].position.copy(k1);
+  rahu.position.copy(eclVec(s.node, -2.4, R * 1.04)); ketu.position.copy(eclVec(s.node + 180, -2.4, R * 1.04));
+  rahu.visible = ketu.visible = nodeDots[0].visible = nodeDots[1].visible = orbit.visible;
+  // reading
+  const dt = new Date(start.getTime() + f * DATA.stepHours * 3600000);
+  document.getElementById("when").textContent = dt.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "UTC" }) + " UTC";
+  const bulb = document.getElementById("bulb"), what = document.getElementById("what");
+  if (best) {
+    const body = DATA.bodies[best.k], c = HYBRID[body];
+    bulb.style.backgroundColor = `rgba(${c.join(",")},${0.3 + 0.7 * best.depth})`;
+    bulb.style.boxShadow = `0 0 ${8 + 22 * best.depth}px rgba(${c.join(",")},0.55)`;
+    what.innerHTML = `${body[0].toUpperCase() + body.slice(1)}, ${ASPECT_NAME[Math.min(best.a, 360 - best.a)]}<small>depth ${best.depth.toFixed(2)}, measured on the sphere</small>`;
+  } else {
+    bulb.style.backgroundColor = "#0d0f17"; bulb.style.boxShadow = "none";
+    what.innerHTML = "Void<small>the Moon is inside no orb</small>";
+  }
+  document.getElementById("scrub").value = String(Math.round(f));
+}
+
+// --- controls and loop --------------------------------------------------------
+const playBtn = document.getElementById("play"), scrub = document.getElementById("scrub");
+scrub.max = String(N - 1);
+function setPlaying(p) { playing = p; playBtn.textContent = p ? "Pause" : "Play"; playBtn.setAttribute("aria-pressed", String(p)); }
+playBtn.addEventListener("click", () => setPlaying(!playing));
+document.getElementById("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+scrub.addEventListener("input", () => { setPlaying(false); f = Number(scrub.value); update(); });
+document.getElementById("aspects").addEventListener("change", (e) => { showAspects = e.target.checked; update(); });
+document.getElementById("orbit").addEventListener("change", update);
+window.addEventListener("keydown", (e) => { if (e.key === " " && e.target.tagName !== "INPUT") { e.preventDefault(); setPlaying(!playing); } });
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.position.setLength(w < 600 ? 34 : 28); camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+resize(); setPlaying(playing); update();
+let last = performance.now();
+(function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { f += rate * dt; if (f >= N - 1) f = 0; update(); }
+  controls.update(); renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+})(last);
+</script>

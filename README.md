@@ -14,6 +14,8 @@ Lilly's orbs on a zodiac wheel, and what one bulb does with them. Its companion,
 **[Sublunary Houses](https://anomalous3.github.io/sublunary/houses.html)**, shows the sign and natal-house colors, with your own chart computed in the browser.
 And **[Lilly's Orbs on the Sphere](https://anomalous3.github.io/sublunary/sphere.html)**: a year of the Moon
 threading Lilly's orbs on the actual sky rather than flattened onto the ecliptic.
+And **[The Sublunary Sphere](https://anomalous3.github.io/sublunary/sublunary-sphere.html)**: the same sky in 3D, with
+the Moon's tilted orbit, its nodes Rahu and Ketu, and every orb as a cap of light.
 
 Void of course is famously contested, so Sublunary computes several
 definitions side by side, and the disagreement between them is itself

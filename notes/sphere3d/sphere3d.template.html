@@ -465,7 +465,7 @@ function startAudio() {
     const H = 24, S = 512, real = new Float32Array(H + 1), imag = new Float32Array(H + 1);
     for (let n = 1; n <= H; n++) {
       let c = 0, d = 0;
-      for (let i = 0; i < S; i++) { const t = i / S, y = Math.exp(-t / 0.12); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); }
+      for (let i = 0; i < S; i++) { const t = i / S, y = (1 - Math.exp(-t / 0.025)) * Math.exp(-t / 0.13); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); }
       real[n] = 2 * c / S; imag[n] = 2 * d / S;
     }
     return ctx.createPeriodicWave(real, imag);
@@ -473,7 +473,7 @@ function startAudio() {
   function lfo(w, hz, depth, param, keep) {
     const l = ctx.createOscillator(), d = ctx.createGain();
     l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth;
-    l.connect(d).connect(param); l.start(ctx.currentTime + Math.random() * 1.5);
+    l.connect(d).connect(param); l.start();   // at once, while the voice is still silent: a late start jumps
     keep.push(l, d);
   }
   // one sounding part: oscillator -> movement -> level -> out

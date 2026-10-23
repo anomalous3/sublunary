@@ -32,6 +32,8 @@
   .bulb { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: #0d0f17; transition: background-color .3s, box-shadow .3s; }
   #what { line-height: 1.35; }
   #what small { display: block; color: var(--muted); font-size: 12.5px; }
+  .voiceline { color: var(--muted); font-size: 12.5px; }
+  .voiceline:empty { display: none; }
   .pairline { font-size: 15px; line-height: 1.5; letter-spacing: 0.02em; min-height: 1.5em; }
   .pairline span { display: inline-block; margin-right: 0.55em; }
   .pairline small { color: var(--muted); font-size: 12px; }
@@ -63,8 +65,9 @@
     <div class="bulb" id="bulb"></div>
     <div id="what">Void<small>nothing applying</small></div>
   </div>
+  <div class="voiceline" id="voiceline"></div>
   <div class="pairline" id="pairline" aria-label="Aspects between the planets now"></div>
-  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky. With <b>Sound</b> on, the Moon is a low drone and each lit orb sounds its aspect above her, in Kepler's consonances: sextile a minor third, square a fourth, trine a fifth, opposition an octave. Underneath, the <b>planets' own aspects</b>: a chord joins two planets while they hold one, and sounds its interval above the slower planet, softly; squares and oppositions beat.</p>
+  <p class="legend">The <b>ecliptic</b>, the Sun's path, is the warm ring; the Moon rides her own silver orbit, tilted 5°, crossing it at <b>☊ Rahu</b>, the head, and <b>☋ Ketu</b>, the tail. Each planet wears <b>Lilly's orbs</b> as caps of light, at itself and at every aspect point. When the Moon enters one from the applying side it lights, and the bulb takes the planet's color. Drag to turn the sky. With <b>Sound</b> on, the Moon is a low drone and each lit orb sounds its aspect above her, in Kepler's consonances: sextile a minor third, square a fourth, trine a fifth, opposition an octave. Underneath, the <b>planets' own aspects</b>: a chord joins two planets while they hold one, and sounds its interval above the slower planet, softly; squares and oppositions beat. With voices <b>by sign</b>, each sounds in its sign: the element sets the tone (fire bright, earth hollow, air a flute, water nearly pure), the modality how it moves (cardinal pulses, fixed swells, mutable wavers).</p>
 </section>
 
 <section class="hud controls">
@@ -72,6 +75,12 @@
   <button id="sound" type="button" aria-pressed="false" title="The Moon's drone, with each orb she enters sounding its aspect's interval (Kepler's consonances)">Sound</button>
   <label for="vmoon" title="The Moon's drone and her notes">Moon <input id="vmoon" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
   <label for="vplanets" title="The planets' own aspects, the chord underneath">Planets <input id="vplanets" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
+  <label for="timbre">Voices
+    <select id="timbre">
+      <option value="sign" selected>by sign</option>
+      <option value="planet">by planet</option>
+    </select>
+  </label>
   <label for="speed">Speed
     <select id="speed">
       <option value="now">Now, in real time</option>
@@ -378,7 +387,8 @@ function update() {
   }
   const sv = String(Math.round(f));
   if (scrubEl.value !== sv) scrubEl.value = sv;
-  if (audio) audio.set(caps, pairs);
+  if (audio) audio.set(caps, pairs, { moon: signOf(s.mlon), p: s.p.map(([lon]) => signOf(lon)) });
+  setText("voiceline", mix.bySign ? (() => { const k = signOf(s.mlon); return `Moon in ${SIGN_NAME[k]}: ${MODALITY[k % 3]} ${ELEMENT[k % 4]}`; })() : "");
 }
 
 // --- sound: the Moon as a drone, each lit orb its aspect's interval above her ---------
@@ -389,9 +399,19 @@ const REGISTER = { mercury: 8, venus: 8, sun: 4, mars: 4, jupiter: 2, saturn: 2,
 // a small overtone recipe per planet, for its voice
 const TIMBRE = { sun: [1, .5, .3, .15], mercury: [1, .2, .35, .1, .2], venus: [1, .35, .1], mars: [1, .6, .45, .3, .2],
   jupiter: [1, .45, .25, .12], saturn: [1, .1, .3, .05, .15], uranus: [1, 0, .4, 0, .25], neptune: [1, .15, .05], pluto: [1, .7, .2, .4] };
+// by sign: the element sets the waveform, the modality how the note moves
+const ELEMENT = ["fire", "earth", "air", "water"], MODALITY = ["cardinal", "fixed", "mutable"];
+const SIGN_NAME = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+const ELEMENT_WAVE = {
+  fire: [1, .44, .27, .19, .14, .11, .09, .07, .05, .04],   // a sawtooth, tamed: bright, reedy
+  earth: [1, 0, .3, 0, .15, 0, .08, 0, .04],                  // odd harmonics only: hollow, a soft clarinet
+  air: [1, .12, .11, 0, .04, 0, .02],                         // a flute: light, a little breath
+  water: [1, .08, .02],                                       // nearly pure
+};
+const signOf = (lon) => Math.floor((((lon % 360) + 360) % 360) / 30);
 const ROOT = 110;
 let audio = null;
-const mix = { moon: 1, planets: 1 };
+const mix = { moon: 1, planets: 1, bySign: true };
 function startAudio() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   const master = ctx.createGain(); master.gain.value = 0.0001;
@@ -412,7 +432,8 @@ function startAudio() {
   // and a running ramp is never cancelled: cancelling one snaps the value back to where the ramp
   // began, a click, and at twenty updates a second the clicks pile up. A new ramp waits for the
   // last to finish; the next update simply asks again. Voices live only while they sound, so no
-  // node carries a long schedule, and silent oscillators cost nothing.
+  // node carries a long schedule. Movement (pulse, swell, vibrato) comes from low oscillators
+  // wired into the parameters, which schedule nothing at all.
   const LOOK = 0.03;
   const ramp = (param, v) => { param.value = v; return { param, v1: v, t1: 0 }; };
   function rampTo(r, want, secs, eps) {
@@ -424,92 +445,129 @@ function startAudio() {
   }
   const settled = (r) => r.v1 === 0 && ctx.currentTime > r.t1 + 0.05;
 
-  // the Moon's own level (the drone and her orbs together) and the planets' chord, each under a slider
   const moonBus = ctx.createGain(), moonLevel = ramp(moonBus.gain, mix.moon);
   moonBus.connect(lp);
   const pairBus = ctx.createGain(), pairLevel = ramp(pairBus.gain, 0);
   const pairLp = ctx.createBiquadFilter(); pairLp.type = "lowpass"; pairLp.frequency.value = 2000;
   pairBus.connect(pairLp).connect(lp);
-  // the drone
-  for (const [mult, g] of [[1, 0.09], [2, 0.035]]) {
-    const o = ctx.createOscillator(), gn = ctx.createGain();
-    o.type = "sine"; o.frequency.value = ROOT * mult; gn.gain.value = g;
-    o.connect(gn).connect(moonBus); o.start();
-  }
-  // a small overtone recipe per planet, made once
-  const WAVE = {};
-  for (const [body, t] of Object.entries(TIMBRE)) {
+
+  const wave = (t) => {
     const real = new Float32Array(t.length + 1), imag = new Float32Array(t.length + 1);
     t.forEach((x, n) => { imag[n + 1] = x; });
-    WAVE[body] = ctx.createPeriodicWave(real, imag);
+    return ctx.createPeriodicWave(real, imag);
+  };
+  const WAVE = {}, EWAVE = {};
+  for (const [k, t] of Object.entries(TIMBRE)) WAVE[k] = wave(t);
+  for (const [k, t] of Object.entries(ELEMENT_WAVE)) EWAVE[k] = wave(t);
+  const SINE = wave([1]);
+  // cardinal's pulse: a struck note, again and again (a decaying spike as a periodic wave)
+  const PULSE = (() => {
+    const H = 24, S = 512, real = new Float32Array(H + 1), imag = new Float32Array(H + 1);
+    for (let n = 1; n <= H; n++) {
+      let c = 0, d = 0;
+      for (let i = 0; i < S; i++) { const t = i / S, y = Math.exp(-t / 0.12); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); }
+      real[n] = 2 * c / S; imag[n] = 2 * d / S;
+    }
+    return ctx.createPeriodicWave(real, imag);
+  })();
+  function lfo(w, hz, depth, param, keep) {
+    const l = ctx.createOscillator(), d = ctx.createGain();
+    l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth;
+    l.connect(d).connect(param); l.start(ctx.currentTime + Math.random() * 1.5);
+    keep.push(l, d);
   }
-  function voice(body, freqs, out) {
-    const v = { o: [], n: [], g: [], f: [] };
-    freqs.forEach((fr) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.setPeriodicWave(WAVE[body]);
-      v.f.push(ramp(o.frequency, fr)); v.g.push(ramp(g.gain, 0));
-      o.detune.value = (Math.random() - 0.5) * 6;
-      o.connect(g).connect(out); o.start();
-      v.o.push(o); v.n.push(g);
-    });
+  // one sounding part: oscillator -> movement -> level -> out
+  function part(freq, w, mod, out, v) {
+    const o = ctx.createOscillator(), m = ctx.createGain(), g = ctx.createGain();
+    o.setPeriodicWave(w); o.detune.value = (Math.random() - 0.5) * 6;
+    if (mod === "cardinal") { m.gain.value = 0.8; lfo(PULSE, 0.4 + Math.random() * 0.12, 0.4, m.gain, v.nodes); }
+    else if (mod === "fixed") { m.gain.value = 0.9; lfo(SINE, 0.1 + Math.random() * 0.05, 0.14, m.gain, v.nodes); }
+    else if (mod === "mutable") lfo(SINE, 4.6 + Math.random() * 0.8, 9, o.detune, v.nodes);   // ±9 cents
+    o.connect(m).connect(g).connect(out); o.start();
+    v.o.push(o); v.nodes.push(m, g);
+    v.f.push(ramp(o.frequency, freq)); v.g.push(ramp(g.gain, 0));
+  }
+  // parts: [freq, body, sign] each; by planet the body's timbre, by sign the sign's element and modality
+  function voice(parts, out, plain) {
+    const v = { o: [], nodes: [], g: [], f: [] };
+    for (const [freq, body, sign] of parts) {
+      if (mix.bySign && sign >= 0) part(freq, EWAVE[ELEMENT[sign % 4]], MODALITY[sign % 3], out, v);
+      else part(freq, plain ? SINE : WAVE[body], null, out, v);
+    }
     return v;
   }
-  function release(v) { v.o.forEach((o, n) => { o.stop(); o.disconnect(); v.n[n].disconnect(); }); }
+  function release(v) {
+    v.o.forEach((o) => o.stop());
+    v.nodes.forEach((n) => { if (n.stop) n.stop(); n.disconnect(); });
+    v.o.forEach((o) => o.disconnect());
+  }
+  // keep the voices named in `wants` sounding; fade and release the rest (a change of sign or of
+  // mode is just a new name, so it crossfades by itself)
+  function tend(map, wants, make, secs) {
+    for (const [key, levels] of wants) {
+      let v = map.get(key);
+      if (!v) map.set(key, v = make(key));
+      levels.forEach((w, n) => rampTo(v.g[n], w, secs, 0.0003));
+      if (v.beat !== undefined) rampTo(v.f[1], v.beat, 0.3, 0.05);
+    }
+    for (const [key, v] of map) {
+      if (wants.has(key)) continue;
+      v.g.forEach((r) => rampTo(r, 0, Math.max(secs, 0.5), 0));
+      if (v.g.every(settled)) { release(v); map.delete(key); }
+    }
+  }
 
-  // the Moon's orbs: one voice per lit orb, its aspect's interval above her drone.
+  // The Moon: a drone in her own sign, and one voice per lit orb, its aspect's interval above her,
+  // in the sign of the planet she meets there.
   // The planet pairs: one voice per held aspect, the interval above the slower planet's home
-  // (its register's A, outer pairs at A3, the rest at A4), in the faster planet's timbre.
-  // Squares and oppositions carry a quieter twin a few hertz sharp, so they shimmer, quick at
-  // the edge of orb and slowing as they tighten.
-  const moonVoices = new Map(), pairVoices = new Map();
+  // (its register's A: outer pairs at A3, the rest at A4), sounded by both planets, each in its own
+  // timbre or sign. In squares and oppositions the second sits a few hertz sharp, so they shimmer,
+  // quick at the edge of orb and slowing as they tighten.
+  const drones = new Map(), moonVoices = new Map(), pairVoices = new Map(), info = new Map();
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
   let lastSet = 0;
   return {
     ctx, master, moonVoices, pairVoices,
-    mix() { lastSet = -1; this.set(caps, pairs); setTimeout(() => { lastSet = -1; this.set(caps, pairs); }, 300); },  // and on every update
-    set(list, plist) {
+    mix() { if (!this.sky) return; lastSet = -1; this.set(caps, pairs, audio.sky); setTimeout(() => { lastSet = -1; this.set(caps, pairs, audio.sky); }, 300); },
+    set(list, plist, sky) {
+      this.sky = sky;
       const now = ctx.currentTime;
       if (now - lastSet < 0.05) return;
       lastSet = now;
+      const mode = mix.bySign ? "s" : "p";
+      const ms = mix.bySign ? sky.moon : -1;
+      tend(drones, new Map([[mode + ms, [0.09, 0.035]]]),
+        () => voice([[ROOT, "moon", ms], [ROOT * 2, "moon", -1]], moonBus, true), 1.5);
       let moonD = 0;
+      const mw = new Map();
       list.forEach((c, n) => {
-        const d = c.depth || 0, body = DATA.bodies[c.k], reg = REGISTER[body];
+        const d = c.depth || 0;
+        if (d <= 0) return;
         if (d > moonD) moonD = d;
-        const want = d > 0 ? 0.11 * Math.pow(d, 1.2) / Math.sqrt(reg) : 0;
-        let v = moonVoices.get(n);
-        if (!v && want > 0) moonVoices.set(n, v = voice(body, [ROOT * RATIO[c.a] * reg], moonBus));
-        if (!v) return;
-        rampTo(v.g[0], want, 0.12, 0.0005);
-        if (want === 0 && settled(v.g[0])) { release(v); moonVoices.delete(n); }
+        const body = DATA.bodies[c.k], reg = REGISTER[body], sg = sky.p[c.k];
+        const key = `${n}|${mode}|${sg}`;
+        mw.set(key, [0.11 * Math.pow(d, 1.2) / Math.sqrt(reg)]);
+        info.set(key, [[ROOT * RATIO[c.a] * reg, body, sg]]);
       });
-      // a crowded sky is turned down as a whole, so fifteen held aspects stay a bed
+      tend(moonVoices, mw, (key) => voice(info.get(key), moonBus), 0.12);
       let sum = 0;
-      const live = new Set();
+      const pw = new Map();
       plist.forEach((p, n) => {
         const d = p.depth;
-        sum += d;
         if (d <= 0) return;
-        const key = n + ":" + p.a;
-        live.add(key);
-        const hard = p.a === 90 || p.a === 180;
-        const want = 0.04 * Math.pow(d, 1.2);
-        let v = pairVoices.get(key);
-        const bi = DATA.bodies[p.i], bj = DATA.bodies[p.j];
+        sum += d;
+        const bi = DATA.bodies[p.i], bj = DATA.bodies[p.j], si = sky.p[p.i], sj = sky.p[p.j];
+        const key = `${n}|${p.a}|${mode}|${si}|${sj}`;
+        const hard = p.a === 90 || p.a === 180, want = 0.04 * Math.pow(d, 1.2);
         const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[bi], REGISTER[bj])) * RATIO[p.a];
-        if (!v) pairVoices.set(key, v = voice(REGISTER[bi] >= REGISTER[bj] ? bi : bj, hard ? [freq, freq + 2] : [freq], pairBus));
-        rampTo(v.g[0], hard ? want * 0.85 : want, 0.3, 0.0003);
-        if (hard) {
-          rampTo(v.g[1], want * 0.35, 0.3, 0.0003);          // a partial beat, a shimmer more than a pulse
-          rampTo(v.f[1], freq + 0.5 + 3 * (1 - d), 0.3, 0.05);
-        }
+        pw.set(key, hard ? [want * 0.7, want * 0.45] : [want * 0.6, want * 0.6]);
+        info.set(key, [[freq, bi, si], [freq, bj, sj]]);
+        const v = pairVoices.get(key);
+        if (v) v.beat = hard ? freq + 0.5 + 3 * (1 - d) : undefined;
       });
-      for (const [key, v] of pairVoices) {
-        if (live.has(key)) continue;
-        v.g.forEach((r) => rampTo(r, 0, 0.5, 0));
-        if (v.g.every(settled)) { release(v); pairVoices.delete(key); }
-      }
-      // and the chord steps back while the Moon is inside an orb, so her notes stay in front
+      tend(pairVoices, pw, (key) => voice(info.get(key), pairBus), 0.3);
+      for (const key of info.keys()) if (!moonVoices.has(key) && !pairVoices.has(key) && !mw.has(key) && !pw.has(key)) info.delete(key);
+      // a crowded sky is turned down as a whole, and steps back while the Moon is in an orb
       const level = (1 / Math.sqrt(1 + sum)) * (1 - 0.45 * Math.min(1, moonD * 2)) * 1.8 * mix.planets;
       rampTo(pairLevel, level, 0.25, 0.005);
       rampTo(moonLevel, mix.moon, 0.1, 0.005);
@@ -548,6 +606,7 @@ scrub.addEventListener("input", () => {
 document.getElementById("aspects").addEventListener("change", (e) => { showAspects = e.target.checked; update(); });
 document.getElementById("orbit").addEventListener("change", update);
 document.getElementById("pairs").addEventListener("change", update);
+document.getElementById("timbre").addEventListener("change", (e) => { mix.bySign = e.target.value === "sign"; update(); if (audio) audio.mix(); });
 for (const [id, which] of [["vmoon", "moon"], ["vplanets", "planets"]])
   document.getElementById(id).addEventListener("input", (e) => { mix[which] = Number(e.target.value); if (audio) audio.mix(which); });
 window.addEventListener("keydown", (e) => { if (e.key === " " && e.target.tagName !== "INPUT") { e.preventDefault(); setPlaying(!playing); } });

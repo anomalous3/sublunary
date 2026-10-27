@@ -356,7 +356,7 @@ const who = (k) => (k === "s" ? "The sky's" : `${people[k].name || (k === "a" ? 
 let listKey = "";
 function renderList(list) {
   const shown = list.slice(0, 60);
-  const key = mode + "|" + selected + "|" + shown.map((c) => c.key + c.depth.toFixed(2)).join(",");
+  const key = mode + "|" + selected + "|" + shown.map((c) => c.key + c.off.toFixed(1)).join(",");
   if (key === listKey) return;
   listKey = key;
   const ol = el("chords");
@@ -400,8 +400,7 @@ function startAudio() {
   comp.connect(master).connect(ctx.destination);
   const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2200; lp.connect(bus);
 
-  // Straight ramps laid end to end, never cancelled (cancelling one snaps back: a click); voices
-  // live only while they sound; movement comes from low oscillators, which schedule nothing.
+  // Straight ramps laid end to end, never cancelled (cancelling one snaps back: a click).
   const LOOK = 0.03;
   const ramp = (param, v) => { param.value = v; return { param, v1: v, t1: 0 }; };
   function rampTo(r, want, secs, eps) {
@@ -425,63 +424,86 @@ function startAudio() {
     for (let n = 1; n <= H; n++) { let c = 0, d = 0; for (let i = 0; i < S; i++) { const t = i / S, y = (1 - Math.exp(-t / 0.025)) * Math.exp(-t / 0.13); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); } re[n] = 2 * c / S; im[n] = 2 * d / S; }
     return ctx.createPeriodicWave(re, im);
   })();
-  // Movement is shared: three slow oscillators per modality, at slightly different rates, each
-  // feeding every voice assigned to it. One per voice was ~90 extra oscillators for a busy pair
-  // of charts, enough to make a laptop's audio thread miss deadlines (pops).
-  const shared = (w, rates, depth) => rates.map((hz) => {
-    const l = ctx.createOscillator(), d = ctx.createGain();
-    l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth; l.connect(d); l.start(); return d;
+  // shared movement: three slow oscillators per modality, each at unit depth
+  const shared = (w, rates) => rates.map((hz) => { const l = ctx.createOscillator(); l.setPeriodicWave(w); l.frequency.value = hz; l.start(); return l; });
+  const MOVE = { cardinal: shared(PULSE, [0.38, 0.45, 0.53]), fixed: shared(SINE, [0.09, 0.12, 0.155]), mutable: shared(SINE, [4.6, 5.0, 5.45]) };
+  const DEPTH = { cardinal: 0.4, fixed: 0.14, mutable: 9 }, BASE = { cardinal: 0.8, fixed: 0.9, mutable: 1 };
+
+  // The voice pool. Changing the audio graph while it plays (adding or removing nodes) can make
+  // the browser's audio thread skip a block, which is a pop, and transits change voices all the
+  // time. So the graph is built once: a fixed pool of two-part voices, each part wired to all
+  // three movements. An aspect borrows a silent voice, which is retuned by settings alone
+  // (waveform, pitch, pan, which movement is turned up), fades in, and is returned when it has
+  // faded out.
+  const POOL = 36;
+  const pool = Array.from({ length: POOL }, (_, n) => {
+    const slot = { key: null, group: null, parts: [] };
+    for (let k = 0; k < 2; k++) {
+      const o = ctx.createOscillator(), mv = ctx.createGain(), g = ctx.createGain();
+      o.setPeriodicWave(EWAVE.water); o.detune.value = (Math.random() - 0.5) * 6;
+      const depth = {};
+      for (const [mod, srcs] of Object.entries(MOVE)) {
+        const d = ctx.createGain(); d.gain.value = 0;
+        srcs[(n + k + Object.keys(depth).length) % 3].connect(d);
+        d.connect(mod === "mutable" ? o.detune : mv.gain);
+        depth[mod] = d;
+      }
+      let tail = g, pan = null;
+      if (ctx.createStereoPanner) { pan = ctx.createStereoPanner(); g.connect(pan); tail = pan; }
+      const route = {};
+      for (const k2 of ["syn", "tr"]) { route[k2] = ctx.createGain(); route[k2].gain.value = 0; tail.connect(route[k2]); route[k2].connect(buses[k2]); }
+      o.connect(mv).connect(g); o.start();
+      slot.parts.push({ o, mv, depth, pan, route, g: ramp(g.gain, 0), f: ramp(o.frequency, 220) });
+    }
+    return slot;
   });
-  const MOVE = { cardinal: shared(PULSE, [0.38, 0.45, 0.53], 0.4), fixed: shared(SINE, [0.09, 0.12, 0.155], 0.14), mutable: shared(SINE, [4.6, 5.0, 5.45], 9) };
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  function part(freq, sign, pan, out, v) {
-    const o = ctx.createOscillator(), m = ctx.createGain(), g = ctx.createGain();
-    o.setPeriodicWave(EWAVE[ELEMENT[sign % 4]]); o.detune.value = (Math.random() - 0.5) * 6;
-    const mod = MODALITY[sign % 3];
-    const src = pick(MOVE[mod]), target = mod === "mutable" ? o.detune : m.gain;
-    if (mod === "cardinal") m.gain.value = 0.8; else if (mod === "fixed") m.gain.value = 0.9;
-    src.connect(target); v.links.push([src, target]);
-    let tail = g;
-    if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); tail = p; v.nodes.push(p); }
-    o.connect(m).connect(g); tail.connect(out); o.start();
-    v.o.push(o); v.nodes.push(m, g); v.f.push(ramp(o.frequency, freq)); v.g.push(ramp(g.gain, 0));
+  const free = (slot) => slot.parts.every((p) => settled(p.g)) && ctx.currentTime > 0.1;
+  function assign(slot, c, freq, specs) {
+    slot.key = c.vkey; slot.group = c.group;
+    slot.parts.forEach((p, k) => {
+      const [sign, side] = specs[k], mod = MODALITY[sign % 3];
+      p.o.setPeriodicWave(EWAVE[ELEMENT[sign % 4]]);
+      rampTo(p.f, freq, 0.02, 0);
+      for (const m of Object.keys(p.depth)) p.depth[m].gain.value = m === mod ? DEPTH[m] : 0;
+      p.mv.gain.value = BASE[mod];
+      if (p.pan) p.pan.pan.value = PAN[side] * width;
+      for (const k2 of ["syn", "tr"]) p.route[k2].gain.value = k2 === c.group ? 1 : 0;
+    });
   }
-  function release(v) {
-    v.links.forEach(([src, target]) => { try { src.disconnect(target); } catch (_) {} });
-    v.o.forEach((o) => { o.stop(); o.disconnect(); }); v.nodes.forEach((n) => n.disconnect());
-  }
-  const voices = new Map();
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
   return {
     ctx,
     set(list) {
-      const sums = { syn: 0, tr: 0 }, live = new Set(), anySel = selected && list.some((c) => c.key === selected);
+      const sums = { syn: 0, tr: 0 }, live = new Map(), anySel = selected && list.some((c) => c.key === selected);
       // only the strongest sound (the list is sorted by depth), plus whichever chord is chosen
-      const room = { syn: 14, tr: 10 }, playing = [];
-      for (const c of list) if (room[c.group] > 0 || c.key === selected) { room[c.group]--; playing.push(c); }
-      for (const c of playing) {
+      const room = { syn: 14, tr: 10 };
+      for (const c of list) {
         sums[c.group] += c.depth;
-        const si = signOf(c.la), sj = signOf(c.lb);
-        const key = `${c.key}|${c.a}|${si}|${sj}|${width}`;
-        live.add(key);
+        if (room[c.group] <= 0 && c.key !== selected) continue;
+        room[c.group]--;
+        c.vkey = `${c.key}|${c.a}|${signOf(c.la)}|${signOf(c.lb)}|${width}`;
+        live.set(c.vkey, c);
+      }
+      const bySlot = new Map(pool.filter((sl) => sl.key).map((sl) => [sl.key, sl]));
+      for (const [vkey, c] of live) {
         const hard = c.a === 90 || c.a === 180;
         const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[c.bi], REGISTER[c.bj])) * RATIO[c.a];
-        let v = voices.get(key);
-        if (!v) {
-          v = { o: [], nodes: [], links: [], g: [], f: [] };
-          part(freq, si, PAN[c.from] * width, buses[c.group], v); part(freq, sj, PAN[c.to] * width, buses[c.group], v);
-          voices.set(key, v);
+        let slot = bySlot.get(vkey);
+        if (!slot) {
+          slot = pool.find((sl) => !sl.key && free(sl));
+          if (!slot) continue;   // every voice is busy; this one waits for the next to come free
+          assign(slot, c, freq, [[signOf(c.la), c.from], [signOf(c.lb), c.to]]);
         }
         const focus = !anySel ? 1 : c.key === selected ? 2.2 : 0.18;
         const want = 0.04 * Math.pow(c.depth, 1.2) * focus;
-        rampTo(v.g[0], hard ? want * 0.7 : want * 0.6, 0.3, 0.0003);
-        rampTo(v.g[1], hard ? want * 0.45 : want * 0.6, 0.3, 0.0003);
-        if (hard) rampTo(v.f[1], freq + 0.5 + 3 * (1 - c.depth), 0.3, 0.05);
+        rampTo(slot.parts[0].g, hard ? want * 0.7 : want * 0.6, 0.3, 0.0003);
+        rampTo(slot.parts[1].g, hard ? want * 0.45 : want * 0.6, 0.3, 0.0003);
+        rampTo(slot.parts[1].f, hard ? freq + 0.5 + 3 * (1 - c.depth) : freq, 0.3, 0.05);
       }
-      for (const [key, v] of voices) {
-        if (live.has(key)) continue;
-        v.g.forEach((r) => rampTo(r, 0, 0.6, 0));
-        if (v.g.every(settled)) { release(v); voices.delete(key); }
+      for (const slot of pool) {
+        if (!slot.key || live.has(slot.key)) continue;
+        slot.parts.forEach((p) => rampTo(p.g, 0, 0.6, 0));
+        if (free(slot)) slot.key = null;
       }
       // a crowded chord is turned down as a whole, so many aspects stay a bed
       rampTo(levels.syn, (1.8 / Math.sqrt(1 + sums.syn)) * mix.syn * (mode === "transit" ? 0.75 : 1), 0.3, 0.005);
@@ -491,12 +513,12 @@ function startAudio() {
 }
 
 // --- render and loop -------------------------------------------------------
-let current = [];
+let current = [], lastList = 0;
 function render() {
   if (mode === "transit") sky = chartAt(nowMs());
   current = chords();
   draw(current);
-  renderList(current);
+  if (mode !== "transit" || !playing || performance.now() - lastList > 250) { lastList = performance.now(); renderList(current); }
   el("listTitle").textContent = mode === "transit" ? "Between the two charts, and the sky now" : "Between the two charts";
   if (mode === "transit") el("when").textContent = new Date(nowMs()).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }

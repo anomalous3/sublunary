@@ -433,30 +433,41 @@ function startAudio() {
     for (let n = 1; n <= H; n++) { let c = 0, d = 0; for (let i = 0; i < S; i++) { const t = i / S, y = (1 - Math.exp(-t / 0.025)) * Math.exp(-t / 0.13); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); } re[n] = 2 * c / S; im[n] = 2 * d / S; }
     return ctx.createPeriodicWave(re, im);
   })();
-  function lfo(w, hz, depth, param, keep) {
+  // Movement is shared: three slow oscillators per modality, at slightly different rates, each
+  // feeding every voice assigned to it. One per voice was ~90 extra oscillators for a busy pair
+  // of charts, enough to make a laptop's audio thread miss deadlines (pops).
+  const shared = (w, rates, depth) => rates.map((hz) => {
     const l = ctx.createOscillator(), d = ctx.createGain();
-    l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth; l.connect(d).connect(param); l.start(); keep.push(l, d);
-  }
+    l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth; l.connect(d); l.start(); return d;
+  });
+  const MOVE = { cardinal: shared(PULSE, [0.38, 0.45, 0.53], 0.4), fixed: shared(SINE, [0.09, 0.12, 0.155], 0.14), mutable: shared(SINE, [4.6, 5.0, 5.45], 9) };
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
   function part(freq, sign, pan, out, v) {
     const o = ctx.createOscillator(), m = ctx.createGain(), g = ctx.createGain();
     o.setPeriodicWave(EWAVE[ELEMENT[sign % 4]]); o.detune.value = (Math.random() - 0.5) * 6;
     const mod = MODALITY[sign % 3];
-    if (mod === "cardinal") { m.gain.value = 0.8; lfo(PULSE, 0.4 + Math.random() * 0.12, 0.4, m.gain, v.nodes); }
-    else if (mod === "fixed") { m.gain.value = 0.9; lfo(SINE, 0.1 + Math.random() * 0.05, 0.14, m.gain, v.nodes); }
-    else lfo(SINE, 4.6 + Math.random() * 0.8, 9, o.detune, v.nodes);
+    const src = pick(MOVE[mod]), target = mod === "mutable" ? o.detune : m.gain;
+    if (mod === "cardinal") m.gain.value = 0.8; else if (mod === "fixed") m.gain.value = 0.9;
+    src.connect(target); v.links.push([src, target]);
     let tail = g;
     if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); tail = p; v.nodes.push(p); }
     o.connect(m).connect(g); tail.connect(out); o.start();
     v.o.push(o); v.nodes.push(m, g); v.f.push(ramp(o.frequency, freq)); v.g.push(ramp(g.gain, 0));
   }
-  function release(v) { v.o.forEach((o) => { o.stop(); o.disconnect(); }); v.nodes.forEach((n) => { if (n.stop) n.stop(); n.disconnect(); }); }
+  function release(v) {
+    v.links.forEach(([src, target]) => { try { src.disconnect(target); } catch (_) {} });
+    v.o.forEach((o) => { o.stop(); o.disconnect(); }); v.nodes.forEach((n) => n.disconnect());
+  }
   const voices = new Map();
   master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
   return {
     ctx,
     set(list) {
       const sums = { syn: 0, tr: 0 }, live = new Set(), anySel = selected && list.some((c) => c.key === selected);
-      for (const c of list) {
+      // only the strongest sound (the list is sorted by depth), plus whichever chord is chosen
+      const room = { syn: 14, tr: 10 }, playing = [];
+      for (const c of list) if (room[c.group] > 0 || c.key === selected) { room[c.group]--; playing.push(c); }
+      for (const c of playing) {
         sums[c.group] += c.depth;
         const si = signOf(c.la), sj = signOf(c.lb);
         const key = `${c.key}|${c.a}|${si}|${sj}|${width}`;
@@ -465,7 +476,7 @@ function startAudio() {
         const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[c.bi], REGISTER[c.bj])) * RATIO[c.a];
         let v = voices.get(key);
         if (!v) {
-          v = { o: [], nodes: [], g: [], f: [] };
+          v = { o: [], nodes: [], links: [], g: [], f: [] };
           part(freq, si, PAN[c.from] * width, buses[c.group], v); part(freq, sj, PAN[c.to] * width, buses[c.group], v);
           voices.set(key, v);
         }

@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Two birth charts as one chord: every aspect between them sounds its interval, each planet in the voice of its sign, with today's sky playing over both.">
+<title>Synastry Chords</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a chart wheel for two people, each in one ear; the chord list and controls beside it; the two charts' details below. */
+  :root {
+    color-scheme: dark;
+    --ink: #08090f;
+    --panel: #10121c;
+    --line: #262b40;
+    --fg: #dde0ea;
+    --muted: #8b91a8;
+    --a: #f0c674;      /* the first chart: gold, the left ear */
+    --b: #8fb8ff;      /* the second chart: blue, the right ear */
+    --sky: #eef1f8;    /* the sky now: silver, the center */
+    --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  [hidden] { display: none !important; }
+  html { background: var(--ink); }
+  body { background: var(--ink); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+  .page { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+  header { display: grid; gap: 6px; }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 5vw, 44px); line-height: 1.05; margin: 0; text-wrap: balance; }
+  .lede { color: var(--muted); max-width: 68ch; margin: 0; }
+  .lede .a { color: var(--a); } .lede .b { color: var(--b); } .lede .s { color: var(--sky); }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 22px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+  .wheelbox { position: relative; width: 100%; max-width: 720px; aspect-ratio: 1; justify-self: center; }
+  #wheel { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .side { display: grid; gap: 14px; min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .tabs button { border: 0; border-radius: 0; background: transparent; padding: 7px 10px; color: var(--muted); }
+  .tabs button[aria-pressed="true"] { background: #1b1f30; color: var(--fg); }
+  button, select { font: inherit; color: var(--fg); background: #161a28; border: 1px solid var(--line); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--muted); }
+  :is(button, select, input, summary):focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .row label { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  input[type="range"] { accent-color: var(--sky); }
+  .vol { width: 84px; }
+  .when { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  #scrub { flex: 1 1 100%; min-width: 0; }
+  .label { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  ol.chords { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 420px; overflow-y: auto; }
+  ol.chords li button { width: 100%; text-align: left; display: grid; grid-template-columns: 62px minmax(0, 1fr) 46px; gap: 8px; align-items: center;
+                        background: transparent; border: 1px solid transparent; padding: 5px 8px; }
+  ol.chords li button:hover { border-color: var(--line); }
+  ol.chords li button[aria-pressed="true"] { border-color: var(--muted); background: #161a28; }
+  .glyphs { font-size: 17px; letter-spacing: 0.04em; white-space: nowrap; }
+  .what { min-width: 0; font-size: 13px; }
+  .what small { display: block; color: var(--muted); font-size: 11.5px; }
+  .orb { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .ca { color: var(--a); } .cb { color: var(--b); } .cs { color: var(--sky); }
+  .empty { color: var(--muted); padding: 6px 8px; }
+  .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  form.person { display: grid; gap: 10px; }
+  form.person h2 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 0; display: flex; gap: 10px; align-items: center; }
+  form.person h2 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+  .fields label { display: grid; gap: 3px; color: var(--muted); font-size: 12.5px; min-width: 0; }
+  .fields .wide { grid-column: 1 / -1; }
+  input[type="text"], input[type="date"], input[type="time"], input[type="number"], input:not([type]) {
+    font: inherit; color: var(--fg); background: #0c0e17; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; min-width: 0; width: 100%; box-sizing: border-box; }
+  .check { display: flex !important; grid-template-columns: none; align-items: center; gap: 6px; }
+  ul.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  ul.results:empty { display: none; }
+  ul.results button { width: 100%; text-align: left; font-size: 12.5px; }
+  ul.results .status { color: var(--muted); font-size: 12.5px; padding: 2px 4px; }
+  .err { color: #ff9a8a; min-height: 1em; margin: 0; font-size: 12.5px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .example { color: var(--muted); font-size: 12.5px; margin: 0; font-style: italic; }
+  details.about { color: var(--muted); max-width: 72ch; }
+  details.about summary { cursor: pointer; color: var(--fg); }
+  details.about p { margin: 8px 0 0; }
+  a { color: var(--fg); text-decoration-color: var(--muted); text-underline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <h1>Synastry Chords</h1>
+    <p class="lede">Two birth charts as one chord. Every aspect between <span class="a">one chart's planets</span> and <span class="b">the other's</span> sounds its interval, each planet in the voice of its sign; with headphones, the first person sits in your left ear and the second in your right. Switch to <span class="s">Transits</span> to let today's sky play over the two of them.</p>
+  </header>
+
+  <div class="main">
+    <div class="wheelbox"><canvas id="wheel" role="img" aria-label="A chart wheel: the zodiac around the edge, the first chart's planets on the inner ring, the second's on the outer, and lines between planets that are in aspect"></canvas></div>
+    <div class="side">
+      <div class="card">
+        <div class="tabs" role="group" aria-label="What to play">
+          <button type="button" id="modeBirth" aria-pressed="true">Birth</button>
+          <button type="button" id="modeTransit" aria-pressed="false">Transits</button>
+        </div>
+        <div class="row">
+          <button type="button" id="sound" aria-pressed="false">Sound</button>
+          <label for="vsyn" title="The aspects between the two charts">Between <input id="vsyn" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
+          <label for="phones" title="Speakers blend the two charts; headphones put one in each ear"><input id="phones" type="checkbox"> Headphones</label>
+          <label for="vtr" title="The sky now, against each chart" id="vtrLabel" hidden>Sky <input id="vtr" class="vol" type="range" min="0" max="2" step="0.05" value="1"></label>
+        </div>
+        <div class="row" id="timeRow" hidden>
+          <button type="button" id="play" aria-pressed="false">Play</button>
+          <select id="speed" aria-label="Speed">
+            <option value="0.0416667">1 hour per second</option>
+            <option value="0.25">6 hours per second</option>
+            <option value="1" selected>1 day per second</option>
+            <option value="7">1 week per second</option>
+            <option value="30">1 month per second</option>
+          </select>
+          <button type="button" id="today">Today</button>
+          <span class="when" id="when"></span>
+          <input id="scrub" type="range" min="-1461" max="1461" step="0.01" value="0" aria-label="Date, four years either side of today">
+        </div>
+      </div>
+      <div class="card">
+        <p class="label" id="listTitle">Between the two charts</p>
+        <ol class="chords" id="chords"></ol>
+        <p class="note">Tap a chord to bring it forward. Orbs are William Lilly's moieties; the intervals are Kepler's: sextile a minor third, square a fourth, trine a fifth, opposition an octave.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="example" id="exampleNote">Example: Johannes Kepler (6 January 1572, 2:30 pm local mean time, Weil der Stadt, after his own horoscope) and William Lilly (11 May 1602, Diseworth, time unknown), both on the Gregorian calendar. Enter your own charts below; they stay in this browser.</p>
+
+  <div class="people">
+    <form class="person card" id="formA" data-who="a" novalidate></form>
+    <form class="person card" id="formB" data-who="b" novalidate></form>
+  </div>
+
+  <details class="about">
+    <summary>How it sounds</summary>
+    <p>Each planet has a register by speed, fast planets high and slow ones deep, as Kepler had it. An aspect sounds its interval above the slower planet's A: A3 when an outer planet is involved, A4 otherwise. Both planets play that note together, each in its own sign. The element sets the tone (fire bright, earth hollow, air a flute, water nearly pure) and the modality sets how it moves (cardinal pulses, fixed swells, mutable wavers). In squares and oppositions the second voice sits a few hertz sharp, so they shimmer, quick at the edge of orb and slowing as they tighten. A low A holds underneath.</p>
+    <p>Positions come from <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noopener">Astronomy Engine</a>, computed in this browser, tropical zodiac. Part of <a href="https://github.com/anomalous3/sublunary" target="_blank" rel="noopener">Sublunary</a>.</p>
+  </details>
+</div>
+
+<datalist id="tzList"><option value="LMT">Local mean time, from the longitude</option></datalist>
+
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script>
+"use strict";
+const el = (id) => document.getElementById(id);
+const D2R = Math.PI / 180, norm = (x) => ((x % 360) + 360) % 360, wrap180 = (x) => ((x + 540) % 360) - 180;
+const VS = "︎";
+const BODIES = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+const NAME = { sun: "Sun", moon: "Moon", mercury: "Mercury", venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn", uranus: "Uranus", neptune: "Neptune", pluto: "Pluto" };
+const GLYPH = { sun: "☉", moon: "☽", mercury: "☿", venus: "♀", mars: "♂", jupiter: "♃", saturn: "♄", uranus: "♅", neptune: "♆", pluto: "♇" };
+const SIGN_GLYPH = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+const SIGN_NAME = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+const ASPECTS = [0, 60, 90, 120, 180];
+const ASPECT_NAME = { 0: "conjunct", 60: "sextile", 90: "square", 120: "trine", 180: "opposite" };
+const ASPECT_GLYPH = { 0: "☌", 60: "⚹", 90: "□", 120: "△", 180: "☍" };
+// William Lilly's orbs (Christian Astrology, 1647); the outer planets, which he never saw, get 5
+const ORB = { sun: 17, moon: 12.5, mercury: 7, venus: 8, mars: 7.5, jupiter: 12, saturn: 10, uranus: 5, neptune: 5, pluto: 5 };
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const COL = { a: css("--a"), b: css("--b"), s: css("--sky"), fg: css("--fg"), muted: css("--muted"), line: css("--line") };
+
+// --- positions ------------------------------------------------------------
+const AE_BODY = { sun: "Sun", mercury: "Mercury", venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn", uranus: "Uranus", neptune: "Neptune", pluto: "Pluto" };
+// apparent geocentric ecliptic longitude of date (the tropical zodiac), degrees
+function longitudes(ms) {
+  const t = Astronomy.MakeTime(new Date(ms));
+  const rot = Astronomy.Rotation_EQJ_ECT(t);
+  return BODIES.map((b) => {
+    if (b === "moon") return norm(Astronomy.EclipticGeoMoon(t).lon);
+    const v = Astronomy.RotateVector(rot, Astronomy.GeoVector(AE_BODY[b], t, true));
+    return norm(Math.atan2(v.y, v.x) / D2R);
+  });
+}
+function chartAt(ms) {
+  const lon = longitudes(ms), later = longitudes(ms + 3600000);
+  return { lon, retro: lon.map((l, i) => i > 1 && wrap180(later[i] - l) < 0) };
+}
+// the Ascendant (mirrors sublunary/houses.py)
+function ascendant(ms, lat, lonE) {
+  const jd = ms / 86400000 + 2440587.5, d = jd - 2451545.0, T = d / 36525;
+  const gmst = norm(280.46061837 + 360.98564736629 * d + 0.000387933 * T * T - T * T * T / 38710000);
+  const ramc = norm(gmst + lonE), eps = (23.439291111 - 0.0130041667 * T) * D2R;
+  const r = ramc * D2R, phi = lat * D2R;
+  const mc = norm(Math.atan2(Math.sin(r), Math.cos(r) * Math.cos(eps)) / D2R);
+  let asc = norm(Math.atan2(Math.cos(r), -(Math.sin(eps) * Math.tan(phi) + Math.cos(eps) * Math.sin(r))) / D2R);
+  if (norm(asc - mc) > 180) asc = norm(asc + 180);
+  return asc;
+}
+// local wall time -> UTC ms; "LMT" means local mean time, from the longitude
+function toUTC(p) {
+  const [y, mo, d] = p.date.split("-").map(Number), [h, mi] = (p.unknown ? "12:00" : p.time).split(":").map(Number);
+  const guess = Date.UTC(0, mo - 1, d, h, mi);
+  const g = new Date(guess); g.setUTCFullYear(y);
+  const local = g.getTime();
+  if (p.tz === "LMT") return local - (p.lon / 15) * 3600000;
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: p.tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", era: "short" });
+  const offsetAt = (ms) => {
+    const q = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+    const yy = q.era === "BC" ? 1 - +q.year : +q.year;
+    const u = new Date(Date.UTC(0, +q.month - 1, +q.day, +q.hour % 24, +q.minute, +q.second)); u.setUTCFullYear(yy);
+    return u.getTime() - ms;
+  };
+  let utc = local - offsetAt(local);
+  utc = local - offsetAt(utc);
+  return utc;
+}
+
+// --- the two charts -------------------------------------------------------
+const EXAMPLE = {
+  a: { name: "Kepler", date: "1572-01-06", time: "14:30", unknown: false, place: "Weil der Stadt, Baden-Württemberg, DE", lat: 48.75, lon: 8.87, tz: "LMT" },
+  b: { name: "Lilly", date: "1602-05-11", time: "12:00", unknown: true, place: "Diseworth, England, GB", lat: 52.81, lon: -1.30, tz: "LMT" },
+};
+const STORE = "sublunary.synastry";
+let people = structuredClone(EXAMPLE), isExample = true;
+try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.a && s.b) { people = s; isExample = false; } } catch (_) {}
+const natal = { a: null, b: null };
+function computeNatal(who) {
+  const p = people[who], ms = toUTC(p), c = chartAt(ms);
+  c.asc = p.unknown || !Number.isFinite(p.lat) ? null : ascendant(ms, p.lat, p.lon);
+  c.unknown = p.unknown;
+  natal[who] = c;
+}
+
+// --- aspects --------------------------------------------------------------
+// depth 0 at the edge of the combined moieties, 1 at exactness
+function aspectOf(l1, b1, l2, b2) {
+  const sep = Math.abs(wrap180(l1 - l2)), rho = (ORB[b1] + ORB[b2]) / 2;
+  let best = null;
+  for (const a of ASPECTS) {
+    const off = Math.abs(sep - a);
+    if (off < rho && (!best || off < best.off)) best = { a, off, depth: 1 - off / rho };
+  }
+  return best;
+}
+const signOf = (lon) => Math.floor(norm(lon) / 30);
+let mode = "birth", tOffsetDays = 0, sky = null, selected = null;
+const nowMs = () => Date.now() + tOffsetDays * 86400000;
+function chords() {
+  const out = [];
+  const A = natal.a, B = natal.b;
+  BODIES.forEach((bi, i) => BODIES.forEach((bj, j) => {
+    const x = aspectOf(A.lon[i], bi, B.lon[j], bj);
+    if (x) out.push({ key: `s:${i}:${j}`, group: "syn", i, j, bi, bj, la: A.lon[i], lb: B.lon[j], ...x,
+                      from: "a", to: "b" });
+  }));
+  if (mode === "transit" && sky) {
+    for (const who of ["a", "b"]) BODIES.forEach((bt, i) => BODIES.forEach((bn, j) => {
+      if (bt === "moon") return;   // the transiting Moon passes through everything monthly; she is left out of the chord
+      const x = aspectOf(sky.lon[i], bt, natal[who].lon[j], bn);
+      if (x) out.push({ key: `t:${who}:${i}:${j}`, group: "tr", i, j, bi: bt, bj: bn, la: sky.lon[i], lb: natal[who].lon[j], ...x,
+                        from: "s", to: who });
+    }));
+  }
+  out.sort((p, q) => q.depth - p.depth);
+  return out;
+}
+
+// --- the wheel ------------------------------------------------------------
+const canvas = el("wheel"), g2 = canvas.getContext("2d");
+let W = 600, DPR = 1;
+function size() {
+  const r = canvas.getBoundingClientRect();
+  DPR = Math.min(2, devicePixelRatio || 1); W = Math.max(280, r.width);
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(W * DPR);
+}
+const ELEMENT_TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+function pt(lon, r, rot) { const a = (180 + lon - rot) * D2R; return [W / 2 + r * Math.cos(a), W / 2 - r * Math.sin(a)]; }
+// spread glyphs on a ring so they don't overlap; returns display longitudes
+function spread(lons, minSep) {
+  const idx = lons.map((l, i) => [l, i]).sort((p, q) => p[0] - q[0]);
+  const pos = idx.map((p) => p[0]);
+  for (let pass = 0; pass < 40; pass++) {
+    let moved = false;
+    for (let k = 0; k < pos.length; k++) {
+      const n = (k + 1) % pos.length, gap = norm(pos[n] - pos[k]);
+      if (pos.length > 1 && gap < minSep) { const push = (minSep - gap) / 2; pos[k] -= push; pos[n] += push; moved = true; }
+    }
+    if (!moved) break;
+  }
+  const out = []; idx.forEach((p, k) => { out[p[1]] = pos[k]; }); return out;
+}
+function draw(list) {
+  const R = W / 2 - 6, rot = natal.a.asc ?? 0;
+  g2.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g2.clearRect(0, 0, W, W);
+  const rZo = R, rZi = R * 0.86, rT = R * 0.77, rB = mode === "transit" ? R * 0.665 : R * 0.74, rA = mode === "transit" ? R * 0.56 : R * 0.6, rC = R * 0.45;
+  // zodiac band
+  for (let k = 0; k < 12; k++) {
+    g2.beginPath();
+    const a0 = (180 + k * 30 - rot) * D2R, a1 = (180 + (k + 1) * 30 - rot) * D2R;
+    g2.arc(W / 2, W / 2, rZo, -a0, -a1, true); g2.arc(W / 2, W / 2, rZi, -a1, -a0, false); g2.closePath();
+    g2.fillStyle = ELEMENT_TINT[k % 4]; g2.fill();
+    const [x0, y0] = pt(k * 30, rZi, rot), [x1, y1] = pt(k * 30, rZo, rot);
+    g2.strokeStyle = COL.line; g2.lineWidth = 1; g2.beginPath(); g2.moveTo(x0, y0); g2.lineTo(x1, y1); g2.stroke();
+    const [gx, gy] = pt(k * 30 + 15, (rZo + rZi) / 2, rot);
+    g2.fillStyle = COL.muted; g2.font = `${Math.round(R * 0.07)}px "Apple Symbols", "Segoe UI Symbol", "DejaVu Sans", sans-serif`;
+    g2.textAlign = "center"; g2.textBaseline = "middle"; g2.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (let d = 0; d < 360; d += 5) {
+    const [x0, y0] = pt(d, rZi, rot), [x1, y1] = pt(d, rZi + (d % 30 === 0 ? 0 : R * (d % 10 === 0 ? 0.022 : 0.012)), rot);
+    g2.strokeStyle = "rgba(139,145,168,0.35)"; g2.beginPath(); g2.moveTo(x0, y0); g2.lineTo(x1, y1); g2.stroke();
+  }
+  for (const r of [rZo, rZi, rC]) { g2.beginPath(); g2.arc(W / 2, W / 2, r, 0, Math.PI * 2); g2.strokeStyle = COL.line; g2.stroke(); }
+  // Ascendants
+  for (const [who, c] of [["a", natal.a], ["b", natal.b]]) {
+    if (c.asc == null) continue;
+    const [x0, y0] = pt(c.asc, rC, rot), [x1, y1] = pt(c.asc, rZi, rot);
+    g2.strokeStyle = COL[who]; g2.globalAlpha = 0.5; g2.setLineDash([3, 4]); g2.beginPath(); g2.moveTo(x0, y0); g2.lineTo(x1, y1); g2.stroke();
+    g2.setLineDash([]); g2.globalAlpha = 1;
+    const [lx, ly] = pt(c.asc, rZi - R * 0.035, rot);
+    g2.fillStyle = COL[who]; g2.font = `500 ${Math.round(R * 0.032)}px "Instrument Sans", sans-serif`; g2.fillText("ASC", lx, ly + (who === "a" ? -R * 0.03 : R * 0.03));
+  }
+  // chords inside the inner circle
+  const anySel = selected && list.some((c) => c.key === selected);
+  for (const c of [...list].reverse()) {
+    const [x0, y0] = pt(c.la, rC, rot), [x1, y1] = pt(c.lb, rC, rot);
+    const on = !anySel || c.key === selected;
+    const grad = g2.createLinearGradient(x0, y0, x1, y1);
+    grad.addColorStop(0, COL[c.from]); grad.addColorStop(1, COL[c.to]);
+    g2.strokeStyle = grad;
+    g2.globalAlpha = on ? (c.group === "tr" ? 0.25 : 0.3) + 0.6 * c.depth : 0.08;
+    g2.lineWidth = (c.group === "tr" ? 0.6 : 0.9) + 2.4 * c.depth * (on && anySel ? 1.4 : 1);
+    g2.setLineDash(c.a === 90 || c.a === 180 ? [5, 4] : []);
+    if (c.a === 0) {   // a conjunction is a bright arc along the circle
+      g2.beginPath();
+      const a0 = (180 + c.la - rot) * D2R, a1 = (180 + c.lb - rot) * D2R;
+      g2.arc(W / 2, W / 2, rC - 4, -a0, -a1, wrap180(c.lb - c.la) > 0);
+      g2.stroke();
+    } else { g2.beginPath(); g2.moveTo(x0, y0); g2.lineTo(x1, y1); g2.stroke(); }
+  }
+  g2.setLineDash([]); g2.globalAlpha = 1;
+  // the planets on their rings
+  const rings = [["a", natal.a, rA], ["b", natal.b, rB]];
+  if (mode === "transit" && sky) rings.push(["s", sky, rT]);
+  const gsize = Math.round(R * 0.062);
+  for (const [who, c, r] of rings) {
+    const shown = spread(c.lon, (gsize * 1.15) / r / D2R);
+    BODIES.forEach((b, i) => {
+      const [tx0, ty0] = pt(c.lon[i], rC, rot), [tx1, ty1] = pt(c.lon[i], rC + R * 0.03, rot);
+      g2.strokeStyle = COL[who]; g2.globalAlpha = 0.8; g2.lineWidth = 1.2; g2.beginPath(); g2.moveTo(tx0, ty0); g2.lineTo(tx1, ty1); g2.stroke();
+      g2.globalAlpha = 1;
+      if (b === "moon" && c.unknown) {   // time unknown: the Moon could be anywhere in a day's travel
+        g2.beginPath(); const a0 = (180 + c.lon[i] - 6.5 - rot) * D2R, a1 = (180 + c.lon[i] + 6.5 - rot) * D2R;
+        g2.arc(W / 2, W / 2, r - gsize * 0.85, -a0, -a1, true); g2.strokeStyle = COL[who]; g2.globalAlpha = 0.45; g2.lineWidth = 3; g2.stroke(); g2.globalAlpha = 1; g2.lineWidth = 1;
+      }
+      const [gx, gy] = pt(shown[i], r, rot);
+      g2.fillStyle = COL[who]; g2.font = `${gsize}px "Apple Symbols", "Segoe UI Symbol", "DejaVu Sans", sans-serif`;
+      g2.textAlign = "center"; g2.textBaseline = "middle"; g2.fillText(GLYPH[b] + VS, gx, gy);
+      if (c.retro[i]) { g2.font = `${Math.round(gsize * 0.42)}px "Instrument Sans", sans-serif`; g2.fillText("℞", gx + gsize * 0.55, gy + gsize * 0.42); }
+    });
+  }
+}
+
+// --- the chord list ---------------------------------------------------------
+const who = (k) => (k === "s" ? "The sky's" : `${people[k].name || (k === "a" ? "First" : "Second")}'s`);
+let listKey = "";
+function renderList(list) {
+  const shown = list.slice(0, 60);
+  const key = mode + "|" + selected + "|" + shown.map((c) => c.key + c.depth.toFixed(2)).join(",");
+  if (key === listKey) return;
+  listKey = key;
+  const ol = el("chords");
+  if (!shown.length) { ol.innerHTML = `<li class="empty">No aspects within orb.</li>`; return; }
+  ol.replaceChildren(...shown.map((c) => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.setAttribute("aria-pressed", String(c.key === selected));
+    const ca = `c${c.from}`, cb = `c${c.to}`;
+    b.innerHTML = `<span class="glyphs"><span class="${ca}">${GLYPH[c.bi]}${VS}</span>${ASPECT_GLYPH[c.a]}${VS}<span class="${cb}">${GLYPH[c.bj]}${VS}</span></span>`
+      + `<span class="what">${who(c.from)} ${NAME[c.bi]} ${ASPECT_NAME[c.a]} ${who(c.to)} ${NAME[c.bj]}`
+      + `<small>${SIGN_NAME[signOf(c.la)]} · ${SIGN_NAME[signOf(c.lb)]}</small></span>`
+      + `<span class="orb">${c.off.toFixed(1)}°</span>`;
+    b.addEventListener("click", () => { selected = selected === c.key ? null : c.key; render(); });
+    li.append(b); return li;
+  }));
+}
+
+// --- sound ------------------------------------------------------------------
+const RATIO = { 0: 1, 60: 6 / 5, 90: 4 / 3, 120: 3 / 2, 180: 2 };
+const REGISTER = { moon: 8, mercury: 8, venus: 8, sun: 4, mars: 4, jupiter: 2, saturn: 2, uranus: 1, neptune: 1, pluto: 1 };
+const TIMBRE = { sun: [1, .5, .3, .15], moon: [1, .1, .05], mercury: [1, .2, .35, .1, .2], venus: [1, .35, .1], mars: [1, .6, .45, .3, .2],
+  jupiter: [1, .45, .25, .12], saturn: [1, .1, .3, .05, .15], uranus: [1, 0, .4, 0, .25], neptune: [1, .15, .05], pluto: [1, .7, .2, .4] };
+const ELEMENT = ["fire", "earth", "air", "water"], MODALITY = ["cardinal", "fixed", "mutable"];
+const ELEMENT_WAVE = { fire: [1, .44, .27, .19, .14, .11, .09, .07, .05, .04], earth: [1, 0, .3, 0, .15, 0, .08, 0, .04], air: [1, .12, .11, 0, .04, 0, .02], water: [1, .08, .02] };
+const PAN = { a: -1, b: 1, s: 0 };
+let width = 0.4;   // on speakers the two charts sit close; headphones open them to each ear
+const ROOT = 110;
+const mix = { syn: 1, tr: 1 };
+let audio = null;
+function startAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.0001;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
+  const verb = ctx.createConvolver(), len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+  verb.buffer = ir;
+  const wet = ctx.createGain(); wet.gain.value = 0.32;
+  const dry = ctx.createGain(); dry.gain.value = 0.8;
+  const bus = ctx.createGain();
+  bus.connect(dry).connect(comp); bus.connect(verb).connect(wet).connect(comp);
+  comp.connect(master).connect(ctx.destination);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2200; lp.connect(bus);
+
+  // Straight ramps laid end to end, never cancelled (cancelling one snaps back: a click); voices
+  // live only while they sound; movement comes from low oscillators, which schedule nothing.
+  const LOOK = 0.03;
+  const ramp = (param, v) => { param.value = v; return { param, v1: v, t1: 0 }; };
+  function rampTo(r, want, secs, eps) {
+    const t = ctx.currentTime + LOOK;
+    if (r.t1 > t || Math.abs(want - r.v1) < (want === 0 ? 1e-9 : eps)) return;
+    r.param.setValueAtTime(r.v1, t); r.param.linearRampToValueAtTime(want, t + secs);
+    r.v1 = want; r.t1 = t + secs;
+  }
+  const settled = (r) => r.v1 === 0 && ctx.currentTime > r.t1 + 0.05;
+  const buses = {}, levels = {};
+  for (const k of ["syn", "tr"]) { buses[k] = ctx.createGain(); levels[k] = ramp(buses[k].gain, 0); buses[k].connect(lp); }
+  // the ground: a low A, held
+  for (const [mult, gv] of [[1, 0.05], [2, 0.018]]) {
+    const o = ctx.createOscillator(), gn = ctx.createGain(); o.frequency.value = ROOT * mult; gn.gain.value = gv; o.connect(gn).connect(lp); o.start();
+  }
+  const wave = (t) => { const re = new Float32Array(t.length + 1), im = new Float32Array(t.length + 1); t.forEach((x, n) => { im[n + 1] = x; }); return ctx.createPeriodicWave(re, im); };
+  const EWAVE = {}; for (const [k, t] of Object.entries(ELEMENT_WAVE)) EWAVE[k] = wave(t);
+  const SINE = wave([1]);
+  const PULSE = (() => {
+    const H = 24, S = 512, re = new Float32Array(H + 1), im = new Float32Array(H + 1);
+    for (let n = 1; n <= H; n++) { let c = 0, d = 0; for (let i = 0; i < S; i++) { const t = i / S, y = (1 - Math.exp(-t / 0.025)) * Math.exp(-t / 0.13); c += y * Math.cos(2 * Math.PI * n * t); d += y * Math.sin(2 * Math.PI * n * t); } re[n] = 2 * c / S; im[n] = 2 * d / S; }
+    return ctx.createPeriodicWave(re, im);
+  })();
+  function lfo(w, hz, depth, param, keep) {
+    const l = ctx.createOscillator(), d = ctx.createGain();
+    l.setPeriodicWave(w); l.frequency.value = hz; d.gain.value = depth; l.connect(d).connect(param); l.start(); keep.push(l, d);
+  }
+  function part(freq, sign, pan, out, v) {
+    const o = ctx.createOscillator(), m = ctx.createGain(), g = ctx.createGain();
+    o.setPeriodicWave(EWAVE[ELEMENT[sign % 4]]); o.detune.value = (Math.random() - 0.5) * 6;
+    const mod = MODALITY[sign % 3];
+    if (mod === "cardinal") { m.gain.value = 0.8; lfo(PULSE, 0.4 + Math.random() * 0.12, 0.4, m.gain, v.nodes); }
+    else if (mod === "fixed") { m.gain.value = 0.9; lfo(SINE, 0.1 + Math.random() * 0.05, 0.14, m.gain, v.nodes); }
+    else lfo(SINE, 4.6 + Math.random() * 0.8, 9, o.detune, v.nodes);
+    let tail = g;
+    if (ctx.createStereoPanner) { const p = ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); tail = p; v.nodes.push(p); }
+    o.connect(m).connect(g); tail.connect(out); o.start();
+    v.o.push(o); v.nodes.push(m, g); v.f.push(ramp(o.frequency, freq)); v.g.push(ramp(g.gain, 0));
+  }
+  function release(v) { v.o.forEach((o) => { o.stop(); o.disconnect(); }); v.nodes.forEach((n) => { if (n.stop) n.stop(); n.disconnect(); }); }
+  const voices = new Map();
+  master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
+  return {
+    ctx,
+    set(list) {
+      const sums = { syn: 0, tr: 0 }, live = new Set(), anySel = selected && list.some((c) => c.key === selected);
+      for (const c of list) {
+        sums[c.group] += c.depth;
+        const si = signOf(c.la), sj = signOf(c.lb);
+        const key = `${c.key}|${c.a}|${si}|${sj}|${width}`;
+        live.add(key);
+        const hard = c.a === 90 || c.a === 180;
+        const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[c.bi], REGISTER[c.bj])) * RATIO[c.a];
+        let v = voices.get(key);
+        if (!v) {
+          v = { o: [], nodes: [], g: [], f: [] };
+          part(freq, si, PAN[c.from] * width, buses[c.group], v); part(freq, sj, PAN[c.to] * width, buses[c.group], v);
+          voices.set(key, v);
+        }
+        const focus = !anySel ? 1 : c.key === selected ? 2.2 : 0.18;
+        const want = 0.04 * Math.pow(c.depth, 1.2) * focus;
+        rampTo(v.g[0], hard ? want * 0.7 : want * 0.6, 0.3, 0.0003);
+        rampTo(v.g[1], hard ? want * 0.45 : want * 0.6, 0.3, 0.0003);
+        if (hard) rampTo(v.f[1], freq + 0.5 + 3 * (1 - c.depth), 0.3, 0.05);
+      }
+      for (const [key, v] of voices) {
+        if (live.has(key)) continue;
+        v.g.forEach((r) => rampTo(r, 0, 0.6, 0));
+        if (v.g.every(settled)) { release(v); voices.delete(key); }
+      }
+      // a crowded chord is turned down as a whole, so many aspects stay a bed
+      rampTo(levels.syn, (1.8 / Math.sqrt(1 + sums.syn)) * mix.syn * (mode === "transit" ? 0.75 : 1), 0.3, 0.005);
+      rampTo(levels.tr, (1.8 / Math.sqrt(1 + sums.tr)) * mix.tr, 0.3, 0.005);
+    },
+  };
+}
+
+// --- render and loop -------------------------------------------------------
+let current = [];
+function render() {
+  if (mode === "transit") sky = chartAt(nowMs());
+  current = chords();
+  draw(current);
+  renderList(current);
+  el("listTitle").textContent = mode === "transit" ? "Between the two charts, and the sky now" : "Between the two charts";
+  if (mode === "transit") el("when").textContent = new Date(nowMs()).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+setInterval(() => { if (audio && audio.ctx.state === "running") audio.set(current); }, 60);
+
+let playing = false, rate = 1, last = performance.now(), lastDraw = 0;
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function setPlaying(p) { playing = p; el("play").textContent = p ? "Pause" : "Play"; el("play").setAttribute("aria-pressed", String(p)); }
+(function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && mode === "transit") {
+    tOffsetDays = Math.max(-1461, Math.min(1461, tOffsetDays + rate * dt));
+    if (Math.abs(tOffsetDays) >= 1461) setPlaying(false);
+    if (now - lastDraw > 33) { lastDraw = now; el("scrub").value = String(tOffsetDays); render(); }
+  }
+  requestAnimationFrame(tick);
+})(last);
+
+function setMode(m) {
+  mode = m;
+  el("modeBirth").setAttribute("aria-pressed", String(m === "birth"));
+  el("modeTransit").setAttribute("aria-pressed", String(m === "transit"));
+  el("timeRow").hidden = m !== "transit"; el("vtrLabel").hidden = m !== "transit";
+  selected = null;
+  if (m === "transit") { if (!reduced) setPlaying(true); } else setPlaying(false);
+  render();
+}
+el("modeBirth").addEventListener("click", () => setMode("birth"));
+el("modeTransit").addEventListener("click", () => setMode("transit"));
+el("play").addEventListener("click", () => setPlaying(!playing));
+el("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+el("today").addEventListener("click", () => { tOffsetDays = 0; el("scrub").value = "0"; render(); });
+el("scrub").addEventListener("input", (e) => { setPlaying(false); tOffsetDays = Number(e.target.value); render(); });
+el("vsyn").addEventListener("input", (e) => { mix.syn = Number(e.target.value); });
+el("phones").addEventListener("change", (e) => { width = e.target.checked ? 0.85 : 0.4; });
+el("vtr").addEventListener("input", (e) => { mix.tr = Number(e.target.value); });
+el("sound").addEventListener("click", async () => {
+  if (!audio) { audio = startAudio(); el("sound").textContent = "Sound off"; el("sound").setAttribute("aria-pressed", "true"); return; }
+  const on = audio.ctx.state === "running";
+  if (on) await audio.ctx.suspend(); else await audio.ctx.resume();
+  el("sound").textContent = on ? "Sound" : "Sound off"; el("sound").setAttribute("aria-pressed", String(!on));
+});
+
+// --- the forms ----------------------------------------------------------------
+try { for (const tz of Intl.supportedValuesOf("timeZone")) { const o = document.createElement("option"); o.value = tz; el("tzList").append(o); } } catch (_) {}
+const fold = (x) => x.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+let cities = null, citiesLoading = null;
+function loadCities() {
+  citiesLoading ??= fetch("cities.txt").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then((t) => (cities = t.split("\n").filter((l) => l && l[0] !== "#").map((l) => {
+      const [n, cc, a1, la, lo, tz] = l.split("\t"); return [fold(n), n, cc, a1, +la, +lo, tz];
+    })));
+  return citiesLoading;
+}
+function searchCities(q, limit = 6) {
+  const parts = q.split(",").map(fold).filter(Boolean);
+  if (!parts.length || !cities) return [];
+  const [name, ...quals] = parts, exact = [], prefix = [];
+  for (const r of cities) {
+    if (quals.length && !quals.every((x) => x === r[2].toLowerCase() || x === r[3].toLowerCase())) continue;
+    if (r[0] === name) { exact.push(r); if (exact.length >= limit) break; }
+    else if (prefix.length < limit && r[0].startsWith(name)) prefix.push(r);
+  }
+  return [...exact, ...prefix].slice(0, limit);
+}
+const placeLabel = (r) => `${r[1]}, ${r[3] && !/^\d+$/.test(r[3]) ? r[3] + ", " : ""}${r[2]}`;
+
+function buildForm(w) {
+  const f = el(w === "a" ? "formA" : "formB"), p = people[w], id = (s) => w + s;
+  f.innerHTML = `
+    <h2><span class="dot" style="background:var(--${w})"></span><span>${w === "a" ? "Left ear" : "Right ear"}</span></h2>
+    <div class="fields">
+      <label class="wide" for="${id("Name")}">Name<input type="text" id="${id("Name")}" autocomplete="off"></label>
+      <label for="${id("Date")}">Birth date<input type="date" id="${id("Date")}" min="1000-01-01" max="2500-12-31"></label>
+      <label for="${id("Time")}">Time<input type="time" id="${id("Time")}"></label>
+      <label class="check wide" for="${id("Unknown")}"><input type="checkbox" id="${id("Unknown")}"> Time unknown (uses noon; the Moon may be up to 6.5° either way)</label>
+      <label class="wide" for="${id("Place")}">Birthplace<input type="text" id="${id("Place")}" autocomplete="off" placeholder="Type a city, e.g. Lisbon or Austin, TX"></label>
+      <ul class="results wide" id="${id("Results")}"></ul>
+      <label for="${id("Lat")}">Latitude<input type="number" step="0.01" id="${id("Lat")}"></label>
+      <label for="${id("Lon")}">Longitude (east +)<input type="number" step="0.01" id="${id("Lon")}"></label>
+      <label class="wide" for="${id("Tz")}">Time zone<input type="text" id="${id("Tz")}" list="tzList" autocomplete="off"></label>
+    </div>
+    <p class="err" id="${id("Err")}" role="status"></p>
+    <div class="row"><button type="submit">Use this chart</button></div>`;
+  el(id("Name")).value = p.name; el(id("Date")).value = p.date; el(id("Time")).value = p.time; el(id("Unknown")).checked = p.unknown;
+  el(id("Place")).value = p.place; el(id("Lat")).value = p.lat; el(id("Lon")).value = p.lon; el(id("Tz")).value = p.tz;
+  const results = el(id("Results"));
+  const status = (t) => results.replaceChildren(Object.assign(document.createElement("li"), { className: "status", textContent: t }));
+  let timer = 0;
+  async function matches() {
+    const q = el(id("Place")).value;
+    if (q.trim().length < 2) { results.replaceChildren(); return; }
+    if (!cities) { status("Loading places…"); try { await loadCities(); } catch (_) { status("Places couldn't load here. Enter latitude, longitude and time zone by hand."); return; } }
+    if (el(id("Place")).value !== q) return;
+    const found = searchCities(q);
+    if (!found.length) { status("No city by that name. Check the spelling, or enter coordinates."); return; }
+    results.replaceChildren(...found.map((r) => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = `${placeLabel(r)} · ${r[6]}`;
+      b.addEventListener("click", () => {
+        el(id("Place")).value = placeLabel(r); el(id("Lat")).value = r[4]; el(id("Lon")).value = r[5]; el(id("Tz")).value = r[6];
+        results.replaceChildren();
+      });
+      li.append(b); return li;
+    }));
+  }
+  el(id("Place")).addEventListener("focus", () => { loadCities().catch(() => {}); });
+  el(id("Place")).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(matches, 150); });
+  f.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const q = { name: el(id("Name")).value.trim(), date: el(id("Date")).value, time: el(id("Time")).value || "12:00", unknown: el(id("Unknown")).checked,
+                place: el(id("Place")).value.trim(), lat: parseFloat(el(id("Lat")).value), lon: parseFloat(el(id("Lon")).value), tz: el(id("Tz")).value.trim() || "UTC" };
+    let msg = "";
+    if (!q.date) msg = "Enter a birth date.";
+    else if (!q.unknown && !el(id("Time")).value) msg = "Enter a birth time, or tick Time unknown.";
+    else if (!(Math.abs(q.lat) <= 90) || !(Math.abs(q.lon) <= 180)) msg = "Pick a birthplace from the list, or enter latitude within ±90 and longitude within ±180.";
+    else if (q.tz !== "LMT") { try { new Intl.DateTimeFormat("en-US", { timeZone: q.tz }); } catch (_) { msg = `"${q.tz}" isn't a time zone name. Try one like Europe/London, or LMT.`; } }
+    el(id("Err")).textContent = msg;
+    if (msg) return;
+    people[w] = q; isExample = false; el("exampleNote").hidden = true;
+    try { localStorage.setItem(STORE, JSON.stringify(people)); } catch (_) {}
+    computeNatal(w); selected = null; render();
+    el(id("Err")).textContent = "Chart updated.";
+  });
+}
+
+buildForm("a"); buildForm("b");
+el("exampleNote").hidden = !isExample;
+computeNatal("a"); computeNatal("b");
+size(); render();
+new ResizeObserver(() => { size(); draw(current); }).observe(document.querySelector(".wheelbox"));
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => draw(current));
+</script>
+
+</body>
+</html>

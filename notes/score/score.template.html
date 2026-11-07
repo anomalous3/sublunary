@@ -185,6 +185,7 @@
         <option value="30">1 month/s</option>
       </select>
       <button type="button" id="sound" aria-pressed="false">Sound</button>
+      <button type="button" id="ownBtn" hidden>Use your own chart</button>
       <button type="button" id="cardsBtn" aria-pressed="true" title="Small cards that come and go as aspects near exact">Cards</button>
     </div>
   </header>
@@ -2163,6 +2164,7 @@ function setView(v) {
   for (const [id, name] of [["vNow", "now"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"]]) el(id).setAttribute("aria-pressed", String(v === name));
   el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two";
   el("cardsBtn").hidden = v === "now" || v === "two";
+  renderExBar();
   // Now decides for itself what's in focus, so these two layers are for the other views
   document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
   deckSig = "";
@@ -2416,12 +2418,14 @@ function attachPlace(x) {
 }
 attachPlace("f"); attachPlace("s");
 function renderExBar() {
-  el("exBar").hidden = !onExample;
+  el("exBar").hidden = !onExample || view !== "two";
+  el("ownBtn").hidden = !onExample || view === "two";
   if (!onExample) return;
   const k = el("exPick").value;
   el("exText").textContent = `You're looking at ${EXAMPLES[k].label}, read as if the chart were yours. ${EXAMPLES[k].note}`;
 }
 el("exPick").addEventListener("change", (e) => { const x = EXAMPLES[e.target.value]; chart = x.a; second = x.b; fillSecond(); rebuild(); });
+el("ownBtn").addEventListener("click", () => el("exOwn").click());
 el("exOwn").addEventListener("click", () => { el("chartBox").open = true; el("chartBox").scrollIntoView({ block: "start", behavior: "smooth" }); el("fName").focus({ preventScroll: true }); });
 function rebuild() {
   renderExBar();

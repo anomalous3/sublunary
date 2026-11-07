@@ -1,0 +1,2422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sublunary Score</title>
+<meta name="description" content="A natal chart and its transits as a score: scrub through time, watch the aspects swell and hear them, and click any aspect to read it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: the moment on top (a chart wheel you can turn, and the reading of what you chose); the whole span below, a piano roll with one row per natal point. */
+  :root {
+    color-scheme: dark;
+    --ink: #08090f;
+    --panel: #10121c;
+    --line: #262b40;
+    --fg: #dde0ea;
+    --muted: #8f95ad;
+    --natal: #f0c674;
+    --silver: #eef1f8;
+    --display: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  [hidden] { display: none !important; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--ink); color: var(--fg); margin: 0; font: 14px/1.5 var(--body); }
+  .page { padding: 14px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); max-width: 1500px; margin: 0 auto; display: grid; gap: 14px; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; }
+  h1 { font: 400 27px/1.1 var(--display); margin: 0; }
+  .when { display: grid; line-height: 1.2; min-width: 138px; }
+  #when { font: 500 17px var(--mono); font-variant-numeric: tabular-nums; }
+  #whenSub { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .ctrls { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-left: auto; }
+  .ctrls label { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13px; }
+  button, select { font: inherit; color: var(--fg); background: #161a28; border: 1px solid var(--line); border-radius: 8px; padding: 4px 11px; cursor: pointer; }
+  button:hover, select:hover { border-color: var(--muted); }
+  button[aria-pressed="true"] { background: #262b40; }
+  :is(button, select, input, summary, canvas):focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  .stage { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+  .dialbox { width: 100%; max-width: 480px; aspect-ratio: 1; justify-self: center; }
+  canvas { display: block; }
+  #dial { width: 100%; height: 100%; cursor: grab; touch-action: pan-y; }
+  #card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
+  #card h2 { font: 400 25px/1.15 var(--display); margin: 0; text-wrap: balance; }
+  #card .sub { color: var(--muted); font-size: 13px; margin: 0; font-variant-numeric: tabular-nums; }
+  #card .read { margin: 0; max-width: 70ch; }
+  #card .life { margin: 0; padding: 8px 12px; border-left: 2px solid var(--natal); max-width: 70ch; }
+  #card .life b { font-weight: 600; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details[open] summary { margin-bottom: 6px; }
+  dl.parts { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 5px 12px; margin: 0; font-size: 13.5px; max-width: 76ch; }
+  dl.parts dt { color: var(--muted); }
+  dl.parts dd { margin: 0; }
+  .tag { display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; margin-left: 4px; white-space: nowrap; }
+  table.nums { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  table.nums th { text-align: left; font-weight: 400; color: var(--muted); padding: 2px 14px 2px 0; vertical-align: top; }
+  table.nums td { padding: 2px 0; }
+  .fine { color: var(--muted); font-size: 12px; margin: 0; max-width: 76ch; }
+  #scorebox { position: relative; border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; }
+  #score { width: 100%; touch-action: pan-y; cursor: col-resize; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-size: 12.5px; align-items: center; }
+  .tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .tabs button { border: 0; border-radius: 0; background: transparent; color: var(--muted); padding: 4px 13px; }
+  .tabs button[aria-pressed="true"] { background: #262b40; color: var(--fg); }
+  #foldbox { display: grid; gap: 10px; }
+  .foldctl { display: grid; gap: 6px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  .seg button { font-size: 13px; padding: 3px 10px; }
+  .seg button b { font: 500 14px var(--mono); margin-right: 5px; }
+  #foldN { width: 100%; accent-color: var(--silver); }
+  .foldcap { margin: 0; max-width: 92ch; min-height: 3em; }
+  #fold { width: 100%; touch-action: pan-y; cursor: col-resize; }
+  #foldSlot #card { margin-top: 2px; }
+  #twobox { display: grid; gap: 12px; }
+  .twotop { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+  .twohead { font: 400 21px/1.2 var(--display); margin: 0; flex: 1 1 260px; }
+  .twolabel { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+  .twogrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .twogrid { grid-template-columns: minmax(0, 1fr); } .twowheelwrap { order: -1; } }
+  .twowheelbox { width: 100%; max-width: 420px; aspect-ratio: 1; margin: 0 auto; }
+  .twowheelwrap { min-width: 0; }
+  #twoWheel { width: 100%; height: 100%; cursor: pointer; }
+  ol.spine { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 410px; overflow-y: auto; }
+  ol.spine button { width: 100%; text-align: left; display: grid; grid-template-columns: 58px minmax(0, 1fr) auto 40px; gap: 8px; align-items: center; background: transparent; border: 1px solid transparent; padding: 4px 8px; }
+  ol.spine button:hover { border-color: var(--line); }
+  ol.spine button[aria-pressed="true"] { border-color: var(--muted); background: #161a28; }
+  .sg { font-size: 16px; white-space: nowrap; }
+  .sn { font-size: 13px; min-width: 0; }
+  .st { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; white-space: nowrap; }
+  .so { font: 11.5px var(--mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  #two { width: 100%; touch-action: pan-y; cursor: pointer; }
+  #twoSlot #card { margin-top: 2px; }
+  #nowbox { display: grid; gap: 10px; }
+  .nowtop { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+  .nowcap { margin: 0; color: var(--muted); font-size: 13.5px; min-width: 0; flex: 1 1 280px; }
+  .nowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  #now { width: 100%; touch-action: pan-y; cursor: pointer; }
+  #nowSlot { position: sticky; top: 12px; min-width: 0; }
+  #card { scroll-margin-top: 76px; }
+  @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } #nowSlot { position: static; } }
+  .exbar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--muted); padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .exbar #exText { flex: 1 1 320px; min-width: 0; }
+  .exbar label { display: flex; gap: 6px; align-items: center; }
+  ul.results { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; grid-column: 1 / -1; }
+  ul.results:empty { display: none; }
+  ul.results button { width: 100%; text-align: left; font-size: 12.5px; }
+  ul.results .status { color: var(--muted); font-size: 12.5px; padding: 2px 4px; }
+  form.chart .check { display: flex; gap: 6px; align-items: center; }
+  form.chart .check input { width: auto; }
+  .settings summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .settings[open] summary { margin-bottom: 6px; }
+  .seg button { min-height: 32px; }
+  @media (max-width: 640px) {
+    h1 { font-size: 22px; }
+    .ctrls { margin-left: 0; }
+    #foldBtns { flex-wrap: nowrap; }
+    #foldBtns button { flex: 1 1 0; padding: 3px 0; min-height: 38px; }
+    #foldSpans button { padding: 3px 8px; font-size: 12.5px; }
+    #foldBtns button b { margin: 0; }
+    #foldBtns button span { display: none; }
+    .foldcap { font-size: 13.5px; }
+    button, select { min-height: 36px; }
+  }
+  .passing { position: fixed; z-index: 20; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+             width: min(330px, calc(100vw - 32px)); display: grid; justify-items: end; gap: 6px; transition: opacity .25s; }
+  .passing.quiet { opacity: 0; pointer-events: none; }
+  .deckhead { font-size: 13px; background: rgba(16, 18, 28, 0.95); min-height: 34px; }
+  .pcards { list-style: none; margin: 0; padding: 0; width: 100%; max-height: min(44vh, 400px); overflow-y: auto; border-radius: 10px; }
+  .pcard { position: relative; margin-top: -3px; border: 1px solid var(--line); border-radius: 10px; background: #12141f; box-shadow: 0 -3px 8px rgba(0,0,0,0.35); }
+  .pcard:first-child { margin-top: 0; }
+  .pcard .pt { width: 100%; display: flex; justify-content: space-between; gap: 8px; align-items: center; text-align: left; border: 0; border-radius: 10px; padding: 6px 10px; font-size: 13px; line-height: 1.3;
+               background: linear-gradient(90deg, rgba(185,194,232,0.15) var(--d, 0%), transparent var(--d, 0%)); }
+  .pcard.wide .pt { color: var(--muted); }
+  .pcard .pt i { font-style: normal; font-size: 15px; }
+  .ptt { min-width: 0; }
+  .po { font: 11.5px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .pb { display: none; }
+  .pcard.open .pb { display: grid; gap: 3px; padding: 2px 10px 10px; }
+  .pl { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+  .pm { font: 11.5px var(--mono); font-variant-numeric: tabular-nums; }
+  .pread { justify-self: start; margin-top: 4px; font-size: 12.5px; }
+  @media (max-width: 640px) { .passing { left: 16px; right: 16px; width: auto; } .pcards { max-height: 52vh; } }
+  #miniScrub { display: none; }
+  .stepper { display: inline-flex; align-items: center; gap: 6px; }
+  #stepLab { font: 12px var(--mono); color: var(--muted); min-width: 46px; text-align: center; }
+  .stepb { font-size: 18px; line-height: 1; padding: 3px 12px; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  @media (max-width: 640px) {
+    body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 16; background: var(--ink); }
+    .stepper { display: none; }
+    #miniScrub { display: flex; gap: 6px; align-items: stretch; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; background: var(--ink); padding: 6px 0; margin: -6px 0; }
+    #tape { flex: 1 1 0; min-width: 0; height: 46px; border: 1px solid var(--line); border-radius: 8px; touch-action: none; cursor: ew-resize; }
+  }
+  .legend label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  .legend i { font-style: normal; font-size: 15px; }
+  form.chart { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 12px; max-width: 800px; margin-top: 8px; }
+  form.chart label { display: grid; gap: 3px; color: var(--muted); font-size: 12.5px; }
+  form.chart input { font: inherit; color: var(--fg); background: #0c0e17; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; width: 100%; min-width: 0; }
+  .err { color: #ff9a8a; font-size: 12.5px; min-height: 1em; margin: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Sublunary Score</h1>
+    <div class="tabs" role="group" aria-label="View">
+      <button type="button" id="vNow" aria-pressed="true">Now</button>
+      <button type="button" id="vScore" aria-pressed="false">Score</button>
+      <button type="button" id="vFold" aria-pressed="false">Fold</button>
+      <button type="button" id="vTwo" aria-pressed="false">Two</button>
+    </div>
+    <div class="when"><span id="when"></span><span id="whenSub"></span></div>
+    <div class="ctrls">
+      <span class="stepper"><button type="button" class="stepb" id="back" aria-label="Step back">‹</button><span id="stepLab"></span><button type="button" class="stepb" id="fwd" aria-label="Step forward">›</button></span>
+      <button type="button" id="today">Today</button>
+      <button type="button" id="play" aria-pressed="false">Play</button>
+      <select id="speed" aria-label="Playback speed">
+        <option value="1">1 day/s</option>
+        <option value="3">3 days/s</option>
+        <option value="7" selected>1 week/s</option>
+        <option value="30">1 month/s</option>
+      </select>
+      <button type="button" id="sound" aria-pressed="false">Sound</button>
+      <button type="button" id="cardsBtn" aria-pressed="true" title="Small cards that come and go as aspects near exact">Cards</button>
+    </div>
+  </header>
+
+  <div id="miniScrub">
+    <button type="button" class="stepb" id="mBack" aria-label="Step back">‹</button>
+    <canvas id="tape" role="slider" aria-label="Drag to move through time"></canvas>
+    <button type="button" class="stepb" id="mFwd" aria-label="Step forward">›</button>
+  </div>
+
+  <div class="exbar" id="exBar" hidden>
+    <span id="exText"></span>
+    <label for="exPick">Show <select id="exPick"><option value="invented">two invented people</option><option value="history">Kepler and Lilly</option></select></label>
+    <button type="button" id="exOwn">Use your own chart</button>
+  </div>
+
+  <details class="settings" id="settings">
+    <summary>Layers and settings</summary>
+    <div class="legend" id="layers">
+      <label for="orbs">Orbs <select id="orbs">
+        <option value="working" selected>Working (2–3°)</option>
+        <option value="lilly">Lilly's moieties</option>
+      </select></label>
+      <label for="hsys">Houses <select id="hsys">
+        <option value="placidus" selected>Placidus</option>
+        <option value="whole_sign">Whole sign</option>
+        <option value="equal">Equal</option>
+        <option value="porphyry">Porphyry</option>
+      </select></label>
+    </div>
+  </details>
+
+  <section id="nowbox" hidden>
+    <div class="nowtop">
+      <div class="seg" id="nowSpans" role="group" aria-label="How much time to show"></div>
+      <div class="tabs" role="group" aria-label="How aspects are drawn">
+        <button type="button" id="styleThreads" aria-pressed="true">Threads</button>
+        <button type="button" id="styleBars" aria-pressed="false">Bars</button>
+      </div>
+      <p class="nowcap" id="nowCap"></p>
+    </div>
+    <div class="nowgrid">
+      <canvas id="now" tabindex="0" role="img" aria-label="A forecast: days across the top, the Moon's track with its signs, phases and void periods, turning points, then this period's aspects as rows in the order they peak, the sky's own aspects, and the long slow transits underneath"></canvas>
+      <div id="nowSlot"></div>
+    </div>
+  </section>
+
+  <section id="twobox" hidden>
+    <div class="twotop">
+      <h2 class="twohead" id="twoHead"></h2>
+      <div class="tabs" role="group" aria-label="Read the two charts for">
+        <button type="button" data-lens="romance" aria-pressed="true">Romance</button>
+        <button type="button" data-lens="work" aria-pressed="false">Work</button>
+        <button type="button" data-lens="all" aria-pressed="false">Everything</button>
+      </div>
+    </div>
+    <div class="twogrid">
+      <div class="twoleft" style="min-width:0">
+        <p class="twolabel">The spine: what connects these two charts, for good</p>
+        <ol class="spine" id="spine"></ol>
+      </div>
+      <div class="twowheelwrap"><div class="twowheelbox"><canvas id="twoWheel" role="img" aria-label="Both birth charts on one wheel, with lines for the aspects between them. Click a line to read it."></canvas></div><p class="fine" id="twoWheelNote" style="text-align:center;margin-top:4px"></p></div>
+    </div>
+    <div class="twotop">
+      <p class="twolabel" style="margin:0">Coming up: what the sky does to each of them</p>
+      <div class="seg" id="twoSpans" role="group" aria-label="How much time to show"></div>
+      <p class="nowcap" id="twoCap"></p>
+    </div>
+    <canvas id="two" tabindex="0" role="img" aria-label="Time runs across. The first chart's transits rise above a central spine and the second's hang below it. A bright bridge across the spine marks one planet touching both charts at once."></canvas>
+    <div id="twoSlot"></div>
+    <details>
+      <summary id="secondLabel"></summary>
+      <form class="chart" id="secondForm" novalidate>
+        <label for="sName">Name<input id="sName" type="text" autocomplete="off"></label>
+        <label for="sDate">Birth date<input id="sDate" type="date"></label>
+        <label for="sTime">Local time<input id="sTime" type="time"></label>
+        <label class="check" for="sUnknown"><input id="sUnknown" type="checkbox"> Time unknown (no houses; Moon approximate)</label>
+        <label for="sPlace">Birthplace<input id="sPlace" type="text" autocomplete="off" placeholder="Type a city, e.g. Lisbon or Austin, TX"></label>
+        <ul class="results" id="sResults"></ul>
+        <label for="sLat">Latitude<input id="sLat" type="number" step="0.001"></label>
+        <label for="sLon">Longitude (east +)<input id="sLon" type="number" step="0.001"></label>
+        <label for="sTz">Time zone<input id="sTz" type="text" autocomplete="off" placeholder="Filled in by the city, or LMT"></label>
+        <div style="display:flex;gap:8px;align-items:end"><button type="submit">Use this chart</button></div>
+      </form>
+      <p class="err" id="sErr" role="status"></p>
+    </details>
+  </section>
+
+  <section id="foldbox" hidden>
+    <div class="foldctl">
+      <div class="seg" id="foldBtns" role="group" aria-label="How many times to fold the zodiac"></div>
+      <input id="foldN" type="range" min="1" max="12" step="0.01" value="1" aria-label="Fold">
+      <div class="seg" id="foldSpans" role="group" aria-label="How much time to show"></div>
+    </div>
+    <p class="foldcap" id="foldCap" aria-live="polite"></p>
+    <canvas id="fold" tabindex="0" role="img" aria-label="Every planet as a line through time, with the zodiac as height. Gold horizontal lines are the birth chart. Folding the zodiac makes planets in aspect cross. Click a crossing to read it."></canvas>
+    <div id="foldSlot"></div>
+  </section>
+
+  <div class="stage" id="stage">
+    <div class="dialbox"><canvas id="dial" tabindex="0" role="img" aria-label="Chart wheel for the moment under the playhead: the natal planets in gold, the transiting planets in their own colors outside them, and bright lines for the aspects between them. Scroll here to move through time; click a line to read it."></canvas></div>
+    <section id="card" aria-live="polite"></section>
+  </div>
+
+  <section id="scorebox">
+    <div class="legend">
+      <span>Each row is a point in the birth chart. Each shape is an aspect swelling to exactness. <b style="font-weight:500;color:var(--fg)">Striped</b> means a square or opposition.</span>
+      <span id="legendPlanets"></span>
+      <span id="zoomBox"><button type="button" id="zoomOut" aria-label="Show more time">−</button> <button type="button" id="zoomIn" aria-label="Show less time">+</button></span>
+      <span>Drag to move through time, or scroll on the wheel. Arrow keys: a day; with Shift: a week.</span>
+    </div>
+    <canvas id="score" tabindex="0" role="img" aria-label="Score of transits to the birth chart over four years; time runs left to right and a playhead marks the moment shown above"></canvas>
+  </section>
+
+  <details id="chartBox">
+    <summary id="chartLabel"></summary>
+    <form class="chart" id="chartForm" novalidate>
+      <label for="fName">Name<input id="fName" type="text" autocomplete="off"></label>
+      <label for="fDate">Birth date<input id="fDate" type="date"></label>
+      <label for="fTime">Local time<input id="fTime" type="time"></label>
+      <label class="check" for="fUnknown"><input id="fUnknown" type="checkbox"> Time unknown (no houses; Moon approximate)</label>
+      <label for="fPlace">Birthplace<input id="fPlace" type="text" autocomplete="off" placeholder="Type a city, e.g. Lisbon or Austin, TX"></label>
+      <ul class="results" id="fResults"></ul>
+      <label for="fLat">Latitude<input id="fLat" type="number" step="0.001"></label>
+      <label for="fLon">Longitude (east +)<input id="fLon" type="number" step="0.001"></label>
+      <label for="fTz">Time zone<input id="fTz" type="text" autocomplete="off" placeholder="Filled in by the city, or LMT"></label>
+      <div style="display:flex;gap:8px;align-items:end"><button type="submit">Use this chart</button><button type="button" id="fReset">Reset</button></div>
+    </form>
+    <p class="err" id="fErr" role="status"></p>
+    <p class="fine">A chart entered here stays in this browser. Positions come from <a href="https://github.com/cosinekitty/astronomy" style="color:inherit">Astronomy Engine</a>, computed on this device. Part of <a href="https://github.com/anomalous3/sublunary" style="color:inherit">Sublunary</a>.</p>
+  </details>
+</div>
+
+<div class="passing" id="passing"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script>
+"use strict";
+const el = (id) => document.getElementById(id);
+const D2R = Math.PI / 180, DAY = 86400000, norm = (x) => ((x % 360) + 360) % 360, wrap180 = (x) => ((x + 540) % 360) - 180;
+const VS = "︎";
+const BODIES = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+const LAYERS = {   // what the score and the wheel carry; the slow planets always
+  slow: { label: "Mars to Pluto", bodies: ["mars", "jupiter", "saturn", "uranus", "neptune", "pluto"], fixed: true, on: true },
+  fast: { label: "Sun, Mercury, Venus", bodies: ["sun", "mercury", "venus"], on: false },
+  chiron: { label: "Chiron", bodies: ["chiron"], on: true },
+  lilith: { label: "Lilith", bodies: ["lilith"], on: true },
+  node: { label: "Node", bodies: ["node"], on: true },
+  asteroids: { label: "Ceres, Pallas, Juno, Vesta", bodies: ["ceres", "pallas", "juno", "vesta"], on: false },
+  sky: { label: "The sky's own aspects", bodies: [], on: true },
+};
+let TRANSIT = [], POINTS = [];
+function resolveLayers() {
+  const on = (k) => LAYERS[k].on;
+  TRANSIT = ["fast", "slow", "chiron", "lilith", "node", "asteroids"].filter(on).flatMap((k) => LAYERS[k].bodies);
+  POINTS = [...BODIES, ...["chiron", "lilith", "node", "asteroids"].filter(on).flatMap((k) => LAYERS[k].bodies), "asc", "mc"];
+}
+resolveLayers();
+const isAngle = (p) => p === "asc" || p === "mc";
+const NAME = { sun: "Sun", moon: "Moon", mercury: "Mercury", venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn", uranus: "Uranus", neptune: "Neptune", pluto: "Pluto", chiron: "Chiron", lilith: "Lilith", node: "North Node", ceres: "Ceres", pallas: "Pallas", juno: "Juno", vesta: "Vesta", asc: "Ascendant", mc: "Midheaven" };
+const GLYPH = { sun: "☉", moon: "☽", mercury: "☿", venus: "♀", mars: "♂", jupiter: "♃", saturn: "♄", uranus: "♅", neptune: "♆", pluto: "♇", chiron: "⚷", lilith: "⚸", node: "☊", ceres: "⚳", pallas: "⚴", juno: "⚵", vesta: "⚶", asc: "AC", mc: "MC" };
+const COLOR = { sun: "#ffd6aa", mercury: "#c2d0ff", venus: "#45dc7c", mars: "#ff5f45", jupiter: "#c08cff", saturn: "#9aa0ff", uranus: "#2fd9e8", neptune: "#4c94ff", pluto: "#ff5aa8",
+  chiron: "#b7e36b", lilith: "#e37bd6", node: "#c9cedc", ceres: "#a8c97f", pallas: "#7fd6c6", juno: "#f2a6c0", vesta: "#ffb070" };
+COLOR.moon = "#dfe6f5"; COLOR.asc = COLOR.mc = "#f0c674";   // every point keeps its own color, natal or moving
+const NATAL = "#f0c674", MUTED = "#8f95ad", LINE = "#262b40", FG = "#dde0ea", SILVER = "#eef1f8";
+const SIGN = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"];
+const SIGN_GLYPH = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th"];
+const ANGLES = [0, 60, 90, 120, 180, 240, 270, 300];
+const kindOf = (a) => Math.min(a, 360 - a);
+const ASPECT_GLYPH = { 0: "☌", 60: "⚹", 90: "□", 120: "△", 180: "☍" };
+const ASPECT = { 0: "conjunction", 60: "sextile", 90: "square", 120: "trine", 180: "opposition" };
+const signOf = (lon) => Math.floor(norm(lon) / 30);
+const fmtLon = (lon) => { const x = norm(lon), d = x % 30; return `${Math.floor(d)}°${String(Math.floor((d % 1) * 60)).padStart(2, "0")}′ ${SIGN[signOf(x)]}`; };
+const fmtDate = (ms) => new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const fmtWhen = (ms) => new Date(ms).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
+
+// ---------------------------------------------------------------- what the tradition says
+const TRADITIONAL = "Traditional", MODERN = "Modern";
+const ACT = {
+  mars: { src: TRADITIONAL, epithet: "the planet of heat, appetite and conflict", note: "Lilly's Lesser Infortune: courage and quarrels both. Its transits are brief and tend to feel like a spark, a push or an irritation." },
+  jupiter: { src: TRADITIONAL, epithet: "the planet of growth, generosity and good fortune", note: "Lilly's Greater Fortune. Its transits are read as openings and enlargement, and sometimes as too much of a good thing." },
+  saturn: { src: TRADITIONAL, epithet: "the planet of limits, structure and time", note: "Lilly's Greater Infortune. Its transits are read as weight and consequence: what holds gets confirmed, what doesn't gets tested." },
+  uranus: { src: MODERN, epithet: "the planet of disruption, freedom and sudden change", note: "Found in 1781, so it has no classical meaning. Modern astrologers read it as breaks in routine, awakenings and restlessness." },
+  neptune: { src: MODERN, epithet: "the planet of dissolving, imagination and longing", note: "Found in 1846. Modern astrologers read it as blurred edges: inspiration, idealism and confusion, often hard to tell apart at the time." },
+  pluto: { src: MODERN, epithet: "the planet of pressure, depth and irreversible change", note: "Found in 1930. Modern astrologers read it as slow, deep change, and as things long buried coming up to be dealt with." },
+};
+Object.assign(ACT, {
+  sun: { src: TRADITIONAL, epithet: "the light of the year, showing where attention goes", note: "The Sun moves about a degree a day, so its transits last days. They are read as a spotlight, not a turning point." },
+  mercury: { src: TRADITIONAL, epithet: "the planet of messages, errands and thought", note: "Quick and short-lived: conversations, decisions and small logistics. Its retrograde loops are a staple of modern shared idiom." },
+  venus: { src: TRADITIONAL, epithet: "the planet of affection, taste and ease", note: "Lilly's Lesser Fortune. Its transits are brief and read as warmth, pleasure and social ease." },
+  chiron: { src: MODERN, epithet: "the wounded healer", note: "Found in 1977, a small body between Saturn and Uranus. Modern astrologers read it as an old hurt that also becomes a way of helping." },
+  lilith: { src: MODERN, epithet: "the Black Moon, the Moon's empty far point", note: "Not a body: the mean apogee of the Moon's orbit, a point in space. Modern astrologers read it as what refuses to be tamed, and as anger and desire that were pushed out of sight." },
+  node: { src: TRADITIONAL, epithet: "the Moon's crossing of the ecliptic", note: "Caput Draconis to Lilly, Rahu in Vedic astrology. A geometric point, always moving backward, and also the marker of eclipse seasons. Modern astrologers read it as the direction of growth, with the opposite South Node as the habit you're leaving." },
+  ceres: { src: MODERN, epithet: "the asteroid of nurture and loss", note: "Found in 1801. Read as care, food, and what gets taken away and comes back." },
+  pallas: { src: MODERN, epithet: "the asteroid of strategy and pattern", note: "Found in 1802. Read as practical wisdom and seeing how things fit." },
+  juno: { src: MODERN, epithet: "the asteroid of commitment", note: "Found in 1804. Read as partnership, its bargains and its jealousies." },
+  vesta: { src: MODERN, epithet: "the asteroid of devotion and focus", note: "Found in 1807. Read as the flame you tend, and what you set apart for it." },
+});
+const MANNER = {
+  0: { verb: "is joining", note: "A conjunction fuses the two. The tradition treats it as a beginning, good or hard depending on the planets involved." },
+  60: { verb: "is in easy contact with", note: "A sextile is a mild opening. The tradition treats it as helpful, though it usually asks you to take it up." },
+  90: { verb: "is pressing against", note: "A square is friction that asks for action. The tradition counts it a hard aspect." },
+  120: { verb: "is flowing into", note: "A trine is ease and support. The tradition counts it the most fortunate aspect, and it can pass without being noticed." },
+  180: { verb: "is standing across from", note: "An opposition is tension between two poles, often felt through other people or through having to choose. The tradition counts it a hard aspect." },
+};
+const TOPIC = {
+  sun: "your sense of self, vitality and direction",
+  moon: "your feelings, habits and what you need to feel at home",
+  mercury: "how you think, speak and take things in",
+  venus: "love, taste and what you value",
+  mars: "drive, anger and how you go after things",
+  jupiter: "your faith, appetite for growth and sense of possibility",
+  saturn: "your discipline, fears and sense of responsibility",
+  uranus: "your independence and where you break from the expected",
+  neptune: "your imagination, ideals and blind spots",
+  pluto: "your relationship with power and with what you keep buried",
+  chiron: "an old hurt and what you've learned to do with it",
+  lilith: "what in you refuses to be tamed",
+  node: "the direction you're growing toward, and the habit you're leaving",
+  ceres: "how you care for others and want to be cared for",
+  pallas: "how you see patterns and plan",
+  juno: "what you need from commitment",
+  vesta: "what you devote yourself to",
+  asc: "your body, your manner and how you meet the world",
+  mc: "your work, reputation and public direction",
+};
+const HOUSE = ["",
+  "the body, temperament and the self you show",
+  "money, possessions and what you can rely on",
+  "siblings, neighbors, daily errands and communication",
+  "home, family, roots and how things end",
+  "pleasure, creativity, romance and children",
+  "work, routine, health and service",
+  "partners, open rivals and one-to-one dealings",
+  "shared money, inheritance, debt and death",
+  "long journeys, belief and higher learning",
+  "career, honor and standing in the world",
+  "friends, allies and hopes",
+  "hidden things, solitude, sorrow and self-undoing",
+];
+// the transits a planet makes to itself: chapters of a life, with the ages they usually come
+const LIFE = {
+  "mars|0": ["Mars return", "Mars comes back to where it was at birth about every two years. It is read as the start of a new round of effort."],
+  "jupiter|0": ["Jupiter return", "Jupiter comes back about every twelve years. It is read as a fresh round of growth."],
+  "jupiter|180": ["Jupiter opposition", "The halfway point of Jupiter's twelve-year round, around when an earlier opening comes to fruit or overreaches."],
+  "saturn|0": ["Saturn return", "Saturn comes back about every 29½ years, at around 29 and 58. It may be the best known transit in astrology, read as a reckoning with adult life."],
+  "saturn|90": ["Saturn's waxing square", "The first hard turn of Saturn's round, at about 7, 36 and 66."],
+  "saturn|180": ["Saturn opposition", "Saturn's halfway point, at about 15 and 44, read as taking stock of what you've built."],
+  "saturn|270": ["Saturn's waning square", "The last hard turn of Saturn's round, at about 22 and 51, read as letting go of what won't carry forward."],
+  "uranus|90": ["Uranus's waxing square", "Usually around 21, read as a first break for independence."],
+  "uranus|180": ["Uranus opposition", "Usually between 40 and 44, depending on the birth year, and one of the classic midlife transits: the road not taken starts knocking."],
+  "uranus|270": ["Uranus's waning square", "Usually around 63, read as a late claim on freedom."],
+  "neptune|90": ["Neptune square", "Usually around 41, another of the midlife transits: old certainties blur and the question of what it was all for comes up."],
+  "chiron|0": ["Chiron return", "Chiron comes back at about 50 or 51, read as a reckoning with an old wound."],
+  "node|0": ["Nodal return", "The Moon's nodes come back about every 18.6 years, read as a turn in the road, and it falls in the same eclipse family as your birth."],
+  "node|180": ["Nodal reversal", "Halfway through the 18.6-year cycle, when the North Node sits on your natal South Node."],
+  "lilith|0": ["Lilith return", "The Moon's apogee comes back about every nine years."],
+  "sun|0": ["Solar return", "Your birthday, astronomically: the Sun back at its exact birth position. Traditions cast a whole chart for this moment."],
+  "pluto|90": ["Pluto square", "Pluto's uneven orbit makes the age vary widely. People born in the 1980s meet it around 40, so it arrives alongside the other midlife transits, and it is read as a confrontation with power and with what's been buried."],
+};
+
+// ---------------------------------------------------------------- positions and houses
+const AE = { sun: "Sun", mercury: "Mercury", venus: "Venus", mars: "Mars", jupiter: "Jupiter", saturn: "Saturn", uranus: "Uranus", neptune: "Neptune", pluto: "Pluto" };
+const BAKED = /*__BODIES__*/null;   // JPL Horizons: 1900-2100 UT every 5 days, for bodies Astronomy Engine lacks
+const bakedStart = Date.UTC(1900, 0, 1), bakedArr = {};
+const series = (b64) => { const raw = atob(b64), u = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) u[i] = raw.charCodeAt(i); return new Uint16Array(u.buffer); };
+function bakedLon(body, ms) {   // Catmull-Rom, unwrapped; about 12 arcseconds from Horizons after 1900, under an arcminute from 1600
+  const early = ms < bakedStart + 5 * DAY, src = early ? BAKED.early : BAKED, id = (early ? "e:" : "") + body;
+  const a = bakedArr[id] || (bakedArr[id] = series(src.bodies[body]));
+  const t0 = early ? (src.startJD - 2440587.5) * DAY : bakedStart, f = (ms - t0) / (src.stepDays * DAY);
+  if (f < 1 || f > a.length - 3) return null;   // beyond what Horizons can compute for this body
+  const i = Math.floor(f), u = f - i, s = BAKED.scale;
+  const p1 = a[i] * s, p0 = p1 + wrap180(a[i - 1] * s - p1), p2 = p1 + wrap180(a[i + 1] * s - p1), p3 = p2 + wrap180(a[i + 2] * s - p2);
+  return norm(0.5 * (2 * p1 + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u));
+}
+function meanNode(T) { return norm(125.0445479 - 1934.1362891 * T + 0.0020754 * T * T + T * T * T / 467441 - T * T * T * T / 60616000); }
+function meanLilith(T) {   // the mean apogee, along the Moon's mean orbit, reduced to the ecliptic as Swiss Ephemeris does
+  const per = 83.3532465 + 4069.0137287 * T - 0.01032 * T * T - T * T * T / 80053 + T * T * T * T / 18999000, node = meanNode(T);
+  const u = (per + 180 - node) * D2R, i = 5.145396 * D2R;
+  return norm(node + Math.atan2(Math.cos(i) * Math.sin(u), Math.cos(u)) / D2R);
+}
+function longitude(body, ms) {   // apparent geocentric ecliptic longitude of date
+  if (BAKED && BAKED.bodies[body]) return bakedLon(body, ms);
+  if (body === "lilith" || body === "node") { const T = (ms / DAY + 2440587.5 - 2451545.0) / 36525; return body === "node" ? meanNode(T) : meanLilith(T); }
+  const t = Astronomy.MakeTime(new Date(ms));
+  if (body === "moon") return norm(Astronomy.EclipticGeoMoon(t).lon);
+  const v = Astronomy.RotateVector(Astronomy.Rotation_EQJ_ECT(t), Astronomy.GeoVector(AE[body], t, true));
+  return norm(Math.atan2(v.y, v.x) / D2R);
+}
+// mirrors sublunary/houses.py
+function angles(ms, lat, lon) {
+  const d = ms / DAY + 2440587.5 - 2451545.0, T = d / 36525;
+  const gmst = norm(280.46061837 + 360.98564736629 * d + 0.000387933 * T * T - T * T * T / 38710000);
+  const ramc = norm(gmst + lon);
+  const eps = (23.439291111 - 0.0130041667 * T - 1.6667e-7 * T * T + 5.0278e-7 * T * T * T) * D2R;
+  const r = ramc * D2R, phi = lat * D2R;
+  const mc = norm(Math.atan2(Math.sin(r), Math.cos(r) * Math.cos(eps)) / D2R);
+  let asc = norm(Math.atan2(Math.cos(r), -(Math.sin(eps) * Math.tan(phi) + Math.cos(eps) * Math.sin(r))) / D2R);
+  if (norm(asc - mc) > 180) asc = norm(asc + 180);
+  return { ramc, eps, asc, mc };
+}
+const raToLon = (ra, eps) => norm(Math.atan2(Math.sin(ra * D2R), Math.cos(ra * D2R) * Math.cos(eps)) / D2R);
+function placidusCusp(ramc, eps, phi, f, above) {
+  let lon = norm(ramc + (above ? 30 : 210));
+  for (let k = 0; k < 60; k++) {
+    const dec = Math.asin(Math.sin(eps) * Math.sin(lon * D2R));
+    const ad = Math.asin(Math.max(-1, Math.min(1, Math.tan(phi) * Math.tan(dec)))) / D2R;
+    const ra = above ? ramc + f * (90 + ad) : ramc + 180 - f * (90 - ad);
+    const next = raToLon(ra, eps);
+    if (Math.abs(wrap180(next - lon)) < 1e-9) return next;
+    lon = next;
+  }
+  return lon;
+}
+function computeHouses(ms, lat, lon, system) {
+  const { ramc, eps, asc, mc } = angles(ms, lat, lon);
+  if (system === "placidus" && Math.abs(lat) >= 66) system = "porphyry";
+  let cusps;
+  if (system === "whole_sign") { const f = Math.floor(asc / 30) * 30; cusps = [...Array(12)].map((_, i) => norm(f + 30 * i)); }
+  else if (system === "equal") cusps = [...Array(12)].map((_, i) => norm(asc + 30 * i));
+  else if (system === "porphyry") {
+    const ic = norm(mc + 180), q1 = norm(ic - asc), q2 = norm(asc + 180 - ic);
+    const c = [asc, asc + q1 / 3, asc + 2 * q1 / 3, ic, ic + q2 / 3, ic + 2 * q2 / 3].map(norm);
+    cusps = [...c, ...c.map((x) => norm(x + 180))];
+  } else {
+    const phi = lat * D2R;
+    const c11 = placidusCusp(ramc, eps, phi, 1 / 3, true), c12 = placidusCusp(ramc, eps, phi, 2 / 3, true);
+    const c2 = placidusCusp(ramc, eps, phi, 2 / 3, false), c3 = placidusCusp(ramc, eps, phi, 1 / 3, false);
+    const first = [asc, c2, c3, norm(mc + 180), norm(c11 + 180), norm(c12 + 180)];
+    cusps = [...first, ...first.map((x) => norm(x + 180))];
+  }
+  return { system, cusps, asc, mc };
+}
+function houseOf(h, lon) {
+  for (let i = 0; i < 12; i++) if (norm(lon - h.cusps[i]) < norm(h.cusps[(i + 1) % 12] - h.cusps[i])) return i + 1;
+  return 12;
+}
+function toUTC(c) {
+  const [y, mo, d] = c.date.split("-").map(Number), [h, mi] = (c.unknown ? "12:00" : c.time).split(":").map(Number);
+  const local = Date.UTC(y, mo - 1, d, h, mi);
+  if (c.tz === "LMT") return local - (c.lon / 15) * 3600000;
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: c.tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const off = (ms) => { const q = Object.fromEntries(fmt.formatToParts(new Date(ms)).map((x) => [x.type, x.value])); return Date.UTC(+q.year, +q.month - 1, +q.day, +q.hour % 24, +q.minute, +q.second) - ms; };
+  return local - off(local - off(local));
+}
+
+// ---------------------------------------------------------------- the sky, one sample a day
+const today = Date.now();
+const T0 = Math.floor(today / DAY) * DAY - 365 * DAY, NDAYS = 365 * 4 + 1, T1 = T0 + (NDAYS - 1) * DAY;
+const table = {};
+function ensureTable(b) { if (table[b]) return; table[b] = new Float64Array(NDAYS); for (let i = 0; i < NDAYS; i++) table[b][i] = longitude(b, T0 + i * DAY); }
+ensureTable("sun");
+const retroAt = (b, i) => { const j = Math.min(NDAYS - 1, i + 1), k = j === i ? i - 1 : i; return wrap180(table[b][k + 1] - table[b][k]) < 0; };
+
+// ---------------------------------------------------------------- the chart and its events
+const EXAMPLES = {
+  invented: { label: "two invented people", note: "Every body and house works for them.",
+    a: { name: "Ada", date: "1991-03-14", time: "09:20", place: "Lisbon, PT", lat: 38.717, lon: -9.133, tz: "Europe/Lisbon" },
+    b: { name: "Ben", date: "1989-08-02", time: "18:05", place: "Montreal, CA", lat: 45.509, lon: -73.588, tz: "America/Toronto" } },
+  history: { label: "Johannes Kepler and William Lilly", note: "Kepler, 6 January 1572, about 2:30 pm, after his own horoscope; Lilly, 11 May 1602, time unknown; both on the Gregorian calendar. Their intervals and orbs run this page. Kepler is too early for a computable Chiron.",
+    a: { name: "Kepler", date: "1572-01-06", time: "14:30", place: "Weil der Stadt, DE", lat: 48.75, lon: 8.87, tz: "LMT" },
+    b: { name: "Lilly", date: "1602-05-11", time: "12:00", unknown: true, place: "Diseworth, GB", lat: 52.81, lon: -1.30, tz: "LMT" } },
+};
+const FIRST_PRIVATE = /*__FIRST__*/null;
+const DEFAULT_CHART = FIRST_PRIVATE || EXAMPLES.invented.a;
+const STORE = "sublunary.score.chart";
+const SECOND_DEFAULT = /*__SECOND__*/null, STORE2 = "sublunary.score.second";
+let second = SECOND_DEFAULT || (FIRST_PRIVATE ? null : EXAMPLES.invented.b);
+try { const s2 = JSON.parse(localStorage.getItem(STORE2) || "null"); if (s2 && s2.date) second = s2; } catch (_) {}
+let natalB = {}, housesB = null;
+let chart = DEFAULT_CHART;
+let onExample = !FIRST_PRIVATE;
+try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.date) { chart = s; onExample = false; } } catch (_) {}
+let natal = {}, houses = null, hsys = "placidus", orbMode = "working", events = [], rows = [], selected = null;
+const WORK = { sun: 3, mercury: 3, venus: 3, mars: 3, jupiter: 3, saturn: 3, uranus: 2, neptune: 2, pluto: 2, chiron: 2, lilith: 2, node: 2, ceres: 1.5, pallas: 1.5, juno: 1.5, vesta: 1.5 };
+// William Lilly's orbs (Christian Astrology, 1647); bodies he never named and the angles get placeholders
+const LILLY = { sun: 17, moon: 12.5, mercury: 7, venus: 8, mars: 7.5, jupiter: 12, saturn: 10, uranus: 5, neptune: 5, pluto: 5, chiron: 5, lilith: 5, node: 5, ceres: 3, pallas: 3, juno: 3, vesta: 3, asc: 5, mc: 5 };
+const orbOf = (tb, np) => orbMode === "lilly" ? (LILLY[tb] + LILLY[np]) / 2 : WORK[tb];
+const sdAt = (tb, i, np, a) => wrap180(table[tb][i] - natal[np] - a);
+// the signed distance from exact for any event, whether against the chart or between two moving bodies
+const natalOf = (e) => e.b ? natalB : natal;
+const sdE = (e, i) => e.sky ? wrap180(table[e.tb][i] - table[e.np][i] - e.a) : wrap180(table[e.tb][i] - natalOf(e)[e.np] - e.a);
+const SKY = () => ["jupiter", "saturn", "uranus", "neptune", "pluto", ...(LAYERS.chiron.on ? ["chiron"] : [])];
+
+function computeChart() {
+  const ms = toUTC(chart);
+  for (const b of [...BODIES, "chiron", "lilith", "node", "ceres", "pallas", "juno", "vesta"]) natal[b] = longitude(b, ms);
+  houses = computeHouses(ms, chart.lat, chart.lon, hsys);
+  natal.asc = houses.asc; natal.mc = houses.mc;
+  natal.retro = {}; for (const b of [...BODIES, "chiron", "ceres", "pallas", "juno", "vesta"]) natal.retro[b] = b !== "sun" && b !== "moon" && wrap180(longitude(b, ms + 3600000) - natal[b]) < 0;
+  natal.ms = ms;
+  const d = new Date(ms);
+  el("chartLabel").textContent = `Chart: ${chart.name || "unnamed"}, ${chart.date}, ${chart.time}, ${chart.place || `${chart.lat}, ${chart.lon}`}. Change it`;
+  el("fUnknown").checked = !!chart.unknown; el("fName").value = chart.name; el("fDate").value = chart.date; el("fTime").value = chart.time; el("fPlace").value = chart.place; el("fLat").value = chart.lat; el("fLon").value = chart.lon; el("fTz").value = chart.tz;
+}
+function computeSecond() {
+  natalB = {}; housesB = null;
+  if (!second) return;
+  const ms = toUTC(second);
+  for (const b of [...BODIES, "chiron", "lilith", "node", "ceres", "pallas", "juno", "vesta"]) natalB[b] = longitude(b, ms);
+  housesB = computeHouses(ms, second.lat, second.lon, hsys);
+  natalB.asc = housesB.asc; natalB.mc = housesB.mc;
+}
+const pointHouse = (np) => np === "asc" ? 1 : np === "mc" ? 10 : houseOf(houses, natal[np]);
+function scan(base, into = events) {
+  const swells = [];
+  let i0 = -1;
+  for (let i = 0; i < NDAYS; i++) {
+    const on = Math.abs(sdE(base, i)) < base.orb;
+    if (on && i0 < 0) i0 = i;
+    if (!on && i0 >= 0) { swells.push([i0, i - 1]); i0 = -1; }
+  }
+  if (i0 >= 0) swells.push([i0, NDAYS - 1]);
+  // passes of one retrograde cycle belong together; a later round is a new event
+  let cur = null;
+  for (const s of swells) {
+    if (cur && s[0] - cur.swells[cur.swells.length - 1][1] < 330) cur.swells.push(s);
+    else { cur = { ...base, swells: [s] }; into.push(cur); }
+  }
+}
+function computeEvents() {
+  events = [];
+  resolveLayers();
+  POINTS = POINTS.filter((q) => natal[q] != null && !(chart.unknown && isAngle(q)));
+  for (const b of TRANSIT) ensureTable(b);
+  for (const tb of TRANSIT) for (const np of POINTS) for (const a of ANGLES)
+    scan({ key: `${tb}|${np}|${a}`, tb, np, a, kind: kindOf(a), orb: orbOf(tb, np) });
+  const sky = SKY();
+  if (LAYERS.sky.on) for (const b of sky) ensureTable(b);
+  if (LAYERS.sky.on) for (let x = 0; x < sky.length; x++) for (let y = x + 1; y < sky.length; y++) for (const a of ANGLES)
+    scan({ key: `sky|${sky[x]}|${sky[y]}|${a}`, sky: true, tb: sky[x], np: sky[y], a, kind: kindOf(a), orb: orbMode === "lilly" ? (LILLY[sky[x]] + LILLY[sky[y]]) / 2 : Math.min(WORK[sky[x]], WORK[sky[y]]) });
+  for (const e of events) { e.i0 = e.swells[0][0]; e.i1 = e.swells[e.swells.length - 1][1]; e.id = `${e.key}|${e.i0}`; }
+  // lay the events into lanes, row by row
+  const makeRow = (np, sky) => {
+    const evs = events.filter((e) => e.np === np && !!e.sky === sky).sort((p, q) => p.i0 - q.i0);
+    const lanes = [];
+    for (const e of evs) {
+      let l = lanes.findIndex((end) => e.i0 > end + 6);
+      if (l < 0) { l = lanes.length; lanes.push(0); }
+      lanes[l] = e.i1; e.lane = l;
+    }
+    return { np, sky, evs, lanes: Math.max(1, lanes.length) };
+  };
+  rows = [{ turns: true }, { head: chart.name ? `${chart.name}'s chart` : "The chart" }, ...POINTS.map((np) => makeRow(np, false))];
+  if (LAYERS.sky.on) {
+    const skyRows = sky.map((np) => makeRow(np, true)).filter((r) => r.evs.length);
+    rows.push({ head: "The sky, for everyone" }, ...skyRows);
+  }
+  computeTurns(); computeNowEvents(); computeTwo();
+  scoreDirty = true; foldDirty = true;
+}
+// the turning points: stations, changes of sign, and the Sun's return to its birth position
+let turns = [];
+function computeTurns() { turns = computeTurnsFor(TRANSIT.filter((b) => b !== "node" && b !== "lilith" && !LAYERS.asteroids.bodies.includes(b))); }
+function computeTurnsFor(watched) {
+  const turns = [];
+  for (const b of watched) {
+    for (let i = 2; i < NDAYS - 1; i++) {
+      const v0 = wrap180(table[b][i - 1] - table[b][i - 2]), v1 = wrap180(table[b][i] - table[b][i - 1]);
+      if (b !== "sun" && v0 * v1 < 0) turns.push({ i, b, text: GLYPH[b] + VS + (v1 < 0 ? "℞" : "D"), what: `${NAME[b]} stations ${v1 < 0 ? "retrograde" : "direct"}` });
+      const s0 = signOf(table[b][i - 1]), s1 = signOf(table[b][i]);
+      if (s0 !== s1) turns.push({ i, b, text: GLYPH[b] + VS + "→" + SIGN_GLYPH[s1] + VS, what: `${NAME[b]} enters ${SIGN[s1]}` });
+    }
+  }
+  for (let i = 1; i < NDAYS; i++) {
+    const p = wrap180(table.sun[i - 1] - natal.sun), q = wrap180(table.sun[i] - natal.sun);
+    if (p < 0 && q >= 0) turns.push({ i, b: "sun", text: "☉" + VS + " return", what: "Solar return", big: true });
+  }
+  turns.sort((x, y) => x.i - y.i);
+  return turns;
+}
+// exact passes, stations and nearest approach, refined only when an event is opened
+function detail(e) {
+  if (e.detail) return e.detail;
+  const sd = (ms) => wrap180(longitude(e.tb, ms) - (e.sky ? longitude(e.np, ms) : natalOf(e)[e.np]) - e.a);
+  const exact = [], stations = [];
+  for (let i = e.i0 > 0 ? e.i0 - 1 : 0; i < Math.min(NDAYS - 1, e.i1 + 1); i++) {
+    const p = sdE(e, i), q = sdE(e, i + 1);
+    if (p * q <= 0 && Math.abs(p - q) < 30) {
+      let lo = T0 + i * DAY, hi = lo + DAY, slo = p;
+      for (let k = 0; k < 24; k++) { const m = (lo + hi) / 2, sm = sd(m); if (sm * slo <= 0) hi = m; else { lo = m; slo = sm; } }
+      exact.push({ ms: (lo + hi) / 2, retro: q < p });
+    }
+    if (i > 0 && i + 1 < NDAYS) {
+      const v0 = wrap180(table[e.tb][i] - table[e.tb][i - 1]), v1 = wrap180(table[e.tb][i + 1] - table[e.tb][i]);
+      if (v0 * v1 < 0) stations.push({ ms: T0 + i * DAY, to: v1 < 0 ? "retrograde" : "direct" });
+    }
+  }
+  let near = null;
+  if (!exact.length) { let best = 1e9, at = 0; for (let i = e.i0; i <= e.i1; i++) { const v = Math.abs(sdE(e, i)); if (v < best) { best = v; at = i; } } near = { ms: T0 + at * DAY, off: best }; }
+  return (e.detail = { exact, stations, near });
+}
+
+// ---------------------------------------------------------------- time and view
+let t = Math.min(T1, Math.max(T0, today));
+let playing = false, rate = 7;
+let viewStart = t - 150 * DAY, viewSpan = 548 * DAY;
+function clampView() {
+  viewSpan = Math.max(45 * DAY, Math.min(T1 - T0, viewSpan));
+  viewStart = Math.max(T0, Math.min(T1 - viewSpan, viewStart));
+}
+clampView();
+let dirty = true, scoreDirty = true, dragging = false;
+function setT(ms, follow = true) {
+  t = Math.max(T0, Math.min(T1, ms)); lastMove = performance.now();
+  if (view === "two") {
+    if (t < twoS || t >= twoS + twoSpan * DAY) { if (follow) anchorTwo(t); }
+  } else if (view === "now") {
+    if (t < nowS || t >= nowS + nowSpan * DAY) { if (follow) anchorNow(t); }
+  } else if (follow && view === "fold") {
+    const m = fSpan * 0.04;
+    if (t < fStart + m || t > fStart + fSpan - m) { fStart = Math.max(T0, Math.min(T1 - fSpan, t - fSpan / 2)); foldDirty = true; }
+  } else if (follow) {
+    const m = viewSpan * 0.08;
+    if (t < viewStart + m) { viewStart = t - m; clampView(); scoreDirty = true; }
+    if (t > viewStart + viewSpan - m) { viewStart = t + m - viewSpan; clampView(); scoreDirty = true; }
+  }
+  dirty = true;
+}
+let lonNow = {}, active = [], turnNote = "";
+function computeNow() {
+  const live = view === "now" ? [...new Set([...NOW_BODIES, ...TRANSIT])] : view === "two" ? [...new Set([...TWO_BODIES, ...TRANSIT])] : TRANSIT;
+  for (const b of live) lonNow[b] = longitude(b, t);
+  active = [];
+  if (view === "two") {
+    // the sound of Two: the spine's chord, one voice in each ear, with what's near exact now on each side
+    if (!second) return;
+    for (const c of synList.slice(0, 9)) active.push({ key: c.key, tb: c.tb, np: c.np, kind: c.kind, depth: c.depth * 0.8, sa: signOf(natal[c.tb]), sb: signOf(natalB[c.np]), pans: [-0.6, 0.6] });
+    const L = LENS[lens];
+    for (const [who, nat] of [["a", natal], ["b", natalB]]) for (const tb of TWO_BODIES) for (const np of (L.pts || POINTS)) for (const ang of ANGLES) {
+      if (nat[np] == null || (isAngle(np) && (who === "a" ? chart : second).unknown)) continue;
+      const off = Math.abs(wrap180(lonNow[tb] - nat[np] - ang)), orb = orbOf(tb, np);
+      if (off < orb) { const p = who === "a" ? -0.6 : 0.6; active.push({ key: `${who}:${tb}|${np}|${ang}`, tb, np, kind: kindOf(ang), depth: 1 - off / orb, sa: signOf(lonNow[tb]), sb: signOf(nat[np]), pans: [p, p] }); }
+    }
+    active.sort((p, q) => q.depth - p.depth);
+    return;
+  }
+  for (const tb of live) for (const np of POINTS) for (const a of ANGLES) {
+    const sd = wrap180(lonNow[tb] - natal[np] - a), off = Math.abs(sd), orb = orbOf(tb, np);
+    if (off < orb) active.push({ key: `${tb}|${np}|${a}`, tb, np, a, kind: kindOf(a), off, sd, depth: 1 - off / orb });
+  }
+  if (LAYERS.sky.on) {
+    const sky = SKY();
+    for (const b of sky) if (lonNow[b] === undefined || !TRANSIT.includes(b)) lonNow[b] = longitude(b, t);
+    for (let x = 0; x < sky.length; x++) for (let y = x + 1; y < sky.length; y++) for (const a of ANGLES) {
+      const sd = wrap180(lonNow[sky[x]] - lonNow[sky[y]] - a), off = Math.abs(sd), orb = orbMode === "lilly" ? (LILLY[sky[x]] + LILLY[sky[y]]) / 2 : Math.min(WORK[sky[x]], WORK[sky[y]]);
+      if (off < orb) active.push({ key: `sky|${sky[x]}|${sky[y]}|${a}`, sky: true, tb: sky[x], np: sky[y], a, kind: kindOf(a), off, sd, depth: 1 - off / orb });
+    }
+  }
+  active.sort((p, q) => q.depth - p.depth);
+}
+const eventFor = (key, ms) => { const i = (ms - T0) / DAY; return events.find((e) => e.key === key && i >= e.i0 - 1 && i <= e.i1 + 1); };
+
+// ---------------------------------------------------------------- the wheel
+const dial = el("dial"), dg = dial.getContext("2d");
+let dW = 480, dDPR = 1, dLines = [];
+function sizeDial() {
+  const r = dial.getBoundingClientRect(); dDPR = Math.min(2, devicePixelRatio || 1); dW = Math.max(260, r.width);
+  dial.width = Math.round(dW * dDPR); dial.height = Math.round(dW * dDPR); dirty = true;
+}
+const SYM = '"Apple Symbols", "Segoe UI Symbol", "DejaVu Sans", sans-serif';
+const dpt = (lon, r) => { const a = (180 + lon - natal.asc) * D2R; return [dW / 2 + r * Math.cos(a), dW / 2 - r * Math.sin(a)]; };
+function spread(lons, minSep) {
+  const idx = lons.map((l, i) => [norm(l), i]).sort((p, q) => p[0] - q[0]), pos = idx.map((p) => p[0]);
+  for (let pass = 0; pass < 40; pass++) {
+    let moved = false;
+    for (let k = 0; k < pos.length; k++) { const n = (k + 1) % pos.length, gap = norm(pos[n] - pos[k]); if (gap < minSep) { const push = (minSep - gap) / 2; pos[k] -= push; pos[n] += push; moved = true; } }
+    if (!moved) break;
+  }
+  const out = []; idx.forEach((p, k) => { out[p[1]] = pos[k]; }); return out;
+}
+function drawDial() {
+  const R = dW / 2 - 4, rZo = R, rZi = R * 0.87, rT = R * 0.785, rN = R * 0.635, rC = R * 0.52;
+  dg.setTransform(dDPR, 0, 0, dDPR, 0, 0); dg.clearRect(0, 0, dW, dW);
+  dg.textAlign = "center"; dg.textBaseline = "middle";
+  const TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+  for (let k = 0; k < 12; k++) {
+    const a0 = (180 + k * 30 - natal.asc) * D2R, a1 = a0 + 30 * D2R;
+    dg.beginPath(); dg.arc(dW / 2, dW / 2, rZo, -a0, -a1, true); dg.arc(dW / 2, dW / 2, rZi, -a1, -a0, false); dg.closePath(); dg.fillStyle = TINT[k % 4]; dg.fill();
+    const [x0, y0] = dpt(k * 30, rZi), [x1, y1] = dpt(k * 30, rZo);
+    dg.strokeStyle = LINE; dg.lineWidth = 1; dg.beginPath(); dg.moveTo(x0, y0); dg.lineTo(x1, y1); dg.stroke();
+    const [gx, gy] = dpt(k * 30 + 15, (rZo + rZi) / 2);
+    dg.fillStyle = MUTED; dg.font = `${Math.round(R * 0.07)}px ${SYM}`; dg.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (const r of [rZo, rZi, rC]) { dg.beginPath(); dg.arc(dW / 2, dW / 2, r, 0, Math.PI * 2); dg.strokeStyle = LINE; dg.stroke(); }
+  // houses, in the ring between the inner circle and the transits
+  if (!chart.unknown) houses.cusps.forEach((c, i) => {
+    const [x0, y0] = dpt(c, rC), [x1, y1] = dpt(c, rZi), ang = i === 0 || i === 9;
+    dg.strokeStyle = ang ? "rgba(240,198,116,0.55)" : "rgba(139,145,168,0.22)"; dg.lineWidth = ang ? 1.4 : 1;
+    dg.beginPath(); dg.moveTo(x0, y0); dg.lineTo(x1, y1); dg.stroke();
+    const next = houses.cusps[(i + 1) % 12], mid = c + norm(next - c) / 2, [hx, hy] = dpt(mid, rC + R * 0.03);
+    dg.fillStyle = "rgba(143,149,173,0.55)"; dg.font = `${Math.round(R * 0.03)}px var(--mono), monospace`; dg.fillText(String(i + 1), hx, hy);
+  });
+  // aspect lines
+  dLines = [];
+  const selKey = selected && selected.key;
+  const anySel = chosen && selKey && active.some((c) => c.key === selKey);
+  for (const c of [...active].reverse()) {
+    const lb = c.sky ? lonNow[c.np] : natal[c.np];
+    const [x0, y0] = dpt(lonNow[c.tb], rC), [x1, y1] = dpt(lb, rC), on = !anySel || c.key === selKey;
+    const g = dg.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, COLOR[c.tb]); g.addColorStop(1, COLOR[c.np]);
+    dg.strokeStyle = g; dg.globalAlpha = (on ? 0.3 + 0.7 * c.depth : 0.16 + 0.3 * c.depth) * (c.sky && c.key !== selKey ? 0.45 : 1); dg.lineWidth = (c.sky ? 0.6 + 1.2 * c.depth : 0.8 + 3 * c.depth) + (c.key === selKey ? 1.2 : 0);
+    dg.setLineDash(c.kind === 90 || c.kind === 180 ? [6, 4] : []);
+    dg.beginPath();
+    if (c.kind === 0) { const a0 = (180 + lonNow[c.tb] - natal.asc) * D2R, a1 = (180 + lb - natal.asc) * D2R; dg.arc(dW / 2, dW / 2, rC - (c.sky ? 9 : 5), -a0, -a1, wrap180(lb - lonNow[c.tb]) > 0); }
+    else { dg.moveTo(x0, y0); dg.lineTo(x1, y1); }
+    dg.stroke();
+    dLines.push({ c, x0, y0, x1, y1 });
+  }
+  dg.setLineDash([]); dg.globalAlpha = 1;
+  // natal planets, then the transits outside them
+  const gs = Math.round(R * 0.062);
+  const nat = POINTS.filter((p) => !isAngle(p)), shownN = spread(nat.map((b) => natal[b]), (gs * 1.15) / rN / D2R);
+  nat.forEach((b, i) => {
+    const [a0, b0] = dpt(natal[b], rC), [a1, b1] = dpt(natal[b], rC + R * 0.025);
+    dg.strokeStyle = COLOR[b]; dg.lineWidth = 1.2; dg.beginPath(); dg.moveTo(a0, b0); dg.lineTo(a1, b1); dg.stroke();
+    const [gx, gy] = dpt(shownN[i], rN);
+    dg.fillStyle = COLOR[b]; dg.font = `${gs}px ${SYM}`; dg.fillText(GLYPH[b] + VS, gx, gy);
+    if (natal.retro[b]) { dg.font = `${Math.round(gs * 0.42)}px var(--body), sans-serif`; dg.fillText("℞", gx + gs * 0.55, gy + gs * 0.42); }
+  });
+  const shownT = spread(TRANSIT.map((b) => lonNow[b]), (gs * 1.15) / rT / D2R);
+  TRANSIT.forEach((b, i) => {
+    const [a0, b0] = dpt(lonNow[b], rC), [a1, b1] = dpt(lonNow[b], rC + R * 0.025);
+    dg.strokeStyle = COLOR[b]; dg.lineWidth = 1.2; dg.beginPath(); dg.moveTo(a0, b0); dg.lineTo(a1, b1); dg.stroke();
+    const [gx, gy] = dpt(shownT[i], rT);
+    dg.fillStyle = COLOR[b]; dg.font = `${gs}px ${SYM}`; dg.fillText(GLYPH[b] + VS, gx, gy);
+    const iNow = Math.round((t - T0) / DAY);
+    if (b !== "node" && iNow >= 0 && iNow < NDAYS && retroAt(b, iNow)) { dg.font = `${Math.round(gs * 0.42)}px var(--body), sans-serif`; dg.fillText("℞", gx + gs * 0.55, gy + gs * 0.42); }
+  });
+  // the angles
+  dg.font = `500 ${Math.round(R * 0.032)}px var(--body), sans-serif`; dg.fillStyle = NATAL;
+  if (!chart.unknown) for (const [n, l] of [["AC", natal.asc], ["MC", natal.mc]]) { const [x, y] = dpt(l, rZi - R * 0.022); dg.fillText(n, x, y); }
+}
+function hitLine(x, y, tol) {
+  let best = null, bd = tol;
+  for (const l of dLines) {
+    const dx = l.x1 - l.x0, dy = l.y1 - l.y0, u = Math.max(0, Math.min(1, ((x - l.x0) * dx + (y - l.y0) * dy) / (dx * dx + dy * dy || 1)));
+    const d = Math.hypot(x - (l.x0 + u * dx), y - (l.y0 + u * dy));
+    if (d < bd) { bd = d; best = l.c; }
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------- the score
+const score = el("score"), sg = score.getContext("2d"), cache = document.createElement("canvas"), cg = cache.getContext("2d");
+let sW = 900, sH = 400, sDPR = 1;
+const AXIS = 24, LANE = 18, ROWPAD = 7;
+let turnHits = [];
+const gutter = () => (sW < 560 ? 62 : 104);
+const xOf = (ms) => gutter() + ((ms - viewStart) / viewSpan) * (sW - gutter());
+const tOfX = (x) => viewStart + ((x - gutter()) / (sW - gutter())) * viewSpan;
+function layoutScore() {
+  let y = AXIS;
+  for (const r of rows) { r.y = y; r.h = r.turns ? 3 * 15 + 4 : r.head ? 22 : r.lanes * LANE + ROWPAD; y += r.h; }
+  sH = y + 2;
+  const w = score.parentElement.clientWidth;
+  sDPR = Math.min(2, devicePixelRatio || 1); sW = Math.max(300, w);
+  score.style.height = sH + "px";
+  score.width = cache.width = Math.round(sW * sDPR); score.height = cache.height = Math.round(sH * sDPR);
+  scoreDirty = true;
+}
+function swellPath(g, e, s, cy, power, half) {
+  // a lens around the lane's center: its thickness is how close the transit is to exact, day by day
+  const lo = Math.max(s[0], Math.floor((viewStart - T0) / DAY) - 1), hi = Math.min(s[1], Math.ceil((viewStart + viewSpan - T0) / DAY) + 1);
+  if (hi < lo) return false;
+  const step = Math.max(1, Math.floor((viewSpan / DAY) / (sW - gutter())));
+  const pts = [];
+  for (let i = lo; i <= hi; i += step) pts.push([xOf(T0 + i * DAY), half * Math.pow(Math.max(0, 1 - Math.abs(sdE(e, i)) / e.orb), power)]);
+  g.beginPath(); g.moveTo(pts[0][0], cy);
+  for (const [x, h] of pts) g.lineTo(x, cy - h);
+  for (let k = pts.length - 1; k >= 0; k--) g.lineTo(pts[k][0], cy + pts[k][1]);
+  g.closePath();
+  return true;
+}
+function drawCache() {
+  const g = cg, gut = gutter();
+  g.setTransform(sDPR, 0, 0, sDPR, 0, 0); g.clearRect(0, 0, sW, sH);
+  g.textBaseline = "middle";
+  // months
+  const d = new Date(viewStart); d.setUTCDate(1); d.setUTCHours(0, 0, 0, 0);
+  const pxMonth = ((30.4 * DAY) / viewSpan) * (sW - gut);
+  const labelEvery = pxMonth > 38 ? 1 : pxMonth > 14 ? 3 : 12;
+  g.font = `11.5px "IBM Plex Mono", monospace`; g.textAlign = "left";
+  for (; d.getTime() < viewStart + viewSpan; d.setUTCMonth(d.getUTCMonth() + 1)) {
+    const x = xOf(d.getTime()), jan = d.getUTCMonth() === 0;
+    if (x >= gut) {
+      g.strokeStyle = jan ? "rgba(139,145,168,0.42)" : "rgba(139,145,168,0.13)"; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, AXIS - 6); g.lineTo(x, sH); g.stroke();
+      if (d.getUTCMonth() % labelEvery === 0) {
+        g.fillStyle = jan ? FG : MUTED;
+        g.fillText(jan ? String(d.getUTCFullYear()) : d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }), x + 3, 9);
+      }
+    }
+  }
+  // rows
+  for (const r of rows) {
+    g.strokeStyle = "rgba(38,43,64,0.9)"; g.lineWidth = 1; g.beginPath(); g.moveTo(0, r.y + r.h - 0.5); g.lineTo(sW, r.y + r.h - 0.5); g.stroke();
+    if (r.turns) { g.fillStyle = MUTED; g.textAlign = "left"; g.font = `11px "Instrument Sans", sans-serif`; g.fillText("Turns", 2, r.y + 12); continue; }
+    if (r.head) { g.fillStyle = FG; g.textAlign = "left"; g.font = `15px "IM Fell English", Georgia, serif`; g.fillText(r.head, 2, r.y + 12); continue; }
+    const cy = r.y + Math.min(r.h, LANE + ROWPAD) / 2;
+    g.fillStyle = COLOR[r.np]; g.textAlign = "left";
+    g.font = isAngle(r.np) ? `600 12px "Instrument Sans", sans-serif` : `16px ${SYM}`;
+    g.fillText(GLYPH[r.np] + (isAngle(r.np) ? "" : VS), 2, cy);
+    if (gut > 80 && !r.sky) {
+      const lon = natal[r.np];
+      g.fillStyle = MUTED; g.font = `11px "IBM Plex Mono", monospace`;
+      g.fillText(`${Math.floor(norm(lon) % 30)}° ${SIGN[signOf(lon)].slice(0, 3)}${chart.unknown ? "" : ` ${pointHouse(r.np)}h`}`, 24, cy);
+    }
+  }
+  // the turns: as many as fit at this zoom; the rest appear as you zoom in
+  const turnRow = rows.find((r) => r.turns);
+  if (turnRow) {
+    const ends = [-1e9, -1e9, -1e9];
+    g.textAlign = "left"; g.textBaseline = "middle"; g.font = `11.5px ${SYM}`;
+    turnHits = [];
+    for (const m of turns) {
+      const x = xOf(T0 + m.i * DAY); if (x < gut || x > sW - 8) continue;
+      const w = g.measureText(m.text).width + 8, l = ends.findIndex((v) => x > v);
+      if (l < 0) continue;
+      ends[l] = x + w;
+      const y = turnRow.y + 9 + l * 15;
+      g.strokeStyle = m.big ? SILVER : COLOR[m.b]; g.globalAlpha = 0.8; g.beginPath(); g.moveTo(x, y - 6); g.lineTo(x, y + 6); g.stroke(); g.globalAlpha = 1;
+      g.fillStyle = m.big ? SILVER : COLOR[m.b]; g.fillText(m.text, x + 3, y);
+      turnHits.push({ x, x1: x + w, y0: y - 7, y1: y + 7, m });
+    }
+  }
+  // the transits
+  g.save(); g.beginPath(); g.rect(gut, AXIS, sW - gut, sH - AXIS); g.clip();
+  for (const r of rows) if (r.evs) for (const e of r.evs) {
+    const cy = r.y + ROWPAD / 2 + (e.lane + 0.5) * LANE, half = (LANE / 2 - 1) * (e.sky ? 0.8 : 1), col = COLOR[e.tb], hard = e.kind === 90 || e.kind === 180;
+    let labelled = false;
+    for (const s of e.swells) {
+      if (!swellPath(g, e, s, cy, 0.8, half)) continue;
+      g.globalAlpha = 0.55; g.fillStyle = col; g.fill();
+      if (hard) {   // stripes: the beat of a hard aspect, seen rather than heard
+        g.save(); g.clip(); g.globalAlpha = 0.42; g.strokeStyle = "#08090f"; g.lineWidth = 1;
+        const x0 = Math.max(gut, xOf(T0 + s[0] * DAY)), x1 = Math.min(sW, xOf(T0 + s[1] * DAY));
+        g.beginPath(); for (let x = x0; x < x1; x += 3.5) { g.moveTo(x, cy - half); g.lineTo(x, cy + half); } g.stroke(); g.restore();
+      }
+      if (swellPath(g, e, s, cy, 4, half)) { g.globalAlpha = 0.85; g.fillStyle = col; g.fill(); }
+      g.globalAlpha = 1;
+    }
+    // a label on the first swell wide enough to carry one
+    for (const s of e.swells) {
+      const x0 = xOf(T0 + s[0] * DAY), x1 = xOf(T0 + s[1] * DAY);
+      if (labelled || x1 < gut || x0 > sW || x1 - x0 < 26) continue;
+      labelled = true;
+      let best = s[0], bv = 1e9; for (let i = s[0]; i <= s[1]; i++) { const v = Math.abs(sdE(e, i)); if (v < bv) { bv = v; best = i; } }
+      const lx = Math.max(gut + 12, Math.min(sW - 12, xOf(T0 + best * DAY)));
+      g.font = `12.5px ${SYM}`; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "rgba(8,9,15,0.85)"; g.fillStyle = "#fff";
+      const label = GLYPH[e.tb] + VS + ASPECT_GLYPH[e.kind] + VS;
+      g.strokeText(label, lx, cy); g.fillText(label, lx, cy);
+    }
+  }
+  g.restore();
+  // today
+  const xt = xOf(today);
+  if (xt > gut) { g.strokeStyle = "rgba(238,241,248,0.32)"; g.setLineDash([2, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(xt, AXIS - 6); g.lineTo(xt, sH); g.stroke(); g.setLineDash([]); }
+  scoreDirty = false;
+}
+function drawScore() {
+  if (scoreDirty) drawCache();
+  sg.setTransform(1, 0, 0, 1, 0, 0); sg.clearRect(0, 0, score.width, score.height); sg.drawImage(cache, 0, 0);
+  sg.setTransform(sDPR, 0, 0, sDPR, 0, 0);
+  const gut = gutter(), x = xOf(t);
+  // the chosen transit
+  if (selected) {
+    const r = rows.find((q) => q.np === selected.np && q.evs && q.sky === !!selected.sky);
+    const x0 = Math.max(gut, xOf(T0 + selected.i0 * DAY)), x1 = Math.min(sW, xOf(T0 + selected.i1 * DAY));
+    if (r && selected.lane !== undefined && x1 > gut) { sg.strokeStyle = SILVER; sg.lineWidth = 1; sg.strokeRect(x0 - 2, r.y + ROWPAD / 2 + selected.lane * LANE, x1 - x0 + 4, LANE); }
+  }
+  // the playhead
+  if (x >= gut) {
+    sg.strokeStyle = SILVER; sg.lineWidth = 1.5; sg.beginPath(); sg.moveTo(x, 12); sg.lineTo(x, sH); sg.stroke();
+    sg.fillStyle = SILVER; sg.beginPath(); sg.moveTo(x - 5, 11); sg.lineTo(x + 5, 11); sg.lineTo(x, 19); sg.closePath(); sg.fill();
+  }
+}
+function eventAt(x, y) {
+  const r = rows.find((q) => y >= q.y && y < q.y + q.h);
+  if (!r || !r.evs) return null;
+  const lane = Math.floor((y - r.y - ROWPAD / 2) / LANE), i = (tOfX(x) - T0) / DAY;
+  const slack = Math.max(1.5, 5 * (viewSpan / DAY) / (sW - gutter()));
+  return r.evs.find((e) => e.lane === lane && e.swells.some((s) => i >= s[0] - slack && i <= s[1] + slack)) || null;
+}
+
+// ---------------------------------------------------------------- the fold
+// Time runs across and the zodiac runs up. Each planet is a line through time, each natal point a
+// gold horizontal, so a crossing is an exact meeting. Folding multiplies every longitude by n
+// (height = n x longitude, mod 360), which lands everything 360/n apart at the same height: so the
+// nth harmonic's aspects become crossings, and whole groups of signs come to share a band.
+const FOLDS = [
+  { n: 1, name: "Whole circle", bands: SIGN_GLYPH.map((g) => g + VS), cap: "The whole zodiac, bottom to top. A crossing with a gold line is a conjunction with your chart, and a retrograde bends back on itself to cross the same line three times." },
+  { n: 2, name: "Oppositions", bands: ["♈♎", "♉♏", "♊♐", "♋♑", "♌♒", "♍♓"].map((g) => [...g].map((x) => x + VS).join("")), cap: "Folded in two: each sign lies on its opposite, the six axes of the zodiac. Oppositions are now crossings too." },
+  { n: 3, name: "Trines", bands: ["Fire", "Earth", "Air", "Water"], cap: "Folded in three: the signs of each element land in one band. Fire, earth, air and water are the circle's third harmonic, and every trine is now a crossing." },
+  { n: 4, name: "Squares", bands: ["Cardinal", "Fixed", "Mutable"], cap: "Folded in four: the three modalities separate out. Cardinal, fixed and mutable are the fourth harmonic, and squares, oppositions and conjunctions all meet here." },
+  { n: 5, name: "Quintiles", bands: null, cap: "Folded in five, which no sign grouping survives: this is Kepler's own addition to the aspects, the quintile of 72°." },
+  { n: 6, name: "Sextiles", bands: ["Fire, air", "Earth, water"], cap: "Folded in six: only polarity is left, active signs against receptive ones. Sextiles, trines and oppositions all cross." },
+  { n: 8, name: "Semisquares", bands: null, cap: "Folded in eight: the hard family, every 45°. This is close to the dial the Uranian astrologers work on." },
+  { n: 12, name: "All", bands: ["Any sign, 0° to 30°"], cap: "Folded in twelve: all the signs lie on top of one another and height is only the degree within a sign. Every major aspect is a crossing." },
+];
+const fold = el("fold"), fg = fold.getContext("2d"), fCache = document.createElement("canvas"), fcg = fCache.getContext("2d");
+let view = "score", foldN = 1, foldTarget = 1, fW = 900, fH = 560, fDPR = 1, foldDirty = true, crossings = [];
+let fStart = T0, fSpan = T1 - T0, foldSized = false;
+const narrow = () => innerWidth < 640, coarse = matchMedia("(pointer: coarse)").matches;
+let F_GUT = 58; const F_TOP = 22, F_BOT = 6;
+const fx = (ms) => F_GUT + ((ms - fStart) / fSpan) * (fW - F_GUT - 8);
+const ftOf = (x) => fStart + ((x - F_GUT) / (fW - F_GUT - 8)) * fSpan;
+const fy = (lon) => { const v = ((foldN * norm(lon)) % 360 + 360) % 360; return F_TOP + (fH - F_TOP - F_BOT) * (1 - v / 360); };
+function sizeFold() {
+  fW = Math.max(280, fold.parentElement.clientWidth); F_GUT = narrow() ? 30 : 58;
+  fH = Math.round(narrow() ? Math.max(340, innerHeight * 0.58) : Math.max(380, Math.min(780, innerHeight - 250)));
+  fDPR = Math.min(2, devicePixelRatio || 1);
+  fold.style.height = fH + "px";
+  fold.width = fCache.width = Math.round(fW * fDPR); fold.height = fCache.height = Math.round(fH * fDPR);
+  foldDirty = true; dirty = true;
+}
+function drawFoldCache() {
+  const g = fcg, animating = Math.abs(foldTarget - foldN) > 0.001, plotH = fH - F_TOP - F_BOT;
+  g.setTransform(fDPR, 0, 0, fDPR, 0, 0); g.clearRect(0, 0, fW, fH);
+  // the bands the fold has gathered, strongest at the whole numbers
+  const nI = Math.round(foldN), near = 1 - Math.min(1, Math.abs(foldN - nI) * 5), f = FOLDS.find((q) => q.n === nI);
+  g.textBaseline = "middle";
+  if (f && near > 0) {
+    const count = f.bands ? f.bands.length : Math.max(1, Math.round(12 / nI));
+    for (let b = 0; b < (f.bands ? count : 0); b++) {
+      const y0 = F_TOP + plotH * (1 - (b + 1) / count), h = plotH / count;
+      g.globalAlpha = near * (b % 2 ? 0.035 : 0.075); g.fillStyle = "#b9c2e8"; g.fillRect(F_GUT, y0, fW - F_GUT - 8, h);
+      g.globalAlpha = near * 0.75; g.fillStyle = MUTED; g.textAlign = "left";
+      g.font = nI <= 2 ? `13px ${SYM}` : `500 13px "Instrument Sans", sans-serif`;
+      const large = h > 60 && nI > 2;
+      if (large) { g.save(); g.globalAlpha = near * 0.13; g.fillStyle = "#dfe4f7"; g.font = `${Math.min(84, h * 0.5, (fW - F_GUT) / 7)}px "IM Fell English", Georgia, serif`; g.fillText(f.bands[b], F_GUT + 18, y0 + h / 2); g.restore(); }
+      else { g.fillText(f.bands[b], F_GUT + 6, y0 + h / 2); }
+    }
+    g.globalAlpha = 1;
+  }
+  // months
+  const d = new Date(fStart); d.setUTCDate(1); d.setUTCHours(0, 0, 0, 0);
+  const pxMonth = ((30.4 * DAY) / fSpan) * (fW - F_GUT), every = pxMonth > 38 ? 1 : pxMonth > 14 ? 3 : 12;
+  g.font = `11.5px "IBM Plex Mono", monospace`; g.textAlign = "left";
+  for (; d.getTime() < fStart + fSpan; d.setUTCMonth(d.getUTCMonth() + 1)) {
+    const x = fx(d.getTime()), jan = d.getUTCMonth() === 0;
+    if (x < F_GUT) continue;
+    g.strokeStyle = jan ? "rgba(139,145,168,0.32)" : "rgba(139,145,168,0.08)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x, F_TOP - 6); g.lineTo(x, fH); g.stroke();
+    if (d.getUTCMonth() % every === 0) { g.fillStyle = jan ? FG : MUTED; g.fillText(jan ? String(d.getUTCFullYear()) : d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }), x + 3, 8); }
+  }
+  // the chart's own lines; points that fall together here show the chart's own harmony
+  const pts = POINTS.filter((q) => natal[q] !== undefined);
+  for (const q of pts) {
+    const y = fy(natal[q]);
+    g.strokeStyle = COLOR[q]; g.globalAlpha = 0.42; g.lineWidth = 1; g.beginPath(); g.moveTo(F_GUT, y); g.lineTo(fW - 8, y); g.stroke();
+  }
+  g.globalAlpha = 1;
+  const ys = pts.map((q) => ({ q, y: fy(natal[q]) })).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < ys.length; k++) if (ys[k].y - ys[k - 1].y < 13) ys[k].ly = (ys[k - 1].ly ?? ys[k - 1].y) + 13;
+  g.textAlign = "right";
+  for (const r of ys) {
+    const ly = Math.min(fH - 8, r.ly ?? r.y);
+    g.fillStyle = COLOR[r.q]; g.font = isAngle(r.q) ? `600 10.5px "Instrument Sans", sans-serif` : `14px ${SYM}`;
+    g.fillText(GLYPH[r.q] + (isAngle(r.q) ? "" : VS), F_GUT - 6, ly);
+  }
+  // the planets, with thicker line where they come within orb of a natal point
+  const lo = Math.max(0, Math.floor((fStart - T0) / DAY)), hi = Math.min(NDAYS - 1, Math.ceil((fStart + fSpan - T0) / DAY));
+  const step = Math.max(1, Math.floor(((fSpan / DAY) / (fW - F_GUT)) * 1.2)) * (animating ? 2 : 1);
+  g.lineCap = "round"; g.lineJoin = "round";
+  for (const b of TRANSIT) {
+    const LEVELS = [[], [], []];
+    let px = null, py = null;
+    for (let i = lo; i <= hi; i += step) {
+      const x = fx(T0 + i * DAY), y = fy(table[b][i]);
+      if (px !== null && Math.abs(y - py) < plotH / 2) {
+        let depth = 0;
+        for (const q of pts) { const off = Math.abs(wrap180(foldN * (table[b][i] - natal[q]))) / foldN, o = orbOf(b, q); if (off < o) depth = Math.max(depth, 1 - off / o); }
+        LEVELS[depth > 0.6 ? 2 : depth > 0 ? 1 : 0].push(px, py, x, y);
+      }
+      px = x; py = y;
+    }
+    g.strokeStyle = COLOR[b];
+    [[1.15, 0.5], [2, 0.85], [3.4, 1]].forEach(([w, al], k) => {
+      const seg = LEVELS[k]; if (!seg.length) return;
+      g.lineWidth = w; g.globalAlpha = al; g.beginPath();
+      for (let m = 0; m < seg.length; m += 4) { g.moveTo(seg[m], seg[m + 1]); g.lineTo(seg[m + 2], seg[m + 3]); }
+      g.stroke();
+    });
+  }
+  g.globalAlpha = 1;
+  // crossings: exact meetings at this fold
+  crossings = [];
+  const addCross = (b, q, sky, val) => {
+    let prev = null;
+    for (let i = lo; i <= hi; i++) {
+      const cur = wrap180(foldN * (table[b][i] - val(i)));
+      if (prev !== null && prev * cur <= 0 && Math.abs(prev - cur) < 120) {
+        const u = prev / (prev - cur), ms = T0 + (i - 1 + u) * DAY, l = table[b][i - 1] + wrap180(table[b][i] - table[b][i - 1]) * u;
+        crossings.push({ x: fx(ms), y: fy(l), ms, b, q, sky });
+      }
+      prev = cur;
+    }
+  };
+  if (!animating || foldN === Math.round(foldN)) {
+    for (const b of TRANSIT) for (const q of pts) addCross(b, q, false, () => natal[q]);
+    if (LAYERS.sky.on) { const sk = SKY().filter((x) => table[x]); for (let x = 0; x < sk.length; x++) for (let y = x + 1; y < sk.length; y++) addCross(sk[x], sk[y], true, (i) => table[sk[y]][i]); }
+    for (const c of crossings) {
+      if (c.sky) { g.fillStyle = "rgba(238,241,248,0.7)"; g.beginPath(); g.arc(c.x, c.y, 1.7, 0, 7); g.fill(); continue; }
+      const gr = narrow() ? 6 : 9, glow = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, gr);
+      glow.addColorStop(0, COLOR[c.b]); glow.addColorStop(1, "rgba(0,0,0,0)");
+      g.globalAlpha = 0.75; g.fillStyle = glow; g.beginPath(); g.arc(c.x, c.y, gr, 0, 7); g.fill();
+      g.globalAlpha = 1; g.fillStyle = "#fff"; g.beginPath(); g.arc(c.x, c.y, 1.9, 0, 7); g.fill();
+    }
+    // with room to read, each crossing names itself
+    const pxPerCross = ((fW - F_GUT) * plotH) / Math.max(1, crossings.length);
+    if (pxPerCross > 4200) {
+      g.font = `12px ${SYM}`; g.textAlign = "left"; g.textBaseline = "middle"; g.lineWidth = 3; g.strokeStyle = "rgba(8,9,15,0.85)";
+      for (const c of crossings) {
+        if (c.sky) continue;
+        const label = GLYPH[c.b] + VS + "·" + GLYPH[c.q] + (isAngle(c.q) ? "" : VS), lx = c.x + 7 > fW - 44 ? c.x - 40 : c.x + 7, ly = c.y - 10 < F_TOP + 6 ? c.y + 11 : c.y - 10;
+        g.strokeText(label, lx, ly); g.fillStyle = "#fff"; g.fillText(label, lx, ly);
+      }
+    }
+  }
+  // today
+  const xt = fx(today);
+  g.strokeStyle = "rgba(238,241,248,0.28)"; g.setLineDash([2, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(xt, F_TOP - 6); g.lineTo(xt, fH); g.stroke(); g.setLineDash([]);
+  foldDirty = false;
+}
+function aspectKeyOf(c) {
+  const sep = norm(table[c.b][Math.round((c.ms - T0) / DAY)] - (c.sky ? table[c.q][Math.round((c.ms - T0) / DAY)] : natal[c.q]));
+  const a = ANGLES.find((x) => Math.abs(wrap180(sep - x)) < 2);
+  return { a, sep, key: a === undefined ? null : (c.sky ? `sky|${c.b}|${c.q}|${a}` : `${c.b}|${c.q}|${a}`) };
+}
+function drawFold() {
+  if (foldDirty) drawFoldCache();
+  fg.setTransform(1, 0, 0, 1, 0, 0); fg.clearRect(0, 0, fold.width, fold.height); fg.drawImage(fCache, 0, 0);
+  fg.setTransform(fDPR, 0, 0, fDPR, 0, 0);
+  if (selected) for (const c of crossings) {
+    const key = c.sky ? `sky|${c.b}|${c.q}` : `${c.b}|${c.q}`;
+    if (!selected.key.startsWith(key + "|") || Math.abs(aspectKeyOf(c).a - selected.a) > 0.5) continue;
+    fg.strokeStyle = SILVER; fg.lineWidth = 1.4; fg.beginPath(); fg.arc(c.x, c.y, 8, 0, 7); fg.stroke();
+  }
+  const x = fx(t);
+  if (x >= F_GUT) {
+    fg.strokeStyle = SILVER; fg.lineWidth = 1.5; fg.beginPath(); fg.moveTo(x, 12); fg.lineTo(x, fH); fg.stroke();
+    fg.fillStyle = SILVER; fg.beginPath(); fg.moveTo(x - 5, 11); fg.lineTo(x + 5, 11); fg.lineTo(x, 19); fg.closePath(); fg.fill();
+    // each planet's mark on the playhead
+    fg.textAlign = "left"; fg.textBaseline = "middle";
+    for (const b of TRANSIT) {
+      const y = fy(lonNow[b]);
+      fg.fillStyle = COLOR[b]; fg.beginPath(); fg.arc(x, y, 3.4, 0, 7); fg.fill();
+      fg.font = `15px ${SYM}`; fg.lineWidth = 3; fg.strokeStyle = "rgba(8,9,15,0.85)";
+      const gx = x + 8 > fW - 22 ? x - 22 : x + 8;
+      fg.strokeText(GLYPH[b] + VS, gx, y); fg.fillText(GLYPH[b] + VS, gx, y);
+    }
+  }
+}
+const SPANS = [[30, "1 month"], [91, "3 months"], [183, "6 months"], [365, "1 year"], [730, "2 years"], [1460, "4 years"]];
+function setFoldSpan(days) {
+  fSpan = Math.min(T1 - T0, days * DAY); fStart = Math.max(T0, Math.min(T1 - fSpan, t - fSpan * 0.3));
+  el("foldSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.days) === days)));
+  foldDirty = true; dirty = true;
+}
+el("foldSpans").append(...SPANS.map(([d, name]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.days = d; b.textContent = name; b.addEventListener("click", () => setFoldSpan(d)); return b; }));
+function setFold(n, instant) {
+  foldTarget = n;
+  if (instant || matchMedia("(prefers-reduced-motion: reduce)").matches) { foldN = n; el("foldN").value = String(n); }
+  foldDirty = true; dirty = true;
+  const f = FOLDS.find((q) => q.n === n);
+  if (f) el("foldCap").textContent = f.cap;
+  el("foldBtns").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.n) === n)));
+}
+el("foldBtns").append(...FOLDS.map((f) => {
+  const b = document.createElement("button"); b.type = "button"; b.dataset.n = f.n;
+  b.innerHTML = `<b>${f.n}</b><span>${f.name}</span>`; b.setAttribute("aria-label", `Fold ${f.n}: ${f.name}`);
+  b.addEventListener("click", () => setFold(f.n));
+  return b;
+}));
+el("foldN").addEventListener("input", (e) => { foldN = foldTarget = Number(e.target.value); foldDirty = true; dirty = true; el("foldCap").textContent = "Lines slide as you fold. They meet at the whole numbers."; el("foldBtns").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); });
+el("foldN").addEventListener("change", (e) => { const v = Number(e.target.value); setFold(FOLDS.reduce((a, q) => Math.abs(q.n - v) < Math.abs(a - v) ? q.n : a, 1)); });
+const MINOR = { 30: "semi-sextile", 36: "decile", 45: "semisquare", 72: "quintile", 135: "sesquiquadrate", 144: "biquintile", 150: "quincunx" };
+function readCrossing(c) {
+  setT(c.ms, false);
+  const { key, sep } = aspectKeyOf(c);
+  const ev = key && eventFor(key, c.ms);
+  if (ev) { select(ev); return; }
+  selected = null; chosen = false; dirty = true;
+  const k = Math.min(sep, 360 - sep), angle = Object.keys(MINOR).map(Number).find((v) => Math.abs(k - v) < 1.5), other = c.sky ? NAME[c.q] : `your ${NAME[c.q]}`;
+  el("card").innerHTML = `<h2>${NAME[c.b]} ${Math.round(k)}° from ${other}</h2><p class="sub">${fmtWhen(c.ms)}</p>
+    <p class="read">${angle ? `A ${MINOR[angle]}, one of the minor aspects this fold brings out.` : "A harmonic meeting this fold brings out."} It has no reading here yet: the readings cover the five major aspects.</p>
+    <p class="fine">Positions and times here are measured.</p>`;
+}
+// ---------------------------------------------------------------- now
+// Time decides what's in focus. Over a week or two, anything that begins, peaks or ends in the
+// window, or is short enough to fit in it, is foreground, listed in the order it peaks; anything
+// longer is an undercurrent, a slow wash beneath. No layers to choose: the fast planets are simply
+// what a short view is about.
+const NOW_BODIES = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "chiron", "lilith", "node"];
+const MODERN7 = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+const now = el("now"), ng = now.getContext("2d"), nCache = document.createElement("canvas"), ncg = nCache.getContext("2d");
+let nowEvents = [], nowTurns = [], nW = 800, nH = 500, nDPR = 1, nowDirty = true, nowLayoutDirty = true;
+let nowTicks = 0, nowStyle = "threads", nowSpan = 14, nowS = 0, nowRows = [], nowHits = [], underOpen = false, moonCache = null;
+const nGut = () => (nW < 560 ? 58 : 158), NOW_TOP = 34;
+const nx = (ms) => nGut() + ((ms - nowS) / (nowSpan * DAY)) * (nW - nGut() - 4);
+const ntOf = (x) => nowS + ((x - nGut()) / (nW - nGut() - 4)) * (nowSpan * DAY);
+const localMidnight = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
+function anchorNow(ms) { nowS = Math.max(T0, Math.min(T1 - nowSpan * DAY, localMidnight(ms - Math.round(nowSpan * 0.15) * DAY))); nowLayoutDirty = true; }
+function computeNowEvents() {
+  nowEvents = [];
+  const bodies = [...NOW_BODIES, ...(LAYERS.asteroids.on ? LAYERS.asteroids.bodies : [])];
+  for (const b of bodies) ensureTable(b);
+  for (const tb of bodies) for (const np of POINTS) for (const a of ANGLES) scan({ key: `${tb}|${np}|${a}`, tb, np, a, kind: kindOf(a), orb: orbOf(tb, np) }, nowEvents);
+  const sk = ["jupiter", "saturn", "uranus", "neptune", "pluto", "chiron"], fastSky = ["sun", "mercury", "venus", "mars"];
+  const pairs = [];
+  for (let x = 0; x < sk.length; x++) for (let y = x + 1; y < sk.length; y++) pairs.push([sk[x], sk[y]]);
+  for (let x = 0; x < fastSky.length; x++) for (let y = x + 1; y < fastSky.length; y++) pairs.push([fastSky[x], fastSky[y]]);
+  for (const f of fastSky) for (const q of sk) pairs.push([f, q]);
+  if (LAYERS.sky.on) for (const [p, q] of pairs) for (const a of ANGLES) scan({ key: `sky|${p}|${q}|${a}`, sky: true, tb: p, np: q, a, kind: kindOf(a), orb: orbMode === "lilly" ? (LILLY[p] + LILLY[q]) / 2 : Math.min(WORK[p], WORK[q]) }, nowEvents);
+  for (const e of nowEvents) { e.i0 = e.swells[0][0]; e.i1 = e.swells[e.swells.length - 1][1]; e.id = `${e.key}|${e.i0}`; }
+  nowTurns = computeTurnsFor(NOW_BODIES.filter((b) => b !== "node" && b !== "lilith"));
+  nowLayoutDirty = true; nowDirty = true;
+}
+function layoutNow() {
+  const iA = (nowS - T0) / DAY, iB = iA + nowSpan, fg = [], sky = [], under = [];
+  for (const e of nowEvents) {
+    const inView = e.swells.filter((s) => s[1] >= iA && s[0] <= iB);
+    if (!inView.length) continue;
+    const begins = inView.some((s) => s[0] > 0 && s[0] >= iA), ends = inView.some((s) => s[1] < NDAYS - 1 && s[1] <= iB);
+    let exactDay = null, bestOff = 1e9, bestI = iA;
+    for (let i = Math.max(0, Math.floor(iA)); i < Math.min(NDAYS - 1, Math.ceil(iB)); i++) {
+      const p = sdE(e, i), q = sdE(e, i + 1);
+      if (p * q <= 0 && Math.abs(p - q) < 30 && exactDay === null) exactDay = i + p / (p - q);
+      if (Math.abs(p) < bestOff) { bestOff = Math.abs(p); bestI = i; }
+    }
+    const short = inView.some((s) => s[1] - s[0] <= nowSpan * 1.5);
+    const row = { e, at: exactDay ?? bestI, exactDay };
+    if (e.sky) { if (exactDay !== null) sky.push(row); continue; }
+    if (exactDay !== null || begins || ends || short) fg.push(row); else under.push(row);
+  }
+  fg.sort((a, b) => a.at - b.at); sky.sort((a, b) => a.at - b.at);
+  under.sort((a, b) => REGISTER[a.e.tb] - REGISTER[b.e.tb]);
+  nowRows = { fg, sky, under };
+  let y = NOW_TOP + 44 + 34;
+  const place = (r, h) => { r.y = y; r.h = h; y += h; };
+  nowRows.yoursY = y; y += 22;
+  fg.forEach((r) => place(r, 36));
+  if (sky.length) { nowRows.skyY = y; y += 24; sky.forEach((r) => place(r, 30)); } else nowRows.skyY = null;
+  nowRows.underY = y; y += 26;
+  if (underOpen) under.forEach((r) => place(r, 28)); else { nowRows.washY = y; y += Math.min(46, Math.max(8, under.length * 5)); }
+  nH = y + 6;
+  nDPR = Math.min(2, devicePixelRatio || 1); nW = Math.max(280, now.parentElement.clientWidth);
+  now.style.height = nH + "px"; now.width = nCache.width = Math.round(nW * nDPR); now.height = nCache.height = Math.round(nH * nDPR);
+  // the words above
+  const exacts = fg.filter((r) => r.exactDay !== null);
+  el("nowCap").textContent = `${fg.length} aspects in focus${exacts.length ? `, ${exacts.length} reaching exact` : ""}. ${under.length} slow ones underneath.`;
+  moonCache = null; nowLayoutDirty = false; nowDirty = true;
+}
+// the Moon over the window: signs, phases, void periods (Lynch: from her last major aspect to any planet, to the sign's end), and her contacts with the chart
+function moonData() {
+  if (moonCache) return moonCache;
+  const STEP = 3600000, from = nowS - 4 * DAY, to = nowS + (nowSpan + 2) * DAY, xs = [];
+  const moon = (ms) => longitude("moon", ms);
+  for (let ms = from; ms <= to; ms += STEP) xs.push([ms, moon(ms)]);
+  const refine = (a, b, f) => { let fa = f(a); for (let k = 0; k < 18; k++) { const m = (a + b) / 2, fm = f(m); if (fa * fm <= 0) b = m; else { a = m; fa = fm; } } return (a + b) / 2; };
+  const ingress = [];
+  for (let k = 1; k < xs.length; k++) if (signOf(xs[k - 1][1]) !== signOf(xs[k][1])) {
+    const s = signOf(xs[k][1]);
+    ingress.push({ ms: refine(xs[k - 1][0], xs[k][0], (m) => wrap180(moon(m) - s * 30)), sign: s });
+  }
+  const voids = [], contacts = [], phases = [];
+  const bodyAt = (b, ms) => { const f = (ms - T0) / DAY, i = Math.max(0, Math.min(NDAYS - 2, Math.floor(f))); return table[b][i] + wrap180(table[b][i + 1] - table[b][i]) * (f - i); };
+  for (const b of MODERN7) ensureTable(b);
+  for (const ing of ingress) {
+    let last = null;
+    for (let k = xs.length - 1; k > 0 && !last; k--) {
+      if (xs[k][0] > ing.ms) continue;
+      if (ing.ms - xs[k][0] > 3.5 * DAY) break;
+      for (const b of MODERN7) for (const a of [0, 60, 90, 120, 180, 240, 270, 300]) {
+        const p = wrap180(xs[k - 1][1] - bodyAt(b, xs[k - 1][0]) - a), q = wrap180(xs[k][1] - bodyAt(b, xs[k][0]) - a);
+        if (p * q <= 0 && Math.abs(p - q) < 30) {
+          const ms = refine(xs[k - 1][0], xs[k][0], (m) => wrap180(moon(m) - longitude(b, m) - a));
+          if (ms <= ing.ms && (!last || ms > last)) last = ms;
+        }
+      }
+    }
+    if (last) voids.push([last, ing.ms]);
+  }
+  for (let k = 1; k < xs.length; k++) {
+    const [m0, l0] = xs[k - 1], [m1, l1] = xs[k];
+    for (const np of POINTS) for (const a of [0, 60, 90, 120, 180, 240, 270, 300]) {
+      const p = wrap180(l0 - natal[np] - a), q = wrap180(l1 - natal[np] - a);
+      if (p * q <= 0 && Math.abs(p - q) < 30) contacts.push({ ms: m0 + (p / (p - q)) * (m1 - m0), np, kind: kindOf(a) });
+    }
+    for (const [a, g, name] of [[0, "○", "New Moon"], [90, "◐", "First quarter"], [180, "●", "Full Moon"], [270, "◑", "Last quarter"]]) {
+      const p = wrap180(l0 - bodyAt("sun", m0) - a), q = wrap180(l1 - bodyAt("sun", m1) - a);
+      if (p * q <= 0 && Math.abs(p - q) < 30) phases.push({ ms: m0 + (p / (p - q)) * (m1 - m0), g, name });
+    }
+  }
+  return (moonCache = { ingress, voids, contacts, phases, signAt: (ms) => signOf(moon(ms)) });
+}
+const sdF = (e, f) => { const i = Math.max(0, Math.min(NDAYS - 2, Math.floor(f))), u = f - i, p = sdE(e, i); return p + wrap180(sdE(e, i + 1) - p) * u; };
+function lensPath(g, e, s, cy, half, power) {
+  const iA = (nowS - T0) / DAY, iB = iA + nowSpan, lo = Math.max(s[0], iA), hi = Math.min(s[1] + 0.999, iB);
+  if (hi <= lo) return false;
+  const pts = [], dI = Math.max(0.05, (nowSpan / (nW - nGut())) * 3);
+  for (let f = lo; f <= hi + 1e-6; f += dI) pts.push([nx(T0 + f * DAY), half * Math.pow(Math.max(0, 1 - Math.abs(sdF(e, f)) / e.orb), power)]);
+  g.beginPath(); g.moveTo(pts[0][0], cy);
+  for (const [x, h] of pts) g.lineTo(x, cy - h);
+  for (let k = pts.length - 1; k >= 0; k--) g.lineTo(pts[k][0], cy + pts[k][1]);
+  g.closePath(); return true;
+}
+function drawNowCache() {
+  const g = ncg, gut = nGut(), iA = (nowS - T0) / DAY;
+  nowHits = [];
+  g.setTransform(nDPR, 0, 0, nDPR, 0, 0); g.clearRect(0, 0, nW, nH); g.textBaseline = "middle"; g.lineWidth = 1;
+  // the days
+  const pxDay = (nW - gut - 4) / nowSpan;
+  for (let d = 0, ms = nowS; d <= nowSpan; d++, ms = (() => { const n = new Date(ms); n.setDate(n.getDate() + 1); n.setHours(0, 0, 0, 0); return n.getTime(); })()) {
+    const x = nx(ms), D = new Date(ms), wk = D.getDay() === 0 || D.getDay() === 6;
+    if (wk && d < nowSpan) { g.fillStyle = "rgba(185,194,232,0.035)"; g.fillRect(x, NOW_TOP, pxDay, nH - NOW_TOP); }
+    g.strokeStyle = D.getDate() === 1 ? "rgba(139,145,168,0.4)" : "rgba(139,145,168,0.11)"; g.beginPath(); g.moveTo(x, NOW_TOP - 4); g.lineTo(x, nH); g.stroke();
+    if (d < nowSpan && (pxDay > 26 || d % Math.ceil(26 / pxDay) === 0)) {
+      g.fillStyle = FG; g.textAlign = "center"; g.font = `500 12px "IBM Plex Mono", monospace`; g.fillText(String(D.getDate()), x + pxDay / 2, 23);
+      g.fillStyle = MUTED; g.font = `10.5px "Instrument Sans", sans-serif`; g.fillText(D.toLocaleDateString("en-GB", { weekday: pxDay > 42 ? "short" : "narrow" }), x + pxDay / 2, 9);
+    }
+  }
+  // the Moon
+  const m = moonData(), my = NOW_TOP, mh = 34, r0 = nowS, r1 = nowS + nowSpan * DAY;
+  g.textAlign = "left"; g.fillStyle = COLOR.moon; g.font = `17px ${SYM}`; g.fillText("☽" + VS, 2, my + mh / 2);
+  if (gut > 100) { g.fillStyle = MUTED; g.font = `12px "Instrument Sans", sans-serif`; g.fillText("The Moon", 22, my + mh / 2); }
+  const edges = [r0, ...m.ingress.map((i) => i.ms).filter((x) => x > r0 && x < r1), r1];
+  const TINT = ["rgba(240,140,90,0.2)", "rgba(150,170,110,0.18)", "rgba(170,190,230,0.17)", "rgba(90,140,220,0.22)"];
+  for (let k = 0; k + 1 < edges.length; k++) {
+    const a = nx(edges[k]), b = nx(edges[k + 1]), sign = m.signAt((edges[k] + edges[k + 1]) / 2);
+    g.fillStyle = TINT[sign % 4]; g.fillRect(a, my, b - a - 1, mh);
+    if (b - a > 20) { g.fillStyle = FG; g.textAlign = "left"; g.font = `15px ${SYM}`; g.fillText(SIGN_GLYPH[sign] + VS, a + 5, my + 11); }
+  }
+  for (const [a, b] of m.voids) {
+    if (b < r0 || a > r1) continue;
+    const xa = Math.max(gut, nx(a)), xb = Math.min(nW, nx(b));
+    g.save(); g.beginPath(); g.rect(xa, my, xb - xa, mh); g.clip();
+    g.fillStyle = "rgba(8,9,15,0.55)"; g.fillRect(xa, my, xb - xa, mh);
+    g.strokeStyle = "rgba(143,149,173,0.45)"; g.beginPath(); for (let x = xa - mh; x < xb; x += 6) { g.moveTo(x, my + mh); g.lineTo(x + mh, my); } g.stroke(); g.restore();
+    if (xb - xa > 30) { g.fillStyle = FG; g.textAlign = "center"; g.font = `11px "Instrument Sans", sans-serif`; g.fillText("void", (xa + xb) / 2, my + mh / 2); }
+    nowHits.push({ x0: xa, x1: xb, y0: my, y1: my + mh, text: `The Moon is void of course: ${fmtWhen(a)} to ${fmtWhen(b)}`, ms: a });
+  }
+  for (const p of m.phases) {
+    const x = nx(p.ms); if (x < gut || x > nW) continue;
+    g.fillStyle = SILVER; g.textAlign = "center"; g.font = `14px ${SYM}`; g.fillText(p.g + VS, x, my + 25);
+    nowHits.push({ x0: x - 8, x1: x + 8, y0: my, y1: my + mh, text: `${p.name}: ${fmtWhen(p.ms)}`, ms: p.ms });
+  }
+  // her contacts with the chart: texture, named when there's room
+  const cy = my + mh + 5;
+  for (const c of m.contacts) {
+    const x = nx(c.ms); if (x < gut || x > nW) continue;
+    g.strokeStyle = COLOR[c.np]; g.globalAlpha = c.kind === 0 ? 0.95 : 0.55; g.beginPath(); g.moveTo(x, cy - 3); g.lineTo(x, cy + 4); g.stroke(); g.globalAlpha = 1;
+  }
+  // turning points
+  const ty = my + 44 + 17;
+  g.fillStyle = MUTED; g.textAlign = "left"; g.font = `11px "Instrument Sans", sans-serif`; g.fillText(gut > 100 ? "Turning points" : "Turns", 2, ty);
+  let endAt = -1e9;
+  g.font = `12px ${SYM}`;
+  const iB = iA + nowSpan;
+  for (const t0 of nowTurns) {
+    if (t0.i < iA || t0.i > iB) continue;
+    const x = nx(T0 + t0.i * DAY), w = g.measureText(t0.text).width + 8;
+    if (x < endAt) continue;
+    endAt = x + w;
+    g.strokeStyle = t0.big ? SILVER : COLOR[t0.b]; g.beginPath(); g.moveTo(x, ty - 7); g.lineTo(x, ty + 7); g.stroke();
+    g.fillStyle = t0.big ? SILVER : COLOR[t0.b]; g.fillText(t0.text, x + 3, ty);
+    nowHits.push({ x0: x - 2, x1: x + w, y0: ty - 9, y1: ty + 9, text: t0.what, ms: T0 + t0.i * DAY });
+  }
+  const head = (y, text) => { g.fillStyle = FG; g.textAlign = "left"; g.font = `15px "IM Fell English", Georgia, serif`; g.fillText(text, 2, y + 12); };
+  const R = nowRows;
+  head(R.yoursY, chart.name ? `${chart.name}'s aspects` : "Aspects");
+  const drawRow = (r, sz) => {
+    const e = r.e, cyy = r.y + r.h / 2, half = r.h / 2 - 2, col = COLOR[e.tb], hard = e.kind === 90 || e.kind === 180;
+    g.strokeStyle = "rgba(38,43,64,0.55)"; g.beginPath(); g.moveTo(0, r.y + r.h - 0.5); g.lineTo(nW, r.y + r.h - 0.5); g.stroke();
+    g.textAlign = "left"; g.font = `${sz}px ${SYM}`;
+    g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, cyy);
+    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, cyy);
+    g.fillStyle = COLOR[e.np];
+    g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`;
+    g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.15, cyy);
+    if (gut > 100) { g.fillStyle = MUTED; g.font = `12px "Instrument Sans", sans-serif`; const sh = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b]; g.fillText(`${sh(e.tb)}, ${sh(e.np)}`, 2 + sz * (isAngle(e.np) ? 4 : 3.4), cyy); }
+    g.save(); g.beginPath(); g.rect(gut, r.y, nW - gut, r.h); g.clip();
+    // each row is a small Fold: a faint horizontal is exact, and the planet is a thread drifting
+    // through it. Height is the real distance from exact, so a steep thread is a quick aspect, a
+    // near-flat one a slow aspect, and a retrograde curves back. It brightens as it closes.
+    const iA2 = (nowS - T0) / DAY, iB2 = iA2 + nowSpan, dI2 = Math.max(0.03, (nowSpan / (nW - gut)) * 2);
+    g.lineCap = "round";
+    if (nowStyle === "bars") for (const s of e.swells) {
+      if (!lensPath(g, e, s, cyy, half, 0.8)) continue;
+      g.globalAlpha = 0.55; g.fillStyle = col; g.fill();
+      if (hard) { g.save(); g.clip(); g.globalAlpha = 0.4; g.strokeStyle = "#08090f"; g.lineWidth = 1; g.beginPath(); for (let x = gut; x < nW; x += 3.5) { g.moveTo(x, r.y); g.lineTo(x, r.y + r.h); } g.stroke(); g.restore(); }
+      if (lensPath(g, e, s, cyy, half, 4)) { g.globalAlpha = 0.9; g.fillStyle = col; g.fill(); }
+      g.globalAlpha = 1;
+    }
+    if (nowStyle === "threads") for (const s of e.swells) {
+      const lo = Math.max(s[0], iA2), hi = Math.min(s[1] + 0.999, iB2);
+      if (hi <= lo) continue;
+      g.strokeStyle = COLOR[e.np]; g.lineWidth = 1.1; g.globalAlpha = 0.5;
+      g.beginPath(); g.moveTo(nx(T0 + lo * DAY), cyy); g.lineTo(nx(T0 + hi * DAY), cyy); g.stroke();
+      g.strokeStyle = col;
+      let px = null, py = null, nearOff = 1e9, nearF = lo, prevSd = null, crossed = false;
+      for (let f = lo; f <= hi + 1e-6; f += dI2) {
+        const sd = sdF(e, f), d = Math.max(0, 1 - Math.abs(sd) / e.orb), x = nx(T0 + f * DAY), y = cyy - (sd / e.orb) * (r.h / 2 - 7);
+        const beatOff = hard && Math.floor(x / 4.5) % 2 === 1 && d < 0.92;
+        if (px !== null && !beatOff) { g.globalAlpha = 0.5 + 0.5 * Math.pow(d, 1.3); g.lineWidth = 1.2 + 2 * d * d; g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke(); }
+        px = x; py = y;
+        if (Math.abs(sd) < nearOff) { nearOff = Math.abs(sd); nearF = f; }
+        if (prevSd !== null && prevSd * sd <= 0) crossed = true;
+        prevSd = sd;
+      }
+      g.globalAlpha = 1;
+      // never meets here: mark how close it comes, if the closest point is in view
+      if (!crossed && nearF > lo + dI2 * 1.5 && nearF < hi - dI2 * 1.5) {
+        const nearSd = sdF(e, nearF), x = nx(T0 + nearF * DAY), y = cyy - (nearSd / e.orb) * (r.h / 2 - 7);
+        nowTicks++;
+        g.strokeStyle = col; g.globalAlpha = 0.9; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x, cyy); g.stroke();
+        g.globalAlpha = 1; g.fillStyle = "#08090f"; g.strokeStyle = "#fff"; g.lineWidth = 1.2; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.fill(); g.stroke();
+        g.fillStyle = FG; g.font = `10.5px "IBM Plex Mono", monospace`; g.textAlign = "left"; g.textBaseline = "middle";
+        g.fillText(`${nearOff.toFixed(1)}°`, x + 6 > nW - 34 ? x - 32 : x + 6, nearSd > 0 ? cyy + 8 : cyy - 8);
+      }
+    }
+    for (let i = Math.max(0, Math.floor(iA2)); i < Math.min(NDAYS - 1, Math.ceil(iB2)); i++) {
+      const p0 = sdE(e, i), q0 = sdE(e, i + 1);
+      if (p0 * q0 > 0 || Math.abs(p0 - q0) >= 30) continue;
+      const x = nx(T0 + (i + p0 / (p0 - q0)) * DAY), rad = Math.min(16, r.h * 0.5);
+      const bloom = g.createRadialGradient(x, cyy, 0, x, cyy, rad);
+      bloom.addColorStop(0, col); bloom.addColorStop(1, "rgba(0,0,0,0)");
+      g.globalAlpha = 0.8; g.fillStyle = bloom; g.beginPath(); g.arc(x, cyy, rad, 0, 7); g.fill();
+      g.globalAlpha = 1; g.fillStyle = "#fff"; g.beginPath(); g.arc(x, cyy, 2.1, 0, 7); g.fill();
+    }
+    g.restore();
+  };
+  R.fg.forEach((r) => drawRow(r, 15));
+  if (R.skyY !== null) { head(R.skyY, "The sky, for everyone"); R.sky.forEach((r) => drawRow(r, 13)); }
+  head(R.underY, `${underOpen ? "▾" : "▸"} Undercurrents, ${R.under.length}`);
+  nowHits.push({ x0: 0, x1: nW, y0: R.underY, y1: R.underY + 26, toggle: true });
+  if (underOpen) R.under.forEach((r) => drawRow(r, 12));
+  else {
+    // a wash: each slow transit one thin ribbon, as strong as it is close
+    const h = R.under.length ? Math.min(46, Math.max(8, R.under.length * 5)) / R.under.length : 0;
+    R.under.forEach((r, n) => {
+      const y = R.washY + n * h, dI = Math.max(0.25, (nowSpan / (nW - gut)) * 4);
+      g.fillStyle = COLOR[r.e.tb];
+      for (let f = iA; f < iB; f += dI) {
+        const d = Math.max(0, 1 - Math.abs(sdF(r.e, f)) / r.e.orb);
+        if (d <= 0) continue;
+        g.globalAlpha = 0.12 + 0.6 * d; g.fillRect(nx(T0 + f * DAY), y, Math.ceil((dI * (nW - gut)) / nowSpan) + 0.5, Math.max(1, h - 1));
+      }
+    });
+    g.globalAlpha = 1;
+  }
+  const xt = nx(today);
+  if (xt > gut) { g.strokeStyle = "rgba(238,241,248,0.3)"; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(xt, NOW_TOP - 4); g.lineTo(xt, nH); g.stroke(); g.setLineDash([]); }
+  nowDirty = false;
+}
+function drawNow() {
+  if (nowLayoutDirty) layoutNow();
+  if (nowDirty) drawNowCache();
+  ng.setTransform(1, 0, 0, 1, 0, 0); ng.clearRect(0, 0, now.width, now.height); ng.drawImage(nCache, 0, 0);
+  ng.setTransform(nDPR, 0, 0, nDPR, 0, 0);
+  if (selected) {
+    const r = [...nowRows.fg, ...nowRows.sky, ...(underOpen ? nowRows.under : [])].find((q) => q.e.key === selected.key);
+    if (r) { ng.strokeStyle = SILVER; ng.lineWidth = 1; ng.strokeRect(0.5, r.y + 0.5, nW - 1, r.h - 1); }
+  }
+  const x = nx(t);
+  if (x >= nGut() && x <= nW) { ng.strokeStyle = SILVER; ng.lineWidth = 1.5; ng.beginPath(); ng.moveTo(x, NOW_TOP - 8); ng.lineTo(x, nH); ng.stroke(); }
+}
+function setNowSpan(d, keep) {
+  nowSpan = d; anchorNow(t);
+  el("nowSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.days) === d)));
+  dirty = true;
+}
+el("nowSpans").append(...[[7, "1 week"], [14, "2 weeks"], [31, "1 month"]].map(([d, name]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.days = d; b.textContent = name; b.addEventListener("click", () => setNowSpan(d)); return b; }));
+for (const [id, st] of [["styleThreads", "threads"], ["styleBars", "bars"]]) el(id).addEventListener("click", () => {
+  nowStyle = st; el("styleThreads").setAttribute("aria-pressed", String(st === "threads")); el("styleBars").setAttribute("aria-pressed", String(st === "bars"));
+  nowDirty = true; dirty = true;
+});
+let ndown = null;
+now.addEventListener("pointerdown", (e) => { const r = now.getBoundingClientRect(); ndown = { x: e.clientX - r.left, y: e.clientY - r.top, moved: false }; if (!coarse) now.setPointerCapture(e.pointerId); });
+now.addEventListener("pointermove", (e) => {
+  if (!ndown || coarse) return;   // on a touchscreen the tape moves time; the canvas only reads
+  const r = now.getBoundingClientRect(), x = e.clientX - r.left;
+  if (Math.abs(x - ndown.x) > 4) ndown.moved = true;
+  if (ndown.moved) setT(ntOf(Math.max(nGut(), x)), false);
+});
+now.addEventListener("pointerup", (e) => {
+  if (!ndown) return;
+  const r = now.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, moved = ndown.moved;
+  ndown = null;
+  if (moved) return;
+  const hit = nowHits.find((h) => x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1);
+  if (hit && hit.toggle) { underOpen = !underOpen; nowLayoutDirty = true; dirty = true; return; }
+  if (hit) { setT(hit.ms, false); el("whenSub").textContent = hit.text; turnNote = hit.text; return; }
+  const row = [...nowRows.fg, ...nowRows.sky, ...(underOpen ? nowRows.under : [])].find((q) => y >= q.y && y < q.y + q.h);
+  if (row) { select(row.e); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
+});
+now.addEventListener("pointercancel", () => { ndown = null; });
+// ---------------------------------------------------------------- two
+// First the spine: the aspects between two birth charts, fixed for good and ranked by what the
+// reader is asking about. Then the near term, mirrored around it: what the sky does to each person,
+// with a bridge wherever one planet touches both charts at once.
+const nameA = () => chart.name || "First";
+const nameB = () => (second && second.name) || "Them";
+const possA = () => `${nameA()}'s`;
+const possB = () => (second && second.name) ? `${second.name}'s` : "Their";
+const third = (t) => t.replace(/\byour\b/g, "their").replace(/\byou've\b/g, "they've").replace(/\byou\b/g, "they");
+const LENS = {
+  romance: { pts: ["sun", "moon", "venus", "mars", "asc", "node", "lilith"], weight: { venus: 1.5, mars: 1.4, moon: 1.4, sun: 1.3, asc: 1.1 } },
+  work: { pts: ["sun", "mercury", "jupiter", "saturn", "mc", "mars"], weight: { mercury: 1.4, saturn: 1.4, jupiter: 1.3, sun: 1.2, mc: 1.2 } },
+  all: { pts: null, weight: {} },
+};
+let lens = "romance", synList = [], twoEvents = [], twoSpan = 31, twoS = 0, twoRows = null, twoLayoutDirty = true, twoDirty = true, twoHits = [], twoLines = [];
+const SYN_ORB = { sun: 6, moon: 6, mercury: 5, venus: 5, mars: 5, jupiter: 4, saturn: 4, uranus: 3, neptune: 3, pluto: 3, chiron: 3, lilith: 3, node: 3, asc: 4, mc: 4 };
+const synOrb = (a, b) => orbMode === "lilly" ? (LILLY[a] + LILLY[b]) / 2 : (SYN_ORB[a] + SYN_ORB[b]) / 2;
+const MAGNETIC = new Set(["mars|venus", "moon|sun", "moon|venus", "sun|venus", "mars|moon", "mars|sun"]);
+function synTag(a, b, kind) {   // what the bodies bring, then how the aspect delivers it
+  const pair = [a, b].sort().join("|"), has = (x) => a === x || b === x;
+  const how = kind === 0 ? "fusion" : kind === 90 || kind === 180 ? "friction" : "ease";
+  const body = MAGNETIC.has(pair) ? "Magnetic" : has("saturn") ? "Binding" : has("pluto") ? "Intense" : has("uranus") ? "Electric" : has("neptune") ? "Dreamy" : has("chiron") ? "Tender" : has("lilith") ? "Untamed" : has("node") ? "Fated" : null;
+  return body ? `${body} ${how}` : how[0].toUpperCase() + how.slice(1);
+}
+const SYN_POINTS = [...BODIES, "chiron", "lilith", "node", "asc", "mc"];
+function computeSyn() {
+  synList = [];
+  if (!second) return;
+  const L = LENS[lens];
+  for (const p of SYN_POINTS) for (const q of SYN_POINTS) {
+    if (isAngle(p) && isAngle(q)) continue;
+    if (natal[p] == null || natalB[q] == null || (chart.unknown && isAngle(p)) || (second.unknown && isAngle(q))) continue;
+    if (L.pts && !L.pts.includes(p) && !L.pts.includes(q)) continue;
+    const sep = Math.abs(wrap180(natal[p] - natalB[q])), orb = synOrb(p, q);
+    for (const kind of ASPECT_KINDS) {
+      const off = Math.abs(sep - kind);
+      if (off >= orb) continue;
+      const depth = 1 - off / orb, wt = (L.weight[p] || 1) * (L.weight[q] || 1) * (L.pts && L.pts.includes(p) && L.pts.includes(q) ? 1.5 : 1);
+      synList.push({ syn: true, key: `syn|${p}|${q}|${kind}`, tb: p, np: q, kind, off, orb, depth, rank: depth * wt, tag: synTag(p, q, kind) });
+    }
+  }
+  synList.sort((x, y) => y.rank - x.rank);
+}
+const ASPECT_KINDS = [0, 60, 90, 120, 180];
+const TWO_BODIES = ["sun", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "chiron", "node"];
+function computeTwo() {
+  if (!second) { twoEvents = []; computeSyn(); twoLayoutDirty = true; return; }
+  twoEvents = [];
+  for (const b of TWO_BODIES) ensureTable(b);
+  const pts = [...BODIES, "chiron", "lilith", "node", "asc", "mc"];
+  const hasPoint = (who, np) => (who === "a" ? natal : natalB)[np] != null && !((who === "a" ? chart : second).unknown && isAngle(np));
+  for (const who of ["a", "b"]) for (const tb of TWO_BODIES) for (const np of pts) for (const a of ANGLES) {
+    if (!hasPoint(who, np)) continue;
+    const base = { key: `${who}:${tb}|${np}|${a}`, tb, np, a, kind: kindOf(a), orb: orbOf(tb, np) };
+    if (who === "b") base.b = true;
+    scan(base, twoEvents);
+  }
+  for (const e of twoEvents) { e.i0 = e.swells[0][0]; e.i1 = e.swells[e.swells.length - 1][1]; e.id = `${e.key}|${e.i0}`; }
+  computeSyn(); renderSpine(); twoLayoutDirty = true;
+}
+function renderSpine() {
+  const ol = el("spine"); if (!ol) return;
+  if (!second) { ol.innerHTML = `<li class="empty">Enter a second chart below to see what connects them.</li>`; return; }
+  const selKey = selected && selected.key;
+  el("twoHead").textContent = `${nameA()} and ${nameB() === "Them" ? "the second chart" : nameB()}: ${synList.length} aspects between them`;
+  ol.replaceChildren(...synList.slice(0, 40).map((c) => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.setAttribute("aria-pressed", String(c.key === selKey));
+    b.innerHTML = `<span class="sg"><span style="color:${COLOR[c.tb]}">${GLYPH[c.tb]}${isAngle(c.tb) ? "" : VS}</span> ${ASPECT_GLYPH[c.kind]}${VS} <span style="color:${COLOR[c.np]}">${GLYPH[c.np]}${isAngle(c.np) ? "" : VS}</span></span>`
+      + `<span class="sn">${possA()} ${NAME[c.tb]}, ${possB().toLowerCase() === "their" ? "their" : possB()} ${NAME[c.np]}</span><span class="st">${c.tag}</span><span class="so">${c.off.toFixed(1)}°</span>`;
+    b.addEventListener("click", () => { select(c); renderSpine(); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); });
+    li.append(b); return li;
+  }));
+}
+const twoWheel = el("twoWheel"), twg = twoWheel.getContext("2d");
+function drawTwoWheel() {
+  const r0 = twoWheel.getBoundingClientRect(); if (!r0.width) return;
+  const W = r0.width, DPR = Math.min(2, devicePixelRatio || 1);
+  if (twoWheel.width !== Math.round(W * DPR)) { twoWheel.width = twoWheel.height = Math.round(W * DPR); }
+  const g = twg, R = W / 2 - 4, rZi = R * 0.87, rB = R * 0.775, rA = R * 0.645, rC = R * 0.53;
+  const pt = (lon, r) => { const a = (180 + lon - natal.asc) * D2R; return [W / 2 + r * Math.cos(a), W / 2 - r * Math.sin(a)]; };
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, W); g.textAlign = "center"; g.textBaseline = "middle";
+  const TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+  for (let k = 0; k < 12; k++) {
+    const a0 = (180 + k * 30 - natal.asc) * D2R, a1 = a0 + 30 * D2R;
+    g.beginPath(); g.arc(W / 2, W / 2, R, -a0, -a1, true); g.arc(W / 2, W / 2, rZi, -a1, -a0, false); g.closePath(); g.fillStyle = TINT[k % 4]; g.fill();
+    const [gx, gy] = pt(k * 30 + 15, (R + rZi) / 2); g.fillStyle = MUTED; g.font = `${Math.round(R * 0.07)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (const r of [R, rZi, rC]) { g.beginPath(); g.arc(W / 2, W / 2, r, 0, 7); g.strokeStyle = LINE; g.lineWidth = 1; g.stroke(); }
+  twoLines = [];
+  const selKey = chosen && selected && selected.syn ? selected.key : null;
+  for (const c of [...synList].slice(0, 24).reverse()) {
+    const [x0, y0] = pt(natal[c.tb], rC), [x1, y1] = pt(natalB[c.np], rC), on = !selKey || c.key === selKey;
+    const grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, COLOR[c.tb]); grad.addColorStop(1, COLOR[c.np]);
+    g.strokeStyle = grad; g.globalAlpha = on ? 0.3 + 0.7 * c.depth : 0.12; g.lineWidth = 0.8 + 2.4 * c.depth + (c.key === selKey ? 1 : 0);
+    g.setLineDash(c.kind === 90 || c.kind === 180 ? [5, 4] : []);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    twoLines.push({ c, x0, y0, x1, y1 });
+  }
+  g.setLineDash([]); g.globalAlpha = 1;
+  const gs = Math.round(R * 0.06), ring = (nat, r) => {
+    const list = SYN_POINTS.filter((p) => !isAngle(p) && nat[p] != null), shown = spread(list.map((b) => nat[b]), (gs * 1.15) / r / D2R);
+    list.forEach((b, i) => {
+      const [a0, b0] = pt(nat[b], rC), [a1, b1] = pt(nat[b], rC + R * 0.022);
+      g.strokeStyle = COLOR[b]; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a0, b0); g.lineTo(a1, b1); g.stroke();
+      const [gx, gy] = pt(shown[i], r); g.fillStyle = COLOR[b]; g.font = `${gs}px ${SYM}`; g.fillText(GLYPH[b] + VS, gx, gy);
+    });
+  };
+  ring(natal, rA); if (second) ring(natalB, rB);
+  g.font = `500 ${Math.round(R * 0.032)}px "Instrument Sans", sans-serif`;
+  for (const [n, l, col] of [["AC", chart.unknown ? undefined : natal.asc, NATAL], ["AC", second && second.unknown ? undefined : natalB.asc, "#8fb8ff"]]) { if (l === undefined) continue; const [x, y] = pt(l, rZi - R * 0.022); g.fillStyle = col; g.fillText(n, x, y); }
+  el("twoWheelNote").textContent = `Inner ring: ${nameA()}. Outer ring: ${nameB() === "Them" ? "the second chart" : nameB()}.`;
+}
+twoWheel.addEventListener("click", (e) => {
+  const r = twoWheel.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, tol = coarse ? 18 : 10;
+  let best = null, bd = tol;
+  for (const l of twoLines) { const dx = l.x1 - l.x0, dy = l.y1 - l.y0, u = Math.max(0, Math.min(1, ((x - l.x0) * dx + (y - l.y0) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(x - l.x0 - u * dx, y - l.y0 - u * dy); if (d < bd) { bd = d; best = l.c; } }
+  if (best) { select(best); renderSpine(); }
+});
+// the near term, mirrored
+const two = el("two"), tg2 = two.getContext("2d"), tCache = document.createElement("canvas"), tcg = tCache.getContext("2d");
+let tW2 = 800, tH2 = 400, tDPR2 = 1;
+const tGut = () => (tW2 < 560 ? 50 : 132), TWO_TOP = 26;
+const tx2 = (ms) => tGut() + ((ms - twoS) / (twoSpan * DAY)) * (tW2 - tGut() - 4);
+const ttOf = (x) => twoS + ((x - tGut()) / (tW2 - tGut() - 4)) * (twoSpan * DAY);
+function anchorTwo(ms) { twoS = Math.max(T0, Math.min(T1 - twoSpan * DAY, localMidnight(ms - Math.round(twoSpan * 0.12) * DAY))); twoLayoutDirty = true; }
+function layoutTwo() {
+  const iA = (twoS - T0) / DAY, iB = iA + twoSpan, L = LENS[lens], A = [], B = [];
+  for (const e of twoEvents) {
+    if (L.pts && !L.pts.includes(e.np)) continue;
+    const inView = e.swells.filter((s) => s[1] >= iA && s[0] <= iB);
+    if (!inView.length) continue;
+    let exactDay = null;
+    for (let i = Math.max(0, Math.floor(iA)); i < Math.min(NDAYS - 1, Math.ceil(iB)); i++) {
+      const p = sdE(e, i), q = sdE(e, i + 1);
+      if (p * q <= 0 && Math.abs(p - q) < 30) { exactDay = i + p / (p - q); break; }
+    }
+    if (exactDay === null) continue;   // the near term is what comes to a head; the rest stays in Now and Score
+    (e.b ? B : A).push({ e, at: exactDay, exactDay });
+  }
+  A.sort((x, y) => y.at - x.at); B.sort((x, y) => x.at - y.at);
+  // bridges: at one chart's exact moment, the same planet is also close to exact on the other
+  const bridges = [];
+  for (const ra of A) for (const rb of B) {
+    if (ra.e.tb !== rb.e.tb) continue;
+    // close in time for what this planet's speed makes close: a day or two for the fast, about ten days for the slow
+    if (Math.abs(ra.at - rb.at) <= (["sun", "venus", "mars"].includes(ra.e.tb) ? 1.5 : 10)) bridges.push({ ra, rb, at: (ra.at + rb.at) / 2, shared: true, tb: ra.e.tb, kindA: ra.e.kind, kindB: rb.e.kind, key: `shared|${ra.e.key}|${rb.e.key}` });
+  }
+  bridges.sort((x, y) => x.at - y.at);
+  twoRows = { A, B, bridges };
+  let y = TWO_TOP;
+  const headH = 22, rowH = tW2 < 560 ? 30 : 32;
+  twoRows.headA = y; y += headH;
+  A.forEach((r) => { r.y = y; r.h = rowH; y += rowH; });
+  twoRows.spineY = y; const spineH = 46 + (bridges.length ? 16 : 0); twoRows.spineH = spineH; y += spineH;
+  B.forEach((r) => { r.y = y; r.h = rowH; y += rowH; });
+  twoRows.headB = y; y += headH;
+  tH2 = y + 4;
+  tDPR2 = Math.min(2, devicePixelRatio || 1); tW2 = Math.max(280, two.parentElement.clientWidth);
+  two.style.height = tH2 + "px"; two.width = tCache.width = Math.round(tW2 * tDPR2); two.height = tCache.height = Math.round(tH2 * tDPR2);
+  const fr = (r) => r.e.kind === 90 || r.e.kind === 180, all = [...A, ...B];
+  el("twoCap").textContent = `${all.filter(fr).length} frictions, ${all.filter((r) => !fr(r)).length} eases reach exact${bridges.length ? `; ${bridges.length} bridge${bridges.length === 1 ? "" : "s"}, one planet touching both` : ""}.`;
+  twoLayoutDirty = false; twoDirty = true;
+}
+function drawTwoCache() {
+  const g = tcg, gut = tGut(), iA = (twoS - T0) / DAY, iB = iA + twoSpan, R = twoRows;
+  twoHits = [];
+  g.setTransform(tDPR2, 0, 0, tDPR2, 0, 0); g.clearRect(0, 0, tW2, tH2); g.textBaseline = "middle"; g.lineWidth = 1;
+  // days
+  const pxDay = (tW2 - gut - 4) / twoSpan, every = pxDay > 26 ? 1 : pxDay > 12 ? 2 : pxDay > 6 ? 7 : 14;
+  for (let d = 0, ms = twoS; d <= twoSpan; d++) {
+    const x = tx2(ms), D = new Date(ms);
+    g.strokeStyle = D.getDate() === 1 ? "rgba(139,145,168,0.42)" : "rgba(139,145,168,0.09)"; g.beginPath(); g.moveTo(x, TWO_TOP - 3); g.lineTo(x, tH2); g.stroke();
+    if (d % every === 0 && d < twoSpan) { g.fillStyle = D.getDate() <= every ? FG : MUTED; g.textAlign = "left"; g.font = `11px "IBM Plex Mono", monospace`; g.fillText(D.getDate() <= every ? D.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : String(D.getDate()), x + 2, 12); }
+    const n = new Date(ms); n.setDate(n.getDate() + 1); n.setHours(0, 0, 0, 0); ms = n.getTime();
+  }
+  const head = (y, text) => { g.fillStyle = FG; g.textAlign = "left"; g.font = `15px "IM Fell English", Georgia, serif`; g.fillText(text, 2, y + 11); };
+  head(R.headA, nameA()); head(R.headB, nameB() === "Them" ? "The second chart" : nameB());
+  const drawRow = (r) => {
+    const e = r.e, cy = r.y + r.h / 2, col = COLOR[e.tb], hard = e.kind === 90 || e.kind === 180, base = COLOR[e.np];
+    g.textAlign = "left"; const sz = 14;
+    g.font = `${sz}px ${SYM}`; g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, cy);
+    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, cy);
+    g.fillStyle = base; g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`; g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.1, cy);
+    if (gut > 100) { g.fillStyle = MUTED; g.font = `11.5px "Instrument Sans", sans-serif`; const sh = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b]; g.fillText(`${sh(e.tb)}, ${sh(e.np)}`, 2 + sz * (isAngle(e.np) ? 3.9 : 3.3), cy); }
+    g.save(); g.beginPath(); g.rect(gut, r.y, tW2 - gut, r.h); g.clip();
+    const dI = Math.max(0.03, (twoSpan / (tW2 - gut)) * 2);
+    g.lineCap = "round";
+    for (const s of e.swells) {
+      const lo = Math.max(s[0], iA), hi = Math.min(s[1] + 0.999, iB); if (hi <= lo) continue;
+      g.strokeStyle = base; g.lineWidth = 1.1; g.globalAlpha = 0.5; g.beginPath(); g.moveTo(tx2(T0 + lo * DAY), cy); g.lineTo(tx2(T0 + hi * DAY), cy); g.stroke();
+      g.strokeStyle = col; let px = null, py = null;
+      for (let f = lo; f <= hi + 1e-6; f += dI) {
+        const sd = sdF(e, f), d = Math.max(0, 1 - Math.abs(sd) / e.orb), x = tx2(T0 + f * DAY), y = cy - (sd / e.orb) * (r.h / 2 - 6);
+        if (px !== null && !(hard && Math.floor(x / 4.5) % 2 === 1 && d < 0.92)) { g.globalAlpha = 0.5 + 0.5 * Math.pow(d, 1.3); g.lineWidth = 1.2 + 2 * d * d; g.beginPath(); g.moveTo(px, py); g.lineTo(x, y); g.stroke(); }
+        px = x; py = y;
+      }
+      g.globalAlpha = 1;
+    }
+    const x = tx2(T0 + r.at * DAY), rad = Math.min(14, r.h * 0.45), bl = g.createRadialGradient(x, cy, 0, x, cy, rad);
+    bl.addColorStop(0, col); bl.addColorStop(1, "rgba(0,0,0,0)"); g.globalAlpha = 0.8; g.fillStyle = bl; g.beginPath(); g.arc(x, cy, rad, 0, 7); g.fill();
+    g.globalAlpha = 1; g.fillStyle = "#fff"; g.beginPath(); g.arc(x, cy, 2, 0, 7); g.fill();
+    g.restore();
+  };
+  // the spine
+  const sy = R.spineY, sh = R.spineH, mid = sy + sh / 2;
+  g.fillStyle = "rgba(185,194,232,0.05)"; g.fillRect(0, sy, tW2, sh);
+  g.strokeStyle = "rgba(238,241,248,0.4)"; g.lineWidth = 1; g.beginPath(); g.moveTo(gut, mid); g.lineTo(tW2, mid); g.stroke();
+  g.fillStyle = MUTED; g.textAlign = "left"; g.font = `11.5px "Instrument Sans", sans-serif`; g.fillText(gut > 100 ? "Between them" : "Both", 2, mid);
+  // bridges run from one person's row, through the spine, to the other's
+  let labelEnd = -1e9;
+  for (const br of R.bridges) {
+    const xa = tx2(T0 + br.ra.at * DAY), xb = tx2(T0 + br.rb.at * DAY), xm = tx2(T0 + br.at * DAY), ya = br.ra.y + br.ra.h / 2, yb = br.rb.y + br.rb.h / 2, col = COLOR[br.tb];
+    const lg = g.createLinearGradient(0, ya, 0, yb); lg.addColorStop(0, "rgba(0,0,0,0)"); lg.addColorStop(0.5, col); lg.addColorStop(1, "rgba(0,0,0,0)");
+    g.strokeStyle = lg; g.lineWidth = 1.6; g.globalAlpha = 0.8; g.beginPath(); g.moveTo(xa, ya); g.lineTo(xm, mid); g.lineTo(xb, yb); g.stroke(); g.globalAlpha = 1;
+    const bl = g.createRadialGradient(xm, mid, 0, xm, mid, 16); bl.addColorStop(0, col); bl.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = bl; g.beginPath(); g.arc(xm, mid, 16, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(xm, mid, 2.6, 0, 7); g.fill();
+    twoHits.push({ x0: xm - 18, x1: xm + 18, y0: sy, y1: sy + sh, br });
+    if (xm < labelEnd) continue;
+    labelEnd = xm + 58;
+    g.font = `13px ${SYM}`; g.textAlign = "center"; g.lineWidth = 3; g.strokeStyle = "rgba(8,9,15,0.85)"; const label = `${GLYPH[br.ra.e.np]}${isAngle(br.ra.e.np) ? "" : VS}${GLYPH[br.tb]}${VS}${GLYPH[br.rb.e.np]}${isAngle(br.rb.e.np) ? "" : VS}`;
+    g.strokeText(label, xm, mid + 13); g.fillStyle = FG; g.fillText(label, xm, mid + 13);
+  }
+  R.A.forEach(drawRow); R.B.forEach(drawRow);
+  const xt = tx2(today);
+  if (xt > gut) { g.strokeStyle = "rgba(238,241,248,0.28)"; g.setLineDash([2, 3]); g.beginPath(); g.moveTo(xt, TWO_TOP - 3); g.lineTo(xt, tH2); g.stroke(); g.setLineDash([]); }
+  twoDirty = false;
+}
+function drawTwo() {
+  drawTwoWheel();
+  if (!second) return;
+  if (twoLayoutDirty) layoutTwo();
+  if (twoDirty) drawTwoCache();
+  tg2.setTransform(1, 0, 0, 1, 0, 0); tg2.clearRect(0, 0, two.width, two.height); tg2.drawImage(tCache, 0, 0);
+  tg2.setTransform(tDPR2, 0, 0, tDPR2, 0, 0);
+  if (selected && !selected.syn && !selected.shared) { const r = [...twoRows.A, ...twoRows.B].find((q) => q.e.key === selected.key); if (r) { tg2.strokeStyle = SILVER; tg2.lineWidth = 1; tg2.strokeRect(0.5, r.y + 0.5, tW2 - 1, r.h - 1); } }
+  const x = tx2(t);
+  if (x >= tGut() && x <= tW2) { tg2.strokeStyle = SILVER; tg2.lineWidth = 1.5; tg2.beginPath(); tg2.moveTo(x, TWO_TOP - 6); tg2.lineTo(x, tH2); tg2.stroke(); }
+}
+function setTwoSpan(d) { twoSpan = d; anchorTwo(t); el("twoSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.days) === d))); dirty = true; }
+el("twoSpans").append(...[[14, "2 weeks"], [31, "1 month"], [91, "3 months"], [183, "6 months"]].map(([d, name]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.days = d; b.textContent = name; b.addEventListener("click", () => setTwoSpan(d)); return b; }));
+document.querySelectorAll("[data-lens]").forEach((b) => b.addEventListener("click", () => {
+  lens = b.dataset.lens; document.querySelectorAll("[data-lens]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  computeSyn(); renderSpine(); twoLayoutDirty = true; dirty = true;
+}));
+let t2down = null;
+two.addEventListener("pointerdown", (e) => { const r = two.getBoundingClientRect(); t2down = { x: e.clientX - r.left, moved: false }; if (!coarse) two.setPointerCapture(e.pointerId); });
+two.addEventListener("pointermove", (e) => { if (!t2down || coarse) return; const r = two.getBoundingClientRect(), x = e.clientX - r.left; if (Math.abs(x - t2down.x) > 4) t2down.moved = true; if (t2down.moved) setT(ttOf(Math.max(tGut(), x)), false); });
+two.addEventListener("pointerup", (e) => {
+  if (!t2down) return;
+  const r = two.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, moved = t2down.moved; t2down = null;
+  if (moved || !twoRows) return;
+  const hit = twoHits.find((h) => x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1);
+  const scrollTo = () => { if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); };
+  if (hit) { select(hit.br); scrollTo(); return; }
+  const row = [...twoRows.A, ...twoRows.B].find((q) => y >= q.y && y < q.y + q.h);
+  if (row) { select(row.e); scrollTo(); }
+});
+two.addEventListener("pointercancel", () => { t2down = null; });
+el("secondForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const c = readChartForm("s");
+  const msg = chartFormError(c);
+  el("sErr").textContent = msg; if (msg) return;
+  second = c; try { localStorage.setItem(STORE2, JSON.stringify(c)); } catch (_) {}
+  fillSecond(); computeSecond(); computeTwo(); dirty = true;
+});
+function fillSecond() {
+  const c = second || {};
+  el("secondLabel").textContent = second ? `Second chart: ${c.name || "unnamed"}, ${c.date}, ${c.time}, ${c.place || ""}. Change it` : "Add a second chart";
+  el("sUnknown").checked = !!c.unknown; el("sName").value = c.name || ""; el("sDate").value = c.date || ""; el("sTime").value = c.time || ""; el("sPlace").value = c.place || ""; el("sLat").value = c.lat ?? ""; el("sLon").value = c.lon ?? ""; el("sTz").value = c.tz || "";
+}
+// readings for the Two view
+function renderSynCard(c) {
+  const e = selected, a = e.tb, b = e.np, man = MANNER[e.kind];
+  const hA = houseOf(housesB, natal[a]), hB = houseOf(houses, natalB[b]);
+  c.innerHTML = `<h2><span style="color:${COLOR[a]}">${GLYPH[a]}${isAngle(a) ? "" : VS}</span> ${possA()} ${NAME[a]} ${ASPECT[e.kind]} <span style="color:${COLOR[b]}">${GLYPH[b]}${isAngle(b) ? "" : VS}</span> ${possB()} ${NAME[b]}</h2>
+    <p class="sub">${e.off.toFixed(2)}° from exact, fixed for good <span class="tag">${e.tag}</span></p>
+    <p class="read">${possA()} ${NAME[a]} speaks for ${third(TOPIC[a])}. ${possB()} ${NAME[b]} speaks for ${third(TOPIC[b])}. ${man.note}</p>
+    ${chart.unknown || second.unknown ? "" : `<p class="read">${possA()} ${NAME[a]} falls in ${possB() === "Their" ? "their" : possB()} ${ORD[hA]} house: ${HOUSE[hA]}. ${possB()} ${NAME[b]} falls in ${possA()} ${ORD[hB]}: ${HOUSE[hB]}.</p>`}
+    <details><summary>The numbers</summary><table class="nums">
+      <tr><th>${possA()} ${NAME[a]}</th><td>${fmtLon(natal[a])}</td></tr>
+      <tr><th>${possB()} ${NAME[b]}</th><td>${fmtLon(natalB[b])}</td></tr>
+      <tr><th>Orb allowed</th><td>${e.orb.toFixed(1)}° (${orbMode === "lilly" ? "Lilly's moieties" : "synastry orbs"})</td></tr>
+      <tr><th>Sounds</th><td>${{ 0: "unison, 1:1", 60: "minor third, 6:5", 90: "fourth, 4:3", 120: "fifth, 3:2", 180: "octave, 2:1" }[e.kind]}, one voice in each ear</td></tr>
+    </table></details>
+    <p class="fine">Positions are measured. The meanings and the tags on these aspects are tradition and my own shorthand for it, not measurement, and no aspect here tells you whether two people will work.</p>`;
+}
+function renderBridgeCard(c) {
+  const br = selected, a = br.ra.e, b = br.rb.e, days = Math.abs(br.ra.at - br.rb.at);
+  c.innerHTML = `<h2><span style="color:${COLOR[br.tb]}">${GLYPH[br.tb]}${VS}</span> ${NAME[br.tb]} touches both</h2>
+    <p class="sub">${days < 1 ? "Within a day" : `${Math.round(days)} days apart`}, around ${fmtDate(T0 + br.at * DAY)}</p>
+    <p class="read">${NAME[br.tb]}, ${ACT[br.tb].epithet}, ${MANNER[a.kind].verb} ${possA()} ${NAME[a.np]}, and ${MANNER[b.kind].verb} ${possB() === "Their" ? "their" : possB()} ${NAME[b.np]}. One planet acting on both people at once.</p>
+    <p class="read">For ${nameA()}: ${TOPIC[a.np].replace(/\byour\b/g, "their").replace(/\byou\b/g, "they")}. For ${nameB() === "Them" ? "the other" : nameB()}: ${third(TOPIC[b.np])}.</p>
+    <p class="fine">Positions and times are measured. The meanings are tradition, not measurement.</p>`;
+}
+function renderBCard(c) {
+  const e = selected, det = detail(e), iMid = Math.max(e.i0, Math.min(e.i1, Math.round((t - T0) / DAY))), htr = houseOf(housesB, table[e.tb][iMid]), hn = isAngle(e.np) ? (e.np === "asc" ? 1 : 10) : houseOf(housesB, natalB[e.np]), act = ACT[e.tb], man = MANNER[e.kind];
+  c.innerHTML = `<h2><span style="color:${COLOR[e.tb]}">${GLYPH[e.tb]}${VS}</span> ${NAME[e.tb]} ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${isAngle(e.np) ? "" : VS}</span> ${possB()} ${NAME[e.np]}</h2>
+    <p class="sub" id="cardNow"></p>
+    <p class="read">${NAME[e.tb]}, ${act.epithet}, ${man.verb} ${possB() === "Their" ? "their" : possB()} ${NAME[e.np]}, which speaks for ${third(TOPIC[e.np])}.</p>
+    ${second.unknown ? "" : `<p class="read">${NAME[e.tb]} is moving through ${possB() === "Their" ? "their" : possB()} ${ORD[htr]} house: ${HOUSE[htr]}. ${NAME[e.np]} sits in ${possB() === "Their" ? "their" : possB()} ${ORD[hn]}: ${HOUSE[hn]}.</p>`}
+    <details><summary>The numbers</summary><table class="nums">
+      <tr><th>In orb</th><td>${fmtDate(T0 + e.i0 * DAY)} to ${fmtDate(T0 + e.i1 * DAY)}</td></tr>
+      ${det.exact.map((p) => `<tr><th>Exact${p.retro ? " (retrograde)" : ""}</th><td>${fmtWhen(p.ms)}</td></tr>`).join("")}
+      <tr><th>Natal point</th><td>${fmtLon(natalB[e.np])}</td></tr>
+      <tr><th>Orb allowed</th><td>${e.orb.toFixed(1)}°</td></tr>
+    </table></details>
+    <p class="fine">Positions and times here are measured. The meanings are tradition, not measurement.</p>`;
+  liveCard();
+}
+// ---------------------------------------------------------------- the deck
+// What's near at the playhead, using Lilly's wider orbs whichever orbs the page is showing. It
+// stays out of the way while time moves and settles in when time stops. Each card is one line of
+// title until it's opened; the whole deck folds down to a single button.
+let cardsOn = true;
+try { cardsOn = localStorage.getItem("sublunary.score.cards") !== "off"; } catch (_) {}
+const deck = el("passing");
+let lastMove = 0, deckSig = "", deckOpen = innerWidth >= 900, expanded = null, deckList = [];
+const lillyRho = (a, b) => (LILLY[a] + LILLY[b]) / 2;
+function deckCandidates() {
+  const nI = view === "fold" ? Math.max(1, Math.round(foldTarget)) : 12, out = [];
+  const inHarm = (k) => (k * nI) % 360 < 0.01;
+  let wholeCount = 0;
+  for (const tb of TRANSIT) for (const np of POINTS) for (const a of ANGLES) {
+    const off = Math.abs(wrap180(lonNow[tb] - natal[np] - a)), rho = lillyRho(tb, np), kind = kindOf(a);
+    if (off < rho) wholeCount++;
+    if (off >= rho || !inHarm(kind)) continue;
+    const depth = 1 - off / rho, working = off < WORK[tb];
+    out.push({ id: `${tb}|${np}|${a}`, tb, np, a, kind, off, rho, depth, working, rank: depth + (working ? 0.15 : 0) });
+  }
+  if (LAYERS.sky.on) {
+    const sk = SKY();
+    for (let x = 0; x < sk.length; x++) for (let y = x + 1; y < sk.length; y++) for (const a of ANGLES) {
+      const off = Math.abs(wrap180(lonNow[sk[x]] - lonNow[sk[y]] - a)), rho = lillyRho(sk[x], sk[y]), kind = kindOf(a);
+      if (off < rho) wholeCount++;
+      if (off >= rho || !inHarm(kind)) continue;
+      const depth = 1 - off / rho;
+      out.push({ id: `sky|${sk[x]}|${sk[y]}|${a}`, sky: true, tb: sk[x], np: sk[y], a, kind, off, rho, depth, working: off < Math.min(WORK[sk[x]], WORK[sk[y]]), rank: depth - 0.25 });
+    }
+  }
+  out.sort((p, q) => q.rank - p.rank);
+  const i = (t - T0) / DAY;
+  const near = turns.filter((m) => Math.abs(m.i - i) <= 2).map((m) => ({ id: `turn|${m.i}|${m.what}`, m }));
+  return { total: near.length + out.length, whole: wholeCount, list: [...near, ...out.slice(0, 40)] };
+}
+// a reading for an aspect, even if it's only in orb by Lilly's measure
+function eventForCard(c) {
+  const found = eventFor(c.id, t);
+  if (found) return found;
+  const tmp = [], base = { key: c.id, tb: c.tb, np: c.np, a: c.a, kind: c.kind, orb: c.rho, lilly: true };
+  if (c.sky) base.sky = true;
+  scan(base, tmp);
+  for (const e of tmp) { e.i0 = e.swells[0][0]; e.i1 = e.swells[e.swells.length - 1][1]; e.id = `${e.key}|${e.i0}`; }
+  const i = (t - T0) / DAY;
+  return tmp.find((e) => i >= e.i0 - 1 && i <= e.i1 + 1) || tmp[0] || null;
+}
+function cardBody(c, body) {
+  body.textContent = "";
+  const line = document.createElement("span"), meta = document.createElement("span"); line.className = "pl"; meta.className = "pm";
+  if (c.m) {
+    const d = Math.round(c.m.i - (t - T0) / DAY);
+    line.textContent = c.m.big ? "The Sun back at its birth position." : c.m.what.includes("enters") ? "A change of sign." : "The planet appears to stand still.";
+    meta.textContent = d === 0 ? "today" : d > 0 ? `in ${d} day${d === 1 ? "" : "s"}` : `${-d} day${d === -1 ? "" : "s"} ago`;
+    body.append(line, meta);
+    return;
+  }
+  const e = eventForCard(c);
+  line.textContent = c.sky ? "In the sky, for everyone." : `Touches ${TOPIC[c.np]}.`;
+  let text = `${c.off.toFixed(2)}° from exact`;
+  if (e) {
+    const best = detail(e).exact.reduce((a, q) => !a || Math.abs(q.ms - t) < Math.abs(a.ms - t) ? q : a, null);
+    if (best) { const d = Math.round((best.ms - t) / DAY); text += `, ${d === 0 ? "exact today" : d > 0 ? `exact in ${d} day${d === 1 ? "" : "s"}` : `exact ${-d} day${d === -1 ? "" : "s"} ago`}`; }
+  }
+  meta.textContent = text;
+  const read = document.createElement("button"); read.type = "button"; read.className = "pread"; read.textContent = "Full reading";
+  read.addEventListener("click", () => { if (e) { select(e); el("card").scrollIntoView({ block: "start", behavior: "smooth" }); } });
+  body.append(line, meta, read);
+}
+function renderDeck(total, whole) {
+  const head = document.createElement("button");
+  head.type = "button"; head.className = "deckhead"; head.setAttribute("aria-expanded", String(deckOpen));
+  head.textContent = `${deckOpen ? "▾" : "▴"} ` + (view === "fold" ? `${total} of ${whole} in this fold` : `${total} in Lilly's orbs`);
+  head.addEventListener("click", () => { deckOpen = !deckOpen; expanded = null; deckSig = ""; syncCards(); });
+  const ol = document.createElement("ol"); ol.className = "pcards"; ol.hidden = !deckOpen;
+  for (const c of deckList) {
+    const li = document.createElement("li"), b = document.createElement("button"), body = document.createElement("div");
+    li.className = "pcard" + (c.id === expanded ? " open" : ""); b.type = "button"; b.className = "pt"; body.className = "pb";
+    if (c.m) {
+      b.innerHTML = `<span class="ptt"><i style="color:${c.m.big ? SILVER : COLOR[c.m.b]}">${GLYPH[c.m.b]}${VS}</i> ${c.m.what}</span>`;
+    } else {
+      const col = COLOR[c.np];
+      b.innerHTML = `<span class="ptt"><i style="color:${COLOR[c.tb]}">${GLYPH[c.tb]}${VS}</i> ${NAME[c.tb]} ${ASPECT[c.kind]} <i style="color:${col}">${GLYPH[c.np]}${isAngle(c.np) ? "" : VS}</i> ${isAngle(c.np) ? "" : NAME[c.np]}</span><span class="po">${c.off.toFixed(1)}°</span>`;
+      li.style.setProperty("--d", `${Math.round(c.depth * 100)}%`);
+      if (!c.working) li.classList.add("wide");
+    }
+    b.setAttribute("aria-expanded", String(c.id === expanded));
+    b.addEventListener("click", () => { expanded = expanded === c.id ? null : c.id; deckSig = ""; syncCards(); });
+    li.append(b, body);
+    if (c.id === expanded) cardBody(c, body);
+    ol.append(li);
+  }
+  const old = deck.querySelector(".pcards"), keep = old ? old.scrollTop : 0;
+  deck.replaceChildren(head, ol);
+  ol.scrollTop = keep;
+  const openBtn = ol.querySelector(".pcard.open .pt");
+  if (openBtn) { openBtn.focus({ preventScroll: true }); const c = openBtn.parentElement; if (c.offsetTop + c.offsetHeight > ol.scrollTop + ol.clientHeight) ol.scrollTop = c.offsetTop + c.offsetHeight - ol.clientHeight; }
+}
+function syncCards() {
+  const moving = playing || performance.now() - lastMove < 350;
+  deck.classList.toggle("quiet", moving || !cardsOn || view === "now" || view === "two");
+  if (moving || !cardsOn || view === "now" || view === "two") return;
+  const { total, whole, list } = deckCandidates(), sig = [view, deckOpen, expanded, ...list.map((c) => c.id + (c.off ? c.off.toFixed(1) : ""))].join(",");
+  if (sig === deckSig) return;
+  deckSig = sig; deckList = list;
+  if (expanded && !list.some((c) => c.id === expanded)) expanded = null;
+  renderDeck(total, whole);
+}
+setInterval(() => { if (document.visibilityState !== "hidden") syncCards(); }, 200);
+document.addEventListener("pointerdown", (e) => { if (expanded && !deck.contains(e.target)) { expanded = null; deckSig = ""; syncCards(); } });
+function setCards(on) {
+  cardsOn = on; el("cardsBtn").setAttribute("aria-pressed", String(on));
+  try { localStorage.setItem("sublunary.score.cards", on ? "on" : "off"); } catch (_) {}
+  syncCards();
+}
+el("cardsBtn").addEventListener("click", () => setCards(!cardsOn));
+// ---------------------------------------------------------------- the card
+let chosen = false;   // the opening reading doesn't dim the rest; only a click does
+function select(e) { selected = e; chosen = true; renderCard(); dirty = true; }
+function renderSkyCard(c) {
+  const e = selected, det = detail(e), iMid = Math.max(e.i0, Math.min(e.i1, Math.round((t - T0) / DAY)));
+  const ha = houseOf(houses, table[e.tb][iMid]), hb = houseOf(houses, table[e.np][iMid]);
+  const a = ACT[e.tb], b = ACT[e.np], man = MANNER[e.kind];
+  c.innerHTML = `
+    <h2><span style="color:${COLOR[e.tb]}">${GLYPH[e.tb]}${VS}</span> ${NAME[e.tb]} ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${VS}</span> ${NAME[e.np]}</h2>
+    <p class="sub" id="cardNow"></p>
+    <p class="read">${NAME[e.tb]}, ${a.epithet}, ${man.verb} ${NAME[e.np]}, ${b.epithet}.</p>
+    <p class="read">This one isn't about your chart. It's in the sky for everyone, which is how people use astrology to name a shared time.${chart.unknown ? "" : ` For you it runs between your ${ORD[ha]} house, ${HOUSE[ha]}, and your ${ORD[hb]}, ${HOUSE[hb]}.`}</p>
+    <details>
+      <summary>How this reading is built</summary>
+      <dl class="parts">
+        <dt>${NAME[e.tb]}</dt><dd>${a.note} <span class="tag">${a.src}</span></dd>
+        <dt>${NAME[e.np]}</dt><dd>${b.note} <span class="tag">${b.src}</span></dd>
+        <dt>The manner</dt><dd>${man.note} <span class="tag">Traditional</span></dd>
+      </dl>
+    </details>
+    <details>
+      <summary>The numbers</summary>
+      <table class="nums">
+        <tr><th>In orb</th><td>${fmtDate(T0 + e.i0 * DAY)} to ${fmtDate(T0 + e.i1 * DAY)}${e.i0 === 0 || e.i1 === NDAYS - 1 ? " (runs past this page's four years)" : ""}</td></tr>
+        ${det.exact.map((p) => `<tr><th>Exact</th><td>${fmtWhen(p.ms)}</td></tr>`).join("")}
+        ${det.near ? `<tr><th>Closest</th><td>${det.near.off.toFixed(2)}° on ${fmtDate(det.near.ms)}, never exact</td></tr>` : ""}
+        <tr><th>Orb allowed</th><td>${e.orb.toFixed(1)}° (${orbMode === "lilly" || e.lilly ? "Lilly's moieties" : "working orbs"})</td></tr>
+      </table>
+    </details>
+    ${e.lilly ? `<p class="fine">In orb by Lilly's wider measure, outside the working orbs the page is showing, so it won't appear as a shape in the score.</p>` : ""}
+    <p class="fine">Positions and times here are measured. The meanings are tradition, not measurement.</p>`;
+  liveCard();
+}
+function renderCard() {
+  const c = el("card");
+  if (selected && selected.syn) { renderSynCard(c); return; }
+  if (selected && selected.shared) { renderBridgeCard(c); return; }
+  if (selected && selected.b) { renderBCard(c); return; }
+  if (selected && selected.sky) { renderSkyCard(c); return; }
+  if (!selected) { c.innerHTML = `<h2>Nothing chosen</h2><p class="read">Click a line on the wheel or a shape in the score to read that transit.</p>`; return; }
+  const e = selected, nm = NAME[e.np], tn = NAME[e.tb], det = detail(e);
+  const article = isAngle(e.np) ? "your" : "your natal";
+  const life = e.tb === e.np ? LIFE[`${e.tb}|${e.a}`] : null;
+  const iMid = Math.max(e.i0, Math.min(e.i1, Math.round((t - T0) / DAY)));
+  const htr = houseOf(houses, table[e.tb][iMid]), hn = pointHouse(e.np);
+  const act = ACT[e.tb], man = MANNER[e.kind];
+  const passes = det.exact.map((p) => `<tr><th>Exact${p.retro ? " (retrograde)" : ""}</th><td>${fmtWhen(p.ms)}</td></tr>`).join("");
+  const stations = det.stations.map((s) => `<tr><th>Stations ${s.to}</th><td>about ${fmtDate(s.ms)}</td></tr>`).join("");
+  const ratio = { 0: "unison, 1:1", 60: "minor third, 6:5", 90: "fourth, 4:3", 120: "fifth, 3:2", 180: "octave, 2:1" }[e.kind];
+  c.innerHTML = `
+    <h2><span style="color:${COLOR[e.tb]}">${GLYPH[e.tb]}${VS}</span> ${tn} ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${isAngle(e.np) ? "" : VS}</span> ${nm}</h2>
+    <p class="sub" id="cardNow"></p>
+    ${life ? `<p class="life"><b>${life[0]}.</b> ${life[1]}</p>` : ""}
+    <p class="read">${tn}, ${act.epithet}, ${man.verb} ${article} ${nm}, which speaks for ${TOPIC[e.np]}.</p>
+    ${chart.unknown ? "" : `<p class="read">${tn} is moving through your ${ORD[htr]} house: ${HOUSE[htr]}. ${nm} sits in your ${ORD[hn]}: ${HOUSE[hn]}.</p>`}
+    ${chart.unknown && e.np === "moon" ? `<p class="fine">Birth time unknown, so the natal Moon could be up to 6.5° either way.</p>` : ""}
+    <details>
+      <summary>How this reading is built</summary>
+      <dl class="parts">
+        <dt>The actor</dt><dd>${act.note} <span class="tag">${act.src}</span></dd>
+        <dt>The manner</dt><dd>${man.note} <span class="tag">Traditional</span></dd>
+        <dt>What's touched</dt><dd>${nm}: ${TOPIC[e.np]}. <span class="tag">${["uranus", "neptune", "pluto", "chiron", "lilith", "ceres", "pallas", "juno", "vesta"].includes(e.np) ? MODERN : TRADITIONAL}</span></dd>
+        ${chart.unknown ? "" : `<dt>Where</dt><dd>Your ${ORD[htr]} house and your ${ORD[hn]}. Houses depend on your birth place and time, and on the house system. <span class="tag">Traditional</span></dd>`}
+      </dl>
+    </details>
+    <details>
+      <summary>The numbers</summary>
+      <table class="nums">
+        <tr><th>In orb</th><td>${fmtDate(T0 + e.i0 * DAY)} to ${fmtDate(T0 + e.i1 * DAY)}${e.i0 === 0 || e.i1 === NDAYS - 1 ? " (runs past this page's four years)" : ""}</td></tr>
+        ${passes}
+        ${det.near ? `<tr><th>Closest</th><td>${det.near.off.toFixed(2)}° on ${fmtDate(det.near.ms)}, never exact</td></tr>` : ""}
+        ${stations}
+        <tr><th>Natal point</th><td>${fmtLon(natal[e.np])}</td></tr>
+        <tr><th>Orb allowed</th><td>${e.orb.toFixed(1)}° (${orbMode === "lilly" || e.lilly ? "Lilly's moieties" : "working orbs"})</td></tr>
+        <tr><th>Sounds</th><td>${ratio}</td></tr>
+        <tr><th>Zodiac and houses</th><td>${chart.unknown ? "no birth time, so no houses; " : ""}${{ placidus: "Placidus", whole_sign: "Whole sign", equal: "Equal", porphyry: "Porphyry" }[houses.system]}, tropical zodiac</td></tr>
+      </table>
+    </details>
+    ${e.lilly ? `<p class="fine">In orb by Lilly's wider measure, outside the working orbs the page is showing, so it won't appear as a shape in the score.</p>` : ""}
+    <p class="fine">Positions and times here are measured. The meanings are tradition, not measurement.</p>`;
+  liveCard();
+}
+let lastLive = "";
+function liveCard() {
+  const n = el("cardNow"); if (!n || !selected || selected.syn || selected.shared) return;
+  const e = selected, sd = wrap180(longitude(e.tb, t) - (e.sky ? longitude(e.np, t) : natalOf(e)[e.np]) - e.a), off = Math.abs(sd);
+  let text;
+  if (off < e.orb) {
+    const v = wrap180(longitude(e.tb, t + DAY) - lonNow[e.tb]), applying = sd * v < 0;
+    text = `${off.toFixed(2)}° from exact, ${applying ? "applying" : "separating"}. ${NAME[e.tb]} at ${fmtLon(lonNow[e.tb])}${v < 0 ? ", retrograde" : ""}.`;
+  } else {
+    const i = (t - T0) / DAY;
+    text = i < e.i0 ? `Starts ${fmtDate(T0 + e.i0 * DAY)}. Not in orb at the playhead.` : i > e.i1 ? `Ended ${fmtDate(T0 + e.i1 * DAY)}. Not in orb at the playhead.` : `Between passes at the playhead: ${off.toFixed(2)}° away. ${NAME[e.tb]} at ${fmtLon(lonNow[e.tb])}.`;
+  }
+  if (text !== lastLive) { lastLive = text; n.textContent = text; }
+}
+
+// ---------------------------------------------------------------- sound
+const RATIO = { 0: 1, 60: 6 / 5, 90: 4 / 3, 120: 3 / 2, 180: 2 };
+const REGISTER = { sun: 4, moon: 8, mercury: 8, venus: 8, mars: 4, jupiter: 2, saturn: 2, uranus: 1, neptune: 1, pluto: 1, chiron: 1, lilith: 2, node: 1, ceres: 2, pallas: 2, juno: 2, vesta: 2, asc: 4, mc: 4 };
+const ELEMENT = ["fire", "earth", "air", "water"], MODALITY = ["cardinal", "fixed", "mutable"];
+const ELEMENT_WAVE = { fire: [1, .44, .27, .19, .14, .11, .09, .07, .05, .04], earth: [1, 0, .3, 0, .15, 0, .08, 0, .04], air: [1, .12, .11, 0, .04, 0, .02], water: [1, .08, .02] };
+const ROOT = 110;
+let audio = null;
+function startAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0.0001;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3; comp.knee.value = 12;
+  const verb = ctx.createConvolver(), len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3); }
+  verb.buffer = ir;
+  const wet = ctx.createGain(); wet.gain.value = 0.32;
+  const dry = ctx.createGain(); dry.gain.value = 0.8;
+  const bus = ctx.createGain();
+  bus.connect(dry).connect(comp); bus.connect(verb).connect(wet).connect(comp);
+  comp.connect(master).connect(ctx.destination);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2200; lp.connect(bus);
+  // Straight ramps laid end to end, never cancelled (cancelling one snaps back: a click).
+  const LOOK = 0.03;
+  const ramp = (param, v) => { param.value = v; return { param, v1: v, t1: 0 }; };
+  function rampTo(r, want, secs, eps) {
+    const now = ctx.currentTime + LOOK;
+    if (r.t1 > now || Math.abs(want - r.v1) < (want === 0 ? 1e-9 : eps)) return;
+    r.param.setValueAtTime(r.v1, now); r.param.linearRampToValueAtTime(want, now + secs);
+    r.v1 = want; r.t1 = now + secs;
+  }
+  const settled = (r) => r.v1 === 0 && ctx.currentTime > r.t1 + 0.05;
+  const voiceBus = ctx.createGain(), level = ramp(voiceBus.gain, 0); voiceBus.connect(lp);
+  for (const [mult, gv] of [[1, 0.05], [2, 0.018]]) {   // the ground: a low A, held
+    const o = ctx.createOscillator(), gn = ctx.createGain(); o.frequency.value = ROOT * mult; gn.gain.value = gv; o.connect(gn).connect(lp); o.start();
+  }
+  const wave = (w) => { const re = new Float32Array(w.length + 1), im = new Float32Array(w.length + 1); w.forEach((x, n) => { im[n + 1] = x; }); return ctx.createPeriodicWave(re, im); };
+  const EWAVE = {}; for (const [k, w] of Object.entries(ELEMENT_WAVE)) EWAVE[k] = wave(w);
+  const SINE = wave([1]);
+  const PULSE = (() => {
+    const H = 24, S = 512, re = new Float32Array(H + 1), im = new Float32Array(H + 1);
+    for (let n = 1; n <= H; n++) { let c = 0, d = 0; for (let i = 0; i < S; i++) { const u = i / S, y = (1 - Math.exp(-u / 0.025)) * Math.exp(-u / 0.13); c += y * Math.cos(2 * Math.PI * n * u); d += y * Math.sin(2 * Math.PI * n * u); } re[n] = 2 * c / S; im[n] = 2 * d / S; }
+    return ctx.createPeriodicWave(re, im);
+  })();
+  const shared = (w, rates) => rates.map((hz) => { const l = ctx.createOscillator(); l.setPeriodicWave(w); l.frequency.value = hz; l.start(); return l; });
+  const MOVE = { cardinal: shared(PULSE, [0.38, 0.45, 0.53]), fixed: shared(SINE, [0.09, 0.12, 0.155]), mutable: shared(SINE, [4.6, 5.0, 5.45]) };
+  const DEPTH = { cardinal: 0.4, fixed: 0.14, mutable: 9 }, BASE = { cardinal: 0.8, fixed: 0.9, mutable: 1 };
+  // A fixed pool: the graph is built once and never changes while it plays, since changing it can
+  // make the audio thread skip a block (a pop). An aspect borrows a silent voice, retuned by
+  // settings alone, and returns it once it has faded out.
+  const pool = Array.from({ length: 24 }, (_, n) => {
+    const slot = { key: null, parts: [] };
+    for (let k = 0; k < 2; k++) {
+      const o = ctx.createOscillator(), mv = ctx.createGain(), g = ctx.createGain();
+      o.setPeriodicWave(EWAVE.water); o.detune.value = (Math.random() - 0.5) * 6;
+      const depth = {};
+      for (const [mod, srcs] of Object.entries(MOVE)) {
+        const d = ctx.createGain(); d.gain.value = 0;
+        srcs[(n + k + Object.keys(depth).length) % 3].connect(d);
+        d.connect(mod === "mutable" ? o.detune : mv.gain);
+        depth[mod] = d;
+      }
+      let tail = g;
+      let panN = null;
+      if (ctx.createStereoPanner) { panN = ctx.createStereoPanner(); panN.pan.value = k === 0 ? 0.3 : -0.3; g.connect(panN); tail = panN; }
+      tail.connect(voiceBus);
+      o.connect(mv).connect(g); o.start();
+      slot.parts.push({ o, mv, depth, panN, g: ramp(g.gain, 0), f: ramp(o.frequency, 220) });
+    }
+    return slot;
+  });
+  const free = (s) => s.parts.every((p) => settled(p.g)) && ctx.currentTime > 0.1;
+  function assign(slot, vkey, freq, signs, pans) {
+    slot.key = vkey;
+    slot.parts.forEach((p, k) => {
+      const sign = signs[k], mod = MODALITY[sign % 3];
+      p.o.setPeriodicWave(EWAVE[ELEMENT[sign % 4]]);
+      rampTo(p.f, freq, 0.02, 0);
+      for (const m of Object.keys(p.depth)) p.depth[m].gain.value = m === mod ? DEPTH[m] : 0;
+      p.mv.gain.value = BASE[mod];
+      if (p.panN) p.panN.pan.value = pans ? pans[k] : (k === 0 ? 0.3 : -0.3);
+    });
+  }
+  master.gain.setTargetAtTime(0.9, ctx.currentTime, 0.6);
+  return {
+    ctx,
+    set(list) {
+      const live = new Map(), selKey = selected && selected.key, anySel = chosen && selKey && list.some((c) => c.key === selKey);
+      let sum = 0, room = 13, roomSky = 5;   // the sky stays a quiet bed under the personal voices
+      // in the Fold, only the aspects this fold brings together stay in the chord
+      const nI = view === "fold" ? Math.max(1, Math.round(foldTarget)) : 12;
+      for (const c of list) {
+        if (c.key !== selKey && (c.kind * nI) % 360 > 0.01) continue;
+        sum += c.sky ? c.depth * 0.5 : c.depth;
+        if (c.key !== selKey) { if (c.sky) { if (roomSky-- <= 0) continue; } else if (room-- <= 0) continue; }
+        const st = c.sa ?? signOf(lonNow[c.tb]), sn = c.sb ?? signOf(c.sky ? lonNow[c.np] : natal[c.np]);
+        live.set(`${c.key}|${st}`, { c, st, sn });
+      }
+      const bySlot = new Map(pool.filter((s) => s.key).map((s) => [s.key, s]));
+      for (const [vkey, { c, st, sn }] of live) {
+        const hard = c.kind === 90 || c.kind === 180;
+        const freq = ROOT * Math.min(4, 2 * Math.min(REGISTER[c.tb], REGISTER[c.np])) * RATIO[c.kind];
+        let slot = bySlot.get(vkey);
+        if (!slot) { slot = pool.find((s) => !s.key && free(s)); if (!slot) continue; assign(slot, vkey, freq, [st, sn], c.pans); }
+        const focus = !anySel ? 1 : c.key === selKey ? 2.2 : 0.25;
+        const want = 0.05 * Math.pow(c.depth, 1.2) * focus * (c.sky && c.key !== selKey ? 0.5 : 1);
+        rampTo(slot.parts[0].g, hard ? want * 0.7 : want * 0.6, 0.25, 0.0003);
+        rampTo(slot.parts[1].g, hard ? want * 0.45 : want * 0.6, 0.25, 0.0003);
+        rampTo(slot.parts[1].f, hard ? freq + 0.5 + 3 * (1 - c.depth) : freq, 0.25, 0.05);
+      }
+      for (const s of pool) {
+        if (!s.key || live.has(s.key)) continue;
+        s.parts.forEach((p) => rampTo(p.g, 0, 0.5, 0));
+        if (free(s)) s.key = null;
+      }
+      rampTo(level, 1.8 / Math.sqrt(1 + sum), 0.25, 0.005);
+    },
+  };
+}
+setInterval(() => { if (audio && audio.ctx.state === "running") audio.set(active); }, 60);
+
+// ---------------------------------------------------------------- frame
+function setView(v) {
+  view = v;
+  for (const [id, name] of [["vNow", "now"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"]]) el(id).setAttribute("aria-pressed", String(v === name));
+  el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two";
+  el("cardsBtn").hidden = v === "now" || v === "two";
+  // Now decides for itself what's in focus, so these two layers are for the other views
+  document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
+  deckSig = "";
+  (v === "fold" ? el("foldSlot") : v === "now" ? el("nowSlot") : v === "two" ? el("twoSlot") : el("stage")).append(el("card"));
+  try { history.replaceState(null, "", `#${v}-view`); } catch (_) {}
+  if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
+  if (v === "two") { if (!twoS) setTwoSpan(31); twoLayoutDirty = true; renderSpine(); if (synList.length && (!selected || !selected.syn)) { selected = synList[0]; renderCard(); } }
+  if (v === "fold") {
+    if (!foldSized) { foldSized = true; setFoldSpan(narrow() ? 91 : 183); }
+    sizeFold(); setFold(foldTarget, true);
+  } else { sizeDial(); layoutScore(); }
+  dirty = true;
+}
+// time moves at the scale of the view you're in: the tape drags at that view's pixels per day, and
+// the step buttons take a step that suits it
+const spanDays = () => view === "two" ? twoSpan : view === "now" ? nowSpan : (view === "fold" ? fSpan : viewSpan) / DAY;
+const stepDays = () => { const d = spanDays(); return d <= 120 ? 1 : d <= 800 ? 7 : 30; };
+const stepName = () => ({ 1: "1 day", 7: "1 week", 30: "1 month" })[stepDays()];
+function holdStep(btn, sign) {   // press to step once, hold to keep going
+  let timer = 0, rep = 0;
+  const go = () => { setPlaying(false); setT(t + sign * stepDays() * DAY); };
+  const stop = () => { clearTimeout(timer); clearInterval(rep); };
+  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); go(); timer = setTimeout(() => { rep = setInterval(go, 110); }, 380); });
+  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) btn.addEventListener(ev, stop);
+  btn.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); go(); } });
+}
+holdStep(el("back"), -1); holdStep(el("fwd"), 1); holdStep(el("mBack"), -1); holdStep(el("mFwd"), 1);
+const tape = el("tape"), tg = tape.getContext("2d");
+let tW = 0, tH = 46, tDPR = 1, tapeDown = null;
+const tapePPD = () => { const inner = view === "two" ? tW2 - tGut() : view === "now" ? nW - nGut() : view === "fold" ? fW - F_GUT - 8 : sW - gutter(); return Math.max(2, inner / spanDays()); };
+function drawTape() {
+  if (innerWidth >= 640) return;
+  const r = tape.getBoundingClientRect(); if (!r.width) return;
+  if (Math.round(r.width) !== tW) { tW = Math.round(r.width); tH = Math.round(r.height); tDPR = Math.min(2, devicePixelRatio || 1); tape.width = tW * tDPR; tape.height = tH * tDPR; }
+  const g = tg, ppd = tapePPD(), cx = tW / 2, day0 = Math.floor((t - (cx / ppd) * DAY) / DAY), day1 = Math.ceil((t + (cx / ppd) * DAY) / DAY);
+  g.setTransform(tDPR, 0, 0, tDPR, 0, 0); g.clearRect(0, 0, tW, tH);
+  g.textBaseline = "alphabetic"; g.textAlign = "left"; g.font = `11px "IBM Plex Mono", monospace`; g.lineWidth = 1;
+  for (let d = day0; d <= day1; d++) {
+    const ms = d * DAY, D = new Date(ms), x = cx + ((ms - t) / DAY) * ppd, first = D.getUTCDate() === 1, week = D.getUTCDay() === 1;
+    if (!first && !week && ppd < 5) continue;
+    const h = first ? 16 : week ? 9 : 5;
+    g.strokeStyle = first ? "rgba(221,224,234,0.75)" : "rgba(143,149,173,0.5)"; g.beginPath(); g.moveTo(x + 0.5, tH); g.lineTo(x + 0.5, tH - h); g.stroke();
+    if (first) { g.fillStyle = MUTED; g.fillText(D.getUTCMonth() === 0 ? String(D.getUTCFullYear()) : D.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }), x + 3, tH - 5); }
+  }
+  g.strokeStyle = SILVER; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx, 16); g.lineTo(cx, tH); g.stroke();
+  const label = new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  g.font = `500 12.5px "IBM Plex Mono", monospace`; g.textAlign = "center"; g.textBaseline = "top";
+  const w = g.measureText(label).width + 10; g.fillStyle = "#08090f"; g.fillRect(cx - w / 2, 1, w, 16); g.fillStyle = FG; g.fillText(label, cx, 3);
+}
+tape.addEventListener("pointerdown", (e) => { setPlaying(false); tapeDown = { x: e.clientX, t }; tape.setPointerCapture(e.pointerId); });
+tape.addEventListener("pointermove", (e) => { if (tapeDown) setT(tapeDown.t - ((e.clientX - tapeDown.x) / tapePPD()) * DAY); });
+for (const ev of ["pointerup", "pointercancel"]) tape.addEventListener(ev, () => { tapeDown = null; });
+el("vNow").addEventListener("click", () => setView("now"));
+el("vTwo").addEventListener("click", () => setView("two"));
+el("vScore").addEventListener("click", () => setView("score"));
+el("vFold").addEventListener("click", () => setView("fold"));
+function frame() {
+  computeNow();
+  if (view === "fold") drawFold(); else if (view === "now") drawNow(); else if (view === "two") drawTwo(); else { drawDial(); drawScore(); }
+  liveCard(); syncCards();
+  el("when").textContent = new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  drawTape();
+  el("stepLab").textContent = stepName();
+  const stepTitle = `${stepName()} at a time; hold to keep going`; el("back").title = el("fwd").title = stepTitle;
+  const dd = Math.round((t - today) / DAY);
+  el("whenSub").textContent = turnNote || (dd === 0 ? "today" : dd > 0 ? `${dd} days ahead` : `${-dd} days ago`);
+  turnNote = "";
+}
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing) { setT(t + rate * dt * DAY); if (t >= T1) setPlaying(false); }
+  if (Math.abs(foldTarget - foldN) > 0.0005) {   // the fold eases to where it was sent
+    foldN += (foldTarget - foldN) * Math.min(1, dt * 5);
+    if (Math.abs(foldTarget - foldN) < 0.004) foldN = foldTarget;
+    el("foldN").value = String(foldN); foldDirty = true; dirty = true;
+  }
+  if (dirty) { dirty = false; frame(); }
+  requestAnimationFrame(tick);
+}
+
+// ---------------------------------------------------------------- input
+function setPlaying(p) { playing = p; el("play").textContent = p ? "Pause" : "Play"; el("play").setAttribute("aria-pressed", String(p)); }
+el("play").addEventListener("click", () => setPlaying(!playing));
+el("speed").addEventListener("change", (e) => { rate = Number(e.target.value); });
+el("today").addEventListener("click", () => { setT(today); });
+el("sound").addEventListener("click", async () => {
+  if (!audio) { audio = startAudio(); el("sound").textContent = "Sound off"; el("sound").setAttribute("aria-pressed", "true"); return; }
+  const on = audio.ctx.state === "running";
+  if (on) await audio.ctx.suspend(); else await audio.ctx.resume();
+  el("sound").textContent = on ? "Sound" : "Sound off"; el("sound").setAttribute("aria-pressed", String(!on));
+});
+function zoom(f, about) {
+  if (view === "two") { const o = [14, 31, 91, 183], k = o.indexOf(twoSpan) + (f > 1 ? 1 : -1); setTwoSpan(o[Math.max(0, Math.min(3, k))]); return; }
+  if (view === "now") { const o = [7, 14, 31], k = o.indexOf(nowSpan) + (f > 1 ? 1 : -1); setNowSpan(o[Math.max(0, Math.min(2, k))]); return; }
+  if (view === "fold") {
+    const a = about ?? t, u = (a - fStart) / fSpan;
+    fSpan = Math.max(14 * DAY, Math.min(T1 - T0, fSpan * f));
+    el("foldSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); fStart = Math.max(T0, Math.min(T1 - fSpan, a - u * fSpan));
+    foldDirty = true; dirty = true; return;
+  }
+  const a = about ?? t, u = (a - viewStart) / viewSpan;
+  viewSpan *= f; clampView(); viewStart = a - u * viewSpan; clampView();
+  scoreDirty = true; dirty = true;
+}
+el("zoomIn").addEventListener("click", () => zoom(1 / 1.4));
+el("zoomOut").addEventListener("click", () => zoom(1.4));
+el("orbs").addEventListener("change", (e) => {
+  orbMode = e.target.value; const was = selected; selected = null; computeEvents(); layoutScore();
+  if (was) selected = eventFor(was.key, t) || events.find((x) => x.key === was.key) || null;
+  renderCard(); dirty = true;
+});
+el("hsys").addEventListener("change", (e) => { hsys = e.target.value; computeChart(); computeSecond(); twoLayoutDirty = true; scoreDirty = true; foldDirty = true; renderCard(); dirty = true; });
+// the wheel is the dial: scrolling on it turns time
+function wheelDays(e) { const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1; return ((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit) / 40; }
+dial.addEventListener("wheel", (e) => { e.preventDefault(); setT(t + wheelDays(e) * DAY); }, { passive: false });
+dial.addEventListener("click", (e) => {
+  const r = dial.getBoundingClientRect(), c = hitLine(e.clientX - r.left, e.clientY - r.top, coarse ? 20 : 11);
+  if (c) select(eventFor(c.key, t) || null);
+});
+dial.addEventListener("pointermove", (e) => { const r = dial.getBoundingClientRect(); dial.style.cursor = hitLine(e.clientX - r.left, e.clientY - r.top, 11) ? "pointer" : "grab"; });
+// the score: horizontal scroll or drag moves time, a pinch or ctrl-scroll zooms, vertical scroll is left to the page
+score.addEventListener("wheel", (e) => {
+  if (e.ctrlKey) { e.preventDefault(); const r = score.getBoundingClientRect(); zoom(Math.exp(e.deltaY * 0.01), tOfX(e.clientX - r.left)); return; }
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); setT(t + (e.deltaX / (sW - gutter())) * viewSpan); }
+}, { passive: false });
+let down = null;
+score.addEventListener("pointerdown", (e) => {
+  const r = score.getBoundingClientRect();
+  down = { x: e.clientX - r.left, y: e.clientY - r.top, moved: false }; score.setPointerCapture(e.pointerId);
+});
+score.addEventListener("pointermove", (e) => {
+  const r = score.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (down) {
+    if (Math.abs(x - down.x) > 4) down.moved = true;
+    if (down.moved && x > gutter() - 10) { setT(tOfX(Math.max(gutter(), x)), false); }
+  } else score.style.cursor = eventAt(x, y) ? "pointer" : "col-resize";
+});
+score.addEventListener("pointerup", (e) => {
+  if (!down) return;
+  const r = score.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!down.moved && x >= gutter()) {
+    const hit = turnHits.find((h) => x >= h.x - 3 && x <= h.x1 && y >= h.y0 && y <= h.y1);
+    if (hit) { setT(T0 + hit.m.i * DAY, false); el("whenSub").textContent = hit.m.what; turnNote = hit.m.what; }
+    else { const ev = eventAt(x, y); if (ev) select(ev); else setT(tOfX(x), false); }
+  }
+  down = null;
+});
+score.addEventListener("pointercancel", () => { down = null; });
+fold.addEventListener("wheel", (e) => {
+  if (e.ctrlKey) { e.preventDefault(); const r = fold.getBoundingClientRect(); zoom(Math.exp(e.deltaY * 0.01), ftOf(e.clientX - r.left)); return; }
+  if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); setT(t + (e.deltaX / (fW - F_GUT)) * fSpan); }
+}, { passive: false });
+const nearCrossing = (x, y) => { let best = null, bd = coarse ? 22 : 11; for (const c of crossings) { const v = Math.hypot(c.x - x, c.y - y); if (v < bd && (!c.sky || !best)) { bd = v; best = c; } } return best; };
+let fdown = null;
+fold.addEventListener("pointerdown", (e) => { const r = fold.getBoundingClientRect(); fdown = { x: e.clientX - r.left, moved: false }; fold.setPointerCapture(e.pointerId); });
+fold.addEventListener("pointermove", (e) => {
+  const r = fold.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (fdown) { if (Math.abs(x - fdown.x) > 4) fdown.moved = true; if (fdown.moved) setT(ftOf(Math.max(F_GUT, x)), false); }
+  else fold.style.cursor = nearCrossing(x, y) ? "pointer" : "col-resize";
+});
+fold.addEventListener("pointerup", (e) => {
+  if (!fdown) return;
+  const r = fold.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!fdown.moved && x >= F_GUT) { const c = nearCrossing(x, y); if (c) readCrossing(c); else setT(ftOf(x), false); }
+  fdown = null;
+});
+fold.addEventListener("pointercancel", () => { fdown = null; });
+window.addEventListener("keydown", (e) => {
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  const step = e.shiftKey ? 7 : 1;
+  if (e.key === "ArrowRight") { e.preventDefault(); setT(t + step * DAY); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); setT(t - step * DAY); }
+  else if (e.key === "PageDown") { e.preventDefault(); setT(t + 30 * DAY); }
+  else if (e.key === "PageUp") { e.preventDefault(); setT(t - 30 * DAY); }
+  else if (e.key === "Home") { e.preventDefault(); setT(today); }
+  else if (e.key === "+" || e.key === "=") zoom(1 / 1.4);
+  else if (e.key === "-") zoom(1.4);
+  else if (view === "fold" && (e.key === "[" || e.key === "]")) {
+    const ns = FOLDS.map((f) => f.n), k = ns.indexOf(ns.reduce((a, n) => Math.abs(n - foldTarget) < Math.abs(a - foldTarget) ? n : a, 1));
+    setFold(ns[Math.max(0, Math.min(ns.length - 1, k + (e.key === "]" ? 1 : -1)))]);
+  }
+  else if (e.key === " " && e.target.tagName !== "BUTTON") { e.preventDefault(); setPlaying(!playing); }
+});
+el("chartForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const c = readChartForm("f");
+  const msg = chartFormError(c);
+  el("fErr").textContent = msg; if (msg) return;
+  chart = c; onExample = false; try { localStorage.setItem(STORE, JSON.stringify(c)); } catch (_) {}
+  rebuild();
+});
+el("fReset").addEventListener("click", () => { chart = DEFAULT_CHART; onExample = !FIRST_PRIVATE; try { localStorage.removeItem(STORE); } catch (_) {} el("fErr").textContent = ""; rebuild(); });
+function readChartForm(x) {
+  const unknown = el(x + "Unknown").checked;
+  const c = { name: el(x + "Name").value.trim(), date: el(x + "Date").value, time: unknown ? "12:00" : el(x + "Time").value, place: el(x + "Place").value.trim(), lat: parseFloat(el(x + "Lat").value), lon: parseFloat(el(x + "Lon").value), tz: el(x + "Tz").value.trim() || "LMT" };
+  if (unknown) c.unknown = true;
+  return c;
+}
+function chartFormError(c) {
+  if (!c.date) return "Enter a birth date.";
+  if (!c.unknown && !c.time) return "Enter a birth time, or tick Time unknown.";
+  const y = Number(c.date.slice(0, 4));
+  if (y < 1000 || y > 2099) return "Birth years from 1000 to 2099 work here.";
+  if (!(Math.abs(c.lat) <= 90) || !(Math.abs(c.lon) <= 180)) return "Pick a city from the list, or enter latitude within ±90 and longitude within ±180.";
+  if (c.tz !== "LMT") { try { new Intl.DateTimeFormat("en-US", { timeZone: c.tz }); } catch (_) { return `"${c.tz}" isn't a time zone name. Try one like Europe/London, or LMT.`; } }
+  return "";
+}
+// birthplaces: cities.txt sits beside the public page and nothing typed leaves the browser
+const fold8 = (x) => x.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+let cities = null, citiesLoading = null;
+function loadCities() {
+  citiesLoading ??= fetch("cities.txt").then((r) => { if (!r.ok) throw new Error(r.status); return r.text(); })
+    .then((txt) => (cities = txt.split("\n").filter((l) => l && l[0] !== "#").map((l) => { const [n, cc, a1, la, lo, tz] = l.split("\t"); return [fold8(n), n, cc, a1, +la, +lo, tz]; })));
+  return citiesLoading;
+}
+function searchCities(q, limit = 6) {
+  const parts = q.split(",").map(fold8).filter(Boolean);
+  if (!parts.length || !cities) return [];
+  const [name, ...quals] = parts, exact = [], prefix = [];
+  for (const r of cities) {
+    if (quals.length && !quals.every((x) => x === r[2].toLowerCase() || x === r[3].toLowerCase())) continue;
+    if (r[0] === name) { exact.push(r); if (exact.length >= limit) break; } else if (prefix.length < limit && r[0].startsWith(name)) prefix.push(r);
+  }
+  return [...exact, ...prefix].slice(0, limit);
+}
+const placeLabel = (r) => `${r[1]}, ${r[3] && !/^\d+$/.test(r[3]) ? r[3] + ", " : ""}${r[2]}`;
+function attachPlace(x) {
+  const input = el(x + "Place"), results = el(x + "Results");
+  const status = (m) => results.replaceChildren(Object.assign(document.createElement("li"), { className: "status", textContent: m }));
+  let timer = 0;
+  async function matches() {
+    const q = input.value;
+    if (q.trim().length < 2) { results.replaceChildren(); return; }
+    if (!cities) { status("Loading places…"); try { await loadCities(); } catch (_) { status("Places couldn't load here. Enter latitude, longitude and time zone by hand."); return; } }
+    if (input.value !== q) return;
+    const found = searchCities(q);
+    if (!found.length) { status("No city by that name. Check the spelling, or enter coordinates."); return; }
+    results.replaceChildren(...found.map((r) => {
+      const li = document.createElement("li"), b = document.createElement("button");
+      b.type = "button"; b.textContent = `${placeLabel(r)} · ${r[6]}`;
+      b.addEventListener("click", () => { input.value = placeLabel(r); el(x + "Lat").value = r[4]; el(x + "Lon").value = r[5]; el(x + "Tz").value = r[6]; results.replaceChildren(); });
+      li.append(b); return li;
+    }));
+  }
+  input.addEventListener("focus", () => { loadCities().catch(() => {}); });
+  input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(matches, 150); });
+}
+attachPlace("f"); attachPlace("s");
+function renderExBar() {
+  el("exBar").hidden = !onExample;
+  if (!onExample) return;
+  const k = el("exPick").value;
+  el("exText").textContent = `You're looking at ${EXAMPLES[k].label}, read as if the chart were yours. ${EXAMPLES[k].note}`;
+}
+el("exPick").addEventListener("change", (e) => { const x = EXAMPLES[e.target.value]; chart = x.a; second = x.b; fillSecond(); rebuild(); });
+el("exOwn").addEventListener("click", () => { el("chartBox").open = true; el("chartBox").scrollIntoView({ block: "start", behavior: "smooth" }); el("fName").focus({ preventScroll: true }); });
+function rebuild() {
+  renderExBar();
+  computeChart(); computeSecond(); computeEvents(); layoutScore(); computeNow();
+  const first = active.find((c) => !c.sky);
+  selected = first ? eventFor(first.key, t) : null; chosen = false;
+  renderCard(); dirty = true;
+}
+function renderLegend() { el("legendPlanets").innerHTML = TRANSIT.map((b) => `<i style="color:${COLOR[b]}">${GLYPH[b]}${VS}</i> ${NAME[b]}`).join(" &nbsp;"); }
+// the layers
+const LSTORE = "sublunary.score.layers";
+try { const s = JSON.parse(localStorage.getItem(LSTORE) || "null"); if (s) for (const k of Object.keys(LAYERS)) if (!LAYERS[k].fixed && typeof s[k] === "boolean") LAYERS[k].on = s[k]; } catch (_) {}
+el("layers").append(...Object.entries(LAYERS).filter(([, l]) => !l.fixed).map(([k, l]) => {
+  const lab = document.createElement("label"), box = document.createElement("input"); lab.dataset.layer = k;
+  box.type = "checkbox"; box.id = "layer-" + k; box.checked = l.on; lab.htmlFor = box.id;
+  lab.append(box, " " + l.label);
+  box.addEventListener("change", () => {
+    l.on = box.checked;
+    try { localStorage.setItem(LSTORE, JSON.stringify(Object.fromEntries(Object.entries(LAYERS).map(([q, v]) => [q, v.on])))); } catch (_) {}
+    const was = selected; computeEvents(); layoutScore(); renderLegend(); computeNow();
+    selected = was ? (eventFor(was.key, t) || events.find((x) => x.key === was.key) || null) : null;
+    renderCard(); dirty = true;
+  });
+  return lab;
+}));
+fillSecond(); sizeDial(); rebuild(); renderLegend(); el("cardsBtn").setAttribute("aria-pressed", String(cardsOn)); tick(last);
+new ResizeObserver(() => { if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
+el("settings").open = innerWidth >= 900;
+setFold(1, true);
+setView(location.hash === "#fold-view" ? "fold" : location.hash === "#score-view" ? "score" : location.hash === "#two-view" ? "two" : "now");
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { scoreDirty = true; foldDirty = true; nowDirty = true; dirty = true; });
+</script>
+</body>
+</html>

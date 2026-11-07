@@ -5,3 +5,6 @@ data/
 .DS_Store
 .venv-ha/
 .pytest_cache/
+notes/score/score.html
+notes/score/second_chart.json
+notes/score/first_chart.json

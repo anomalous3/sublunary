@@ -1681,8 +1681,48 @@ function analyze() {
     const [a, b, c] = ts.list;
     if (![a, b, c].includes(w) && has(c, w, 180) && has(a, w, 90) && has(b, w, 90)) add("grand_cross", [a, b, c, w]);
   }
-  for (let sgn = 0; sgn < 12; sgn++) { const inSign = P10.filter((q) => signOf(natal[q]) === sgn); if (inSign.length >= 3) add("stellium", inSign); }
+  for (let sgn = 0; sgn < 12; sgn++) { const inSign = P10.filter((q) => signOf(natal[q]) === sgn); if (inSign.length >= 3) { add("stellium", inSign); patterns[patterns.length - 1].sign = sgn; } }
+  if (timed) for (let h = 1; h <= 12; h++) {
+    const inHouse = P10.filter((q) => houseOf(houses, natal[q]) === h);
+    // a house cluster is its own pattern only when it isn't already one sign's
+    if (inHouse.length >= 3 && new Set(inHouse.map((q) => signOf(natal[q]))).size > 1) { add("stellium", inHouse); patterns[patterns.length - 1].house = h; }
+  }
   return { timed, day, ruler, planets, aspects, patterns };
+}
+// what each sign colours, for a cluster gathered in it
+const SIGN_THEME = [
+  "initiative, nerve and starting things",
+  "steadiness, the body's comforts and what lasts",
+  "curiosity, talk and many things at once",
+  "belonging, care and the memory of home",
+  "warmth, pride and being seen",
+  "craft, order and getting the detail right",
+  "balance, partnership and how things look to others",
+  "depth, intensity and what's kept hidden",
+  "meaning, faith and the long view",
+  "ambition, structure and time",
+  "independence, friendship and the future",
+  "imagination, feeling and dissolving edges",
+];
+function stelliumText(pat, A) {
+  const C = TEXTS.cond || {}, list = pat.list, names = list.map((q) => NAME[q]);
+  const join = (xs) => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+  const topics = join(list.map((q) => TOPIC[q].replace(/^your /, "").split(",")[0]));
+  const out = [];
+  if (pat.sign !== undefined) {
+    out.push(`${join(names)} gather in ${SIGN[pat.sign]}, so its themes, ${SIGN_THEME[pat.sign]}, become a loud note in the whole chart.`);
+    if (A.timed) {
+      const hs = [...new Set(list.map((q) => houseOf(houses, natal[q])))].sort((a, b) => a - b);
+      out.push(hs.length === 1 ? `They share your ${ORD[hs[0]]} house, so that emphasis plays out in ${HOUSE[hs[0]]}.` : `They fall across your ${join(hs.map((h) => ORD[h]))} houses, so the emphasis plays out in ${join(hs.map((h) => HOUSE[h]))}.`);
+    }
+  } else {
+    const signs = [...new Set(list.map((q) => signOf(natal[q])))];
+    out.push(`${join(names)} share your ${ORD[pat.house]} house, so much of the chart's attention goes to ${HOUSE[pat.house]}, coloured by ${join(signs.map((g) => SIGN[g]))}.`);
+  }
+  out.push(`Together they bring ${topics} into one place.`);
+  if (list.includes("sun")) { const burnt = list.filter((q) => q !== "sun" && !OUTER.includes(q) && Math.abs(wrap180(natal[q] - natal.sun)) < 8.5); if (burnt.length) out.push(`With the Sun among them, ${join(burnt.map((q) => NAME[q]))} ${burnt.length > 1 ? "are" : "is"} combust, so ${burnt.length > 1 ? "their" : "its"} part of this is the hardest to see.`); }
+  if (C.patterns && C.patterns.stellium) out.push(C.patterns.stellium);
+  return out.join(" ");
 }
 const tagHTML = (cls, text) => `<span class="ptag ${cls}">${text}</span>`;
 function planetTags(q) {
@@ -1735,7 +1775,7 @@ function renderChartRead() {
   if (A.ruler) { const q = pl[A.ruler]; items.push({ k: "The chart ruler", t: `${NAME[A.ruler]}, ${where(q, A, false)}`, tags: planetTags(q), p: `Whatever ${NAME[A.ruler]} is doing, the whole chart leans that way. ${firstSentence(signText(q))}`, more: [signText(q), houseText(q), conditionText(q)].filter(Boolean).join(" ") }); }
   for (const x of A.aspects.filter((q) => !q.wide).slice(0, 2)) items.push({ k: "A strong aspect", t: `${NAME[x.a]} ${ASPECT[x.kind]} ${NAME[x.b]}`, p: aspectSentence(x, A), more: `${x.off.toFixed(1)}° from exact.`, key: x.key });
   const pat = A.patterns.find((q) => q.type !== "stellium") || A.patterns[0];
-  if (pat) items.push({ k: "The shape of the chart", t: `${{ t_square: "A T-square", grand_trine: "A grand trine", grand_cross: "A grand cross", stellium: "A stellium", yod: "A yod", kite: "A kite" }[pat.type]}: ${pat.list.map((q) => NAME[q]).join(", ")}`, p: firstSentence((C.patterns || {})[pat.type]), more: (C.patterns || {})[pat.type] || "" });
+  if (pat) items.push({ k: "The shape of the chart", t: pat.type === "stellium" ? `A stellium in ${pat.sign !== undefined ? SIGN[pat.sign] : `the ${ORD[pat.house]} house`}: ${pat.list.map((q) => NAME[q]).join(", ")}` : `${{ t_square: "A T-square", grand_trine: "A grand trine", grand_cross: "A grand cross", yod: "A yod", kite: "A kite" }[pat.type]}: ${pat.list.map((q) => NAME[q]).join(", ")}`, p: pat.type === "stellium" ? firstSentence(stelliumText(pat, A)) : firstSentence((C.patterns || {})[pat.type]), more: pat.type === "stellium" ? stelliumText(pat, A) : (C.patterns || {})[pat.type] || "" });
   const note = A.planets.find((q) => q.sunlight === "cazimi") || A.planets.find((q) => q.mutual) || A.planets.find((q) => q.sunlight === "combust" && TRAD.includes(q.p)) || A.planets.filter((q) => ["moon", "mercury", "venus", "mars"].includes(q.p) && q.dg.main && q.dg.main !== "Peregrine").sort((a, b) => Math.abs(b.dg.score) - Math.abs(a.dg.score))[0];
   if (note) {
     const why = note.sunlight === "cazimi" ? `${NAME[note.p]} is cazimi, in the heart of the Sun.` : note.mutual ? `${NAME[note.p]} and ${NAME[note.received]} are in each other's signs.` : note.sunlight === "combust" ? `${NAME[note.p]} is combust: within ${Math.abs(wrap180(note.lon - natal.sun)).toFixed(1)}° of the Sun.` : `${NAME[note.p]} is in its ${note.dg.main.toLowerCase()}.`;
@@ -1747,7 +1787,7 @@ function renderChartRead() {
   const plist = A.planets.map((q) => `<div class="prow"><span class="g" style="color:${COLOR[q.p]}">${GLYPH[q.p]}${VS}</span><div><div class="h">${where(q, A)} <span class="ao">${fmtLon(q.lon)}</span></div><div class="tagrow">${planetTags(q)}</div></div><p>${[signText(q), houseText(q), conditionText(q)].filter(Boolean).join(" ")}</p></div>`).join("");
   const group = (label, list) => list.length ? `<h3>${label}</h3><ol class="alist">${list.map((x) => `<li class="${x.key === chartFocus ? "focus" : ""}${x.wide ? " wide" : ""}" data-key="${x.key}"><span class="ag"><span style="color:${COLOR[x.a]}">${GLYPH[x.a]}${isAngle(x.a) ? "" : VS}</span>${ASPECT_GLYPH[x.kind]}${VS}<span style="color:${COLOR[x.b]}">${GLYPH[x.b]}${isAngle(x.b) ? "" : VS}</span></span>${NAME[x.a]} ${ASPECT[x.kind]} ${NAME[x.b]}<span class="ao">${x.off.toFixed(1)}°${x.wide ? ", by Lilly's orbs" : ""}</span><p>${aspectSentence(x, A)}</p></li>`).join("")}</ol>` : "";
   const ws = A.aspects.filter((x) => !x.wide), wd = A.aspects.filter((x) => x.wide);
-  const pats = A.patterns.map((q) => `<div class="hl"><span class="t">${{ t_square: "T-square", grand_trine: "Grand trine", grand_cross: "Grand cross", stellium: "Stellium", yod: "Yod", kite: "Kite" }[q.type]}: ${q.list.map((x) => NAME[x]).join(", ")}</span><p>${(C.patterns || {})[q.type] || ""}</p></div>`).join("");
+  const pats = A.patterns.map((q) => `<div class="hl"><span class="t">${q.type === "stellium" ? `Stellium in ${q.sign !== undefined ? SIGN[q.sign] : `the ${ORD[q.house]} house`}` : { t_square: "T-square", grand_trine: "Grand trine", grand_cross: "Grand cross", yod: "Yod", kite: "Kite" }[q.type]}: ${q.list.map((x) => NAME[x]).join(", ")}</span><p>${q.type === "stellium" ? stelliumText(q, A) : (C.patterns || {})[q.type] || ""}</p></div>`).join("");
   box.innerHTML = headline
     + `<h3>The planets</h3><div class="plist">${plist}</div>`
     + group("Conjunctions and oppositions", ws.filter((x) => x.kind === 0 || x.kind === 180))

@@ -193,7 +193,7 @@
     <button type="button" id="vNow" aria-pressed="true"><b>Now</b><span>This week</span></button>
     <button type="button" id="vScore" aria-pressed="false"><b>Score</b><span>The years</span></button>
     <button type="button" id="vFold" aria-pressed="false"><b>Fold</b><span>The sky, folded</span></button>
-    <button type="button" id="vTwo" aria-pressed="false"><b>Two</b><span>Two charts</span></button>
+    <button type="button" id="vTwo" aria-pressed="false"><b>Two</b><span>What passes between</span></button>
   </nav>
 
   <div id="miniScrub">
@@ -1201,7 +1201,7 @@ const MODERN7 = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus
 const now = el("now"), ng = now.getContext("2d"), nCache = document.createElement("canvas"), ncg = nCache.getContext("2d");
 let nowEvents = [], nowTurns = [], nW = 800, nH = 500, nDPR = 1, nowDirty = true, nowLayoutDirty = true;
 let nowTicks = 0, nowStyle = "threads", nowSpan = 14, nowS = 0, nowRows = [], nowHits = [], underOpen = false, moonCache = null;
-const nGut = () => (nW < 560 ? 86 : 164), NOW_TOP = 34, LABEL = "#bcc1d3";
+const nGut = () => (nW < 560 ? 86 : 182), NOW_TOP = 34, LABEL = "#bcc1d3";
 const shortName = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b];
 const nx = (ms) => nGut() + ((ms - nowS) / (nowSpan * DAY)) * (nW - nGut() - 4);
 const ntOf = (x) => nowS + ((x - nGut()) / (nW - nGut() - 4)) * (nowSpan * DAY);
@@ -1385,7 +1385,7 @@ function drawNowCache() {
     g.fillStyle = COLOR[e.np];
     g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`;
     g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.15, gy);
-    g.fillStyle = LABEL; g.font = `${wide ? 13 : 10.5}px "Instrument Sans", sans-serif`;
+    g.fillStyle = LABEL; g.font = `${wide ? 14 : 10.5}px "Instrument Sans", sans-serif`;
     g.fillText(`${shortName(e.tb)}, ${shortName(e.np)}`, wide ? 2 + sz * (isAngle(e.np) ? 4 : 3.4) : 2, wide ? cyy : cyy + 8);
     g.save(); g.beginPath(); g.rect(gut, r.y, nW - gut, r.h); g.clip();
     // each row is a small Fold: a faint horizontal is exact, and the planet is a thread drifting
@@ -1632,7 +1632,7 @@ twoWheel.addEventListener("click", (e) => {
 // the near term, mirrored
 const two = el("two"), tg2 = two.getContext("2d"), tCache = document.createElement("canvas"), tcg = tCache.getContext("2d");
 let tW2 = 800, tH2 = 400, tDPR2 = 1;
-const tGut = () => (tW2 < 560 ? 86 : 140), TWO_TOP = 26;
+const tGut = () => (tW2 < 560 ? 86 : 158), TWO_TOP = 26;
 const tx2 = (ms) => tGut() + ((ms - twoS) / (twoSpan * DAY)) * (tW2 - tGut() - 4);
 const ttOf = (x) => twoS + ((x - tGut()) / (tW2 - tGut() - 4)) * (twoSpan * DAY);
 function anchorTwo(ms) { twoS = Math.max(T0, Math.min(T1 - twoSpan * DAY, localMidnight(ms - Math.round(twoSpan * 0.12) * DAY))); twoLayoutDirty = true; }
@@ -1695,7 +1695,7 @@ function drawTwoCache() {
     g.font = `${sz}px ${SYM}`; g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, gy);
     g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, gy);
     g.fillStyle = base; g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`; g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.1, gy);
-    g.fillStyle = LABEL; g.font = `${wide ? 12.5 : 10.5}px "Instrument Sans", sans-serif`;
+    g.fillStyle = LABEL; g.font = `${wide ? 14 : 10.5}px "Instrument Sans", sans-serif`;
     g.fillText(`${shortName(e.tb)}, ${shortName(e.np)}`, wide ? 2 + sz * (isAngle(e.np) ? 3.9 : 3.3) : 2, wide ? cy : cy + 8);
     g.save(); g.beginPath(); g.rect(gut, r.y, tW2 - gut, r.h); g.clip();
     const dI = Math.max(0.03, (twoSpan / (tW2 - gut)) * 2);

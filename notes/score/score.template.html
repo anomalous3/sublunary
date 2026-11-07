@@ -1832,7 +1832,7 @@ function renderBCard(c) {
 let cardsOn = true;
 try { cardsOn = localStorage.getItem("sublunary.score.cards") !== "off"; } catch (_) {}
 const deck = el("passing");
-let lastMove = 0, deckSig = "", deckOpen = false, expanded = null, deckList = [];
+let tapAnchor = null, lastMove = 0, deckSig = "", deckOpen = false, expanded = null, deckList = [];
 const lillyRho = (a, b) => (LILLY[a] + LILLY[b]) / 2;
 function deckCandidates() {
   const nI = view === "fold" ? Math.max(1, Math.round(foldTarget)) : 12, out = [];
@@ -1911,7 +1911,8 @@ function renderDeck(total, whole) {
       if (!c.working) li.classList.add("wide");
     }
     b.setAttribute("aria-expanded", String(c.id === expanded));
-    b.addEventListener("click", () => { expanded = expanded === c.id ? null : c.id; deckSig = ""; syncCards(); });
+    b.addEventListener("click", () => { tapAnchor = { id: c.id, top: li.getBoundingClientRect().top }; expanded = expanded === c.id ? null : c.id; deckSig = ""; syncCards(); });
+    li.dataset.id = c.id;
     li.append(b, body);
     if (c.id === expanded) cardBody(c, body);
     ol.append(li);
@@ -1920,8 +1921,17 @@ function renderDeck(total, whole) {
   deck.replaceChildren(head, ol);
   ol.scrollTop = keep;
   if (deckOpen) wireFade(ol);
-  const openBtn = ol.querySelector(".pcard.open .pt");
-  if (openBtn) { openBtn.focus({ preventScroll: true }); const c = openBtn.parentElement; if (c.offsetTop + c.offsetHeight > ol.scrollTop + ol.clientHeight) ol.scrollTop = c.offsetTop + c.offsetHeight - ol.clientHeight; }
+  // the card you tapped stays under your finger, however the cards above it changed
+  if (tapAnchor) {
+    const c = [...ol.children].find((li) => li.dataset.id === tapAnchor.id);
+    if (c) {
+      ol.scrollTop += c.getBoundingClientRect().top - tapAnchor.top;
+      c.querySelector(".pt").focus({ preventScroll: true });
+      const over = c.getBoundingClientRect().bottom - ol.getBoundingClientRect().bottom;   // and an opened card shows whole
+      if (over > 0) ol.scrollTop += over;
+    }
+    tapAnchor = null;
+  }
 }
 function syncCards() {
   const moving = playing || performance.now() - lastMove < 350;

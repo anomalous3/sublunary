@@ -254,7 +254,7 @@
   <section id="moonbox" hidden>
     <p class="foldintro"><b>The Moon, lap by lap.</b> The zodiac runs across and time runs down, so each trip around the circle is one long stroke, about a month. Vertical lines are your natal points: she passes each at the same place every lap, so her contacts stack into columns. Curves are the planets drifting. She's brightest near full, and dotted while void of course.</p>
     <div class="twotop">
-      <div class="seg" id="moonSpans" role="group" aria-label="How many laps to show"></div>
+      <div class="seg" id="moonSpans" role="group" aria-label="How much time to show"></div>
       <div class="tabs" role="group" aria-label="Which contacts to show">
         <button type="button" data-contacts="0" aria-pressed="true">Conjunctions</button>
         <button type="button" data-contacts="hard" aria-pressed="false">Hard</button>
@@ -1304,8 +1304,8 @@ function layoutNow() {
 }
 // the Moon over the window: signs, phases, void periods (Lynch: from her last major aspect to any planet, to the sign's end), and her contacts with the chart
 function moonData() { return moonCache || (moonCache = moonOver(nowS - 4 * DAY, nowS + (nowSpan + 2) * DAY)); }
-function moonOver(from, to) {
-  const STEP = 3600000, xs = [];
+function moonOver(from, to, withSky) {
+  const STEP = 3600000, xs = [], skyContacts = [];
   const moon = (ms) => longitude("moon", ms);
   for (let ms = from; ms <= to; ms += STEP) xs.push([ms, moon(ms)]);
   const refine = (a, b, f) => { let fa = f(a); for (let k = 0; k < 18; k++) { const m = (a + b) / 2, fm = f(m); if (fa * fm <= 0) b = m; else { a = m; fa = fm; } } return (a + b) / 2; };
@@ -1338,12 +1338,16 @@ function moonOver(from, to) {
       const p = wrap180(l0 - natal[np] - a), q = wrap180(l1 - natal[np] - a);
       if (p * q <= 0 && Math.abs(p - q) < 30) contacts.push({ ms: m0 + (p / (p - q)) * (m1 - m0), np, a, kind: kindOf(a), lon: norm(natal[np] + a) });
     }
+    if (withSky) for (const b of MODERN7) for (const a of [0, 60, 90, 120, 180, 240, 270, 300]) {
+      const bl0 = bodyAt(b, m0), bl1 = bodyAt(b, m1), p = wrap180(l0 - bl0 - a), q = wrap180(l1 - bl1 - a);
+      if (p * q <= 0 && Math.abs(p - q) < 30) { const u = p / (p - q); skyContacts.push({ ms: m0 + u * (m1 - m0), np: b, a, kind: kindOf(a), lon: l0 + wrap180(l1 - l0) * u, skyC: true }); }
+    }
     for (const [a, g, name] of [[0, "○", "New Moon"], [90, "◐", "First quarter"], [180, "●", "Full Moon"], [270, "◑", "Last quarter"]]) {
       const p = wrap180(l0 - bodyAt("sun", m0) - a), q = wrap180(l1 - bodyAt("sun", m1) - a);
       if (p * q <= 0 && Math.abs(p - q) < 30) phases.push({ ms: m0 + (p / (p - q)) * (m1 - m0), g, name });
     }
   }
-  return { xs, ingress, voids, contacts, phases, signAt: (ms) => signOf(moon(ms)) };
+  return { xs, ingress, voids, contacts, skyContacts, phases, signAt: (ms) => signOf(moon(ms)) };
 }
 const sdF = (e, f) => { const i = Math.max(0, Math.min(NDAYS - 2, Math.floor(f))), u = f - i, p = sdE(e, i); return p + wrap180(sdE(e, i + 1) - p) * u; };
 function lensPath(g, e, s, cy, half, power) {
@@ -1556,23 +1560,29 @@ const LAP = 27.3216;
 ACT.moon = { src: TRADITIONAL, epithet: "the quickest body in the sky, and the tide of feeling", note: "She takes about a month to go round and a couple of days per sign, so her contacts last hours and pass quickly. They're read as moods and passing events." };
 WORK.moon = 4;
 const moonC = el("moon"), mg = moonC.getContext("2d"), mCache = document.createElement("canvas"), mcg = mCache.getContext("2d");
-let moonLaps = 13, moonStart = 0, mW = 800, mH = 600, mDPR = 1, moonDirty = true, moonSpanData = null, moonKey = "", contactMode = "0", moonHits = [];
+let moonDays = 355, xStart = 0, xRange = 360, contactAuto = true, moonStart = 0, mW = 800, mH = 600, mDPR = 1, moonDirty = true, moonSpanData = null, moonKey = "", contactMode = "0", moonHits = [];
 const M_GUT = () => (mW < 560 ? 40 : 62), M_TOP = 46;
 const mRow = () => (innerWidth < 640 ? 38 : 48);
-const mPPD = () => mRow() / LAP;
-const mx = (lon) => M_GUT() + (norm(lon) / 360) * (mW - M_GUT() - 4);
+const mPPD = () => Math.max(mRow() / LAP, (innerWidth < 640 ? 560 : 720) / moonDays);
+const mx = (lon) => M_GUT() + (norm(lon - xStart) / xRange) * (mW - M_GUT() - 4);
 const my = (ms) => M_TOP + ((ms - moonStart) / DAY) * mPPD();
 const mtOf = (y) => moonStart + ((y - M_TOP) / mPPD()) * DAY;
-const moonSpanDays = () => moonLaps * LAP;
-function anchorMoon(ms) { moonStart = Math.max(T0, Math.min(T1 - moonSpanDays() * DAY, localMidnight(ms - LAP * DAY))); moonDirty = true; }
+const moonSpanDays = () => moonDays;
+function anchorMoon(ms) {
+  moonStart = Math.max(T0, Math.min(T1 - moonDays * DAY, localMidnight(ms - moonDays * 0.15 * DAY)));
+  // inside a lap, show only the arc she crosses, so close-ups get the width
+  if (moonDays < 26) { const a = longitude("moon", moonStart), run = norm(longitude("moon", moonStart + moonDays * DAY) - a); xStart = norm(a - 6); xRange = Math.min(360, run + 12); }
+  else { xStart = 0; xRange = 360; }
+  moonDirty = true;
+}
 function sizeMoon() {
   mW = Math.max(280, moonC.parentElement.clientWidth); mH = Math.round(M_TOP + moonSpanDays() * mPPD() + 8); mDPR = Math.min(2, devicePixelRatio || 1);
   moonC.style.height = mH + "px"; moonC.width = mCache.width = Math.round(mW * mDPR); moonC.height = mCache.height = Math.round(mH * mDPR);
   moonDirty = true;
 }
 function moonInfo() {
-  const key = `${moonStart}|${moonLaps}|${natal.ms}|${POINTS.length}`;
-  if (key !== moonKey) { moonSpanData = moonOver(moonStart - 4 * DAY, moonStart + (moonSpanDays() + 1) * DAY); moonKey = key; }
+  const key = `${moonStart}|${moonDays}|${natal.ms}|${POINTS.length}`;
+  if (key !== moonKey) { moonSpanData = moonOver(moonStart - 4 * DAY, moonStart + (moonDays + 1) * DAY, moonDays <= 95); moonKey = key; }
   return moonSpanData;
 }
 const contactShown = (c) => contactMode === "all" || (contactMode === "hard" ? c.kind === 0 || c.kind === 90 || c.kind === 180 : c.kind === 0);
@@ -1583,14 +1593,18 @@ function drawMoonCache() {
   // the signs, as columns
   const TINT = ["rgba(240,140,90,0.055)", "rgba(150,170,110,0.05)", "rgba(170,190,230,0.05)", "rgba(90,140,220,0.06)"];
   g.textAlign = "center";
-  for (let k = 0; k < 12; k++) {
-    const x0 = gut + (k / 12) * wide, w = wide / 12;
-    g.fillStyle = TINT[k % 4]; g.fillRect(x0, M_TOP, w, mH - M_TOP);
+  const circle = (360 / xRange) * wide, w30 = (30 / xRange) * wide;
+  g.save(); g.beginPath(); g.rect(gut, 0, wide, mH); g.clip();
+  for (let k = 0; k < 12; k++) for (const shift of [0, -circle]) {
+    const x0 = mx(k * 30) + shift;
+    if (x0 + w30 < gut || x0 > mW) continue;
+    g.fillStyle = TINT[k % 4]; g.fillRect(x0, M_TOP, w30, mH - M_TOP);
     g.strokeStyle = "rgba(139,145,168,0.14)"; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, 4); g.lineTo(x0, mH); g.stroke();
-    g.fillStyle = MUTED; g.font = `${Math.min(15, w * 0.6)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, x0 + w / 2, 12);
+    g.fillStyle = MUTED; g.font = `${Math.min(15, w30 * 0.6)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, Math.max(gut + 8, Math.min(mW - 12, x0 + w30 / 2)), 12);
   }
+  g.restore();
   // the chart: vertical lines, glyphs spread along the top
-  const pts = POINTS.map((q) => ({ q, x: mx(natal[q]) })).sort((a, b) => a.x - b.x);
+  const pts = POINTS.map((q) => ({ q, x: mx(natal[q]) })).filter((r) => r.x <= mW - 2).sort((a, b) => a.x - b.x);
   const GAP = 14; pts.forEach((r) => { r.lx = r.x; });
   for (let pass = 0; pass < 30; pass++) for (let k = 1; k < pts.length; k++) { const d = pts[k].lx - pts[k - 1].lx; if (d < GAP) { pts[k - 1].lx -= (GAP - d) / 2; pts[k].lx += (GAP - d) / 2; } }
   for (const r of pts) {
@@ -1598,13 +1612,32 @@ function drawMoonCache() {
     g.globalAlpha = 0.6; g.beginPath(); g.moveTo(r.lx, M_TOP - 6); g.lineTo(r.x, M_TOP); g.stroke(); g.globalAlpha = 1;
     g.fillStyle = COLOR[r.q]; g.font = isAngle(r.q) ? `600 9.5px "Instrument Sans", sans-serif` : `13px ${SYM}`; g.fillText(GLYPH[r.q] + (isAngle(r.q) ? "" : VS), Math.max(gut + 5, r.lx), 30);
   }
-  // dates down the side, once a lap
+  // time down the side: laps when far out, then days, then hours
   g.textAlign = "left"; g.font = `${mW < 560 ? 9.5 : 11}px "IBM Plex Mono", monospace`;
-  for (let k = 0, ms = moonStart; k <= moonLaps && ms < end; k++, ms += LAP * DAY) {
-    const y = my(ms), D = new Date(ms);
-    g.strokeStyle = "rgba(139,145,168,0.1)"; g.lineWidth = 1; g.beginPath(); g.moveTo(gut, y); g.lineTo(mW, y); g.stroke();
-    g.fillStyle = MUTED; g.fillText(D.toLocaleDateString("en-GB", mW < 560 ? { month: "short" } : { day: "numeric", month: "short" }), 1, y + 6);
-    if (D.getMonth() === 0 || k === 0) { g.fillStyle = FG; g.fillText(String(D.getFullYear()), 1, y + 18); }
+  const ppd = mPPD();
+  if (ppd < 6) {
+    for (let k = 0, ms = moonStart; ms < end; k++, ms += LAP * DAY) {
+      const y = my(ms), D = new Date(ms);
+      g.strokeStyle = "rgba(139,145,168,0.1)"; g.lineWidth = 1; g.beginPath(); g.moveTo(gut, y); g.lineTo(mW, y); g.stroke();
+      g.fillStyle = MUTED; g.fillText(D.toLocaleDateString("en-GB", mW < 560 ? { month: "short" } : { day: "numeric", month: "short" }), 1, y + 6);
+      if (D.getMonth() === 0 || k === 0) { g.fillStyle = FG; g.fillText(String(D.getFullYear()), 1, y + 18); }
+    }
+  } else {
+    const hourEvery = ppd >= 160 ? 1 : ppd >= 70 ? 3 : ppd >= 30 ? 6 : 0, labelEvery = ppd >= 200 ? 3 : ppd >= 70 ? 6 : 0;
+    for (let ms = localMidnight(moonStart), stepD = ppd < 14 ? 7 : 1; ms < end; ) {
+      const y = my(ms), D = new Date(ms);
+      if (y >= M_TOP) {
+        g.strokeStyle = "rgba(139,145,168,0.3)"; g.lineWidth = 1; g.beginPath(); g.moveTo(gut, y); g.lineTo(mW, y); g.stroke();
+        g.fillStyle = FG; g.fillText(D.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), 1, y + 7);
+      }
+      for (let h = hourEvery; hourEvery && h < 24; h += hourEvery) {
+        const Dh = new Date(ms); Dh.setHours(h, 0, 0, 0); const yh = my(Dh.getTime());
+        if (yh < M_TOP || yh > mH) continue;
+        g.strokeStyle = "rgba(139,145,168,0.1)"; g.beginPath(); g.moveTo(gut, yh); g.lineTo(mW, yh); g.stroke();
+        if (labelEvery && h % labelEvery === 0) { g.fillStyle = MUTED; g.fillText(String(h).padStart(2, "0") + ":00", 1, yh); }
+      }
+      const n = new Date(ms); n.setDate(n.getDate() + stepD); n.setHours(0, 0, 0, 0); ms = n.getTime();
+    }
   }
   // the planets, drifting
   g.save(); g.beginPath(); g.rect(gut, M_TOP, wide, mH - M_TOP); g.clip();
@@ -1614,7 +1647,7 @@ function drawMoonCache() {
     ensureTable(b);
     g.strokeStyle = COLOR[b]; g.globalAlpha = 0.62; g.lineWidth = b === "sun" ? 1.5 : 1.1; g.beginPath();
     let px = null;
-    for (let i = lo; i <= hi; i++) { const x = mx(table[b][i]), y = my(T0 + i * DAY); if (px === null || Math.abs(x - px) > wide / 2) g.moveTo(x, y); else g.lineTo(x, y); px = x; }
+    for (let i = lo; i <= hi; i++) { const x = mx(table[b][i]), y = my(T0 + i * DAY); if (px === null || Math.abs(x - px) > circle / 2) g.moveTo(x, y); else g.lineTo(x, y); px = x; }
     g.stroke();
   }
   g.globalAlpha = 1;
@@ -1624,22 +1657,40 @@ function drawMoonCache() {
   for (let k = 1; k < m.xs.length; k++) {
     const [m0, l0] = m.xs[k - 1], [m1, l1] = m.xs[k];
     if (m1 < moonStart || m0 > end) continue;
-    const x0 = mx(l0), x1 = mx(l1); if (Math.abs(x1 - x0) > wide / 2) continue;
+    const x0 = mx(l0), x1 = mx(l1); if (Math.abs(x1 - x0) > circle / 2) continue;
     while (vi < vs.length && vs[vi][1] < m0) vi++;
     const isVoid = vi < vs.length && vs[vi][0] <= m1 && vs[vi][1] >= m0;
     const illum = (1 - Math.cos(wrap180(l1 - sunAt(m1)) * D2R)) / 2;
     if (isVoid && k % 4 < 2) continue;
-    g.strokeStyle = SILVER; g.globalAlpha = isVoid ? 0.32 : 0.3 + 0.7 * illum; g.lineWidth = isVoid ? 1 : 1 + 1.8 * illum;
+    g.strokeStyle = SILVER; { const floor = ppd >= 24 ? 0.6 : 0.3; g.globalAlpha = isVoid ? Math.max(0.32, floor - 0.1) : floor + (1 - floor) * illum; } g.lineWidth = isVoid ? 1 : 1 + 1.8 * illum;
     g.beginPath(); g.moveTo(x0, my(m0)); g.lineTo(x1, my(m1)); g.stroke();
   }
   g.globalAlpha = 1;
   // her contacts with the chart
-  for (const c of m.contacts) {
+  const named = ppd >= 24, labels = [];
+  for (const c of [...m.contacts, ...(ppd >= 7 ? m.skyContacts : [])]) {
     if (!contactShown(c) || c.ms < moonStart || c.ms > end) continue;
     const x = mx(c.lon), y = my(c.ms), conj = c.kind === 0, col = COLOR[c.np];
-    if (conj) { const bl = g.createRadialGradient(x, y, 0, x, y, 9); bl.addColorStop(0, col); bl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = bl; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
-    g.fillStyle = conj ? "#fff" : col; g.globalAlpha = conj ? 1 : 0.9; g.beginPath(); g.arc(x, y, conj ? 2.3 : 1.9, 0, 7); g.fill(); g.globalAlpha = 1;
+    if (x > mW) continue;
+    if (c.skyC) { g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); g.arc(x, y, 2.6, 0, 7); g.stroke(); }
+    else {
+      if (conj) { const bl = g.createRadialGradient(x, y, 0, x, y, 9); bl.addColorStop(0, col); bl.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = bl; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); }
+      g.fillStyle = conj ? "#fff" : col; g.globalAlpha = conj ? 1 : 0.9; g.beginPath(); g.arc(x, y, conj ? 2.3 : 1.9, 0, 7); g.fill(); g.globalAlpha = 1;
+    }
     moonHits.push({ x, y, c });
+    if (named) labels.push({ x, y, c, col });
+  }
+  labels.sort((p, q) => p.y - q.y);
+  let lastY = -1e9;
+  for (const l of labels) {
+    if (l.y - lastY < 13) continue;
+    lastY = l.y;
+    const hm = new Date(l.c.ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    const lx = l.x + 7 > mW - 92 ? l.x - 92 : l.x + 7;
+    g.lineWidth = 3; g.strokeStyle = "rgba(8,9,15,0.85)"; g.textAlign = "left";
+    g.font = `13px ${SYM}`; const glyphs = ASPECT_GLYPH[l.c.kind] + VS + GLYPH[l.c.np] + (isAngle(l.c.np) ? "" : VS);
+    g.strokeText(glyphs, lx, l.y); g.fillStyle = l.col; g.fillText(glyphs, lx, l.y);
+    g.font = `10.5px "IBM Plex Mono", monospace`; g.strokeText(hm, lx + 30, l.y); g.fillStyle = MUTED; g.fillText(hm, lx + 30, l.y);
   }
   // new and full
   for (const p of m.phases) {
@@ -1662,23 +1713,35 @@ function drawMoon() {
     const x = mx(lm), bl = mg.createRadialGradient(x, y, 0, x, y, 15); bl.addColorStop(0, "rgba(255,255,255,0.8)"); bl.addColorStop(1, "rgba(255,255,255,0)");
     mg.fillStyle = bl; mg.beginPath(); mg.arc(x, y, 15, 0, 7); mg.fill(); mg.fillStyle = "#fff"; mg.beginPath(); mg.arc(x, y, 3.6, 0, 7); mg.fill();
   }
-  if (selected && selected.moonContact) { const sx = mx(selected.lon), sy = my(selected.ms); mg.strokeStyle = NATAL; mg.lineWidth = 1.4; mg.beginPath(); mg.arc(sx, sy, 8, 0, 7); mg.stroke(); }
+  if (selected && selected.moonContact) { const sx = mx(selected.lon), sy = my(selected.ms); if (sx <= mW) { mg.strokeStyle = NATAL; mg.lineWidth = 1.4; mg.beginPath(); mg.arc(sx, sy, 8, 0, 7); mg.stroke(); } }
   // what she's doing at the playhead
   const elong = norm(lm - lonNow.sun), illum = Math.round(((1 - Math.cos(elong * D2R)) / 2) * 100);
   const ing = m.ingress.find((i) => i.ms > t), v = m.voids.find((q) => t >= q[0] && t <= q[1]);
   el("moonCap").textContent = `In ${SIGN[signOf(lm)]}, ${elong < 180 ? "waxing" : "waning"}, ${illum}% lit. ${v ? `Void until ${fmtWhen(v[1])}.` : ing ? `Enters ${SIGN[ing.sign]} ${fmtWhen(ing.ms)}.` : ""}`;
 }
-function setMoonLaps(n) {
-  moonLaps = n; anchorMoon(t); sizeMoon();
-  el("moonSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.laps) === n)));
+const MOON_SPANS = [[3, "3 days"], [7, "1 week"], [14, "2 weeks"], [27.3216, "A lap"], [82, "3 laps"], [164, "6 laps"], [355, "A year"], [710, "2 years"]];
+function setMoonSpan(d) {
+  moonDays = d; anchorMoon(t); sizeMoon();
+  el("moonSpans").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.days) === d)));
+  // close up, she's worth reading in full; further out, the columns are the point
+  if (contactAuto) { contactMode = d <= 30 ? "all" : "0"; document.querySelectorAll("[data-contacts]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.contacts === contactMode))); }
   dirty = true;
 }
-el("moonSpans").append(...[[3, "3 laps"], [6, "6 laps"], [13, "A year"], [26, "Two years"]].map(([n, name]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.laps = n; b.textContent = name; b.addEventListener("click", () => setMoonLaps(n)); return b; }));
+el("moonSpans").append(...MOON_SPANS.map(([d, name]) => { const b = document.createElement("button"); b.type = "button"; b.dataset.days = d; b.textContent = name; b.addEventListener("click", () => setMoonSpan(d)); return b; }));
+moonC.addEventListener("wheel", (e) => { if (!e.ctrlKey) return; e.preventDefault(); const r = moonC.getBoundingClientRect(); zoom(e.deltaY > 0 ? 1.4 : 1 / 1.4); }, { passive: false });
 document.querySelectorAll("[data-contacts]").forEach((b) => b.addEventListener("click", () => {
-  contactMode = b.dataset.contacts; document.querySelectorAll("[data-contacts]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  contactAuto = false; contactMode = b.dataset.contacts; document.querySelectorAll("[data-contacts]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
   moonDirty = true; dirty = true;
 }));
 function renderMoonCard(c) {
+  if (selected.skyC) {
+    const e = selected, b = ACT[e.np], man = MANNER[e.kind];
+    c.innerHTML = `<h2><span style="color:${SILVER}">☽${VS}</span> Moon ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${VS}</span> ${NAME[e.np]}</h2>
+      <p class="sub">Exact ${fmtWhen(e.ms)}, in the sky for everyone</p>
+      <p class="read">The Moon, ${ACT.moon.epithet}, ${man.verb} ${NAME[e.np]}, ${b.epithet}. These are the contacts that decide when she goes void of course: after her last one in a sign, she's void until she enters the next.</p>
+      <p class="fine">Positions and times here are measured. The meanings are tradition, not measurement.</p>`;
+    return;
+  }
   const e = selected, act = ACT.moon, man = MANNER[e.kind], hm = houseOf(houses, longitude("moon", e.ms)), hn = pointHouse(e.np), nm = NAME[e.np];
   c.innerHTML = `<h2><span style="color:${SILVER}">☽${VS}</span> Moon ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${isAngle(e.np) ? "" : VS}</span> ${nm}</h2>
     <p class="sub">Exact ${fmtWhen(e.ms)}, with the Moon in ${SIGN[signOf(longitude("moon", e.ms))]}</p>
@@ -1695,7 +1758,7 @@ moonC.addEventListener("pointerup", (e) => {
   if (moved) return;
   let best = null, bd = coarse ? 20 : 10;
   for (const h of moonHits) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h.c; } }
-  if (best) { select({ ...best, moonContact: true, moon: true, key: `moon|${best.np}|${best.a}` }); setT(best.ms, false); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
+  if (best) { select({ ...best, moonContact: true, moon: true, key: best.skyC ? `moonsky|${best.np}|${best.a}` : `moon|${best.np}|${best.a}` }); setT(best.ms, false); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
   else if (!coarse && y > M_TOP) setT(mtOf(y), false);
 });
 moonC.addEventListener("pointercancel", () => { mdown = null; });
@@ -2381,7 +2444,7 @@ function setView(v) {
   else el("stageRight").append(el("card"), el("passing"));
   try { history.replaceState(null, "", `#${v}-view`); } catch (_) {}
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
-  if (v === "moon") { if (!moonStart) setMoonLaps(innerWidth < 640 ? 6 : 13); else { sizeMoon(); } }
+  if (v === "moon") { if (!moonStart) setMoonSpan(innerWidth < 640 ? 164 : 355); else { sizeMoon(); } }
   if (v === "two") { if (!twoS) setTwoSpan(31); twoLayoutDirty = true; renderSpine(); if (synList.length && (!selected || !selected.syn)) { selected = synList[0]; renderCard(); } }
   if (v === "fold") {
     if (!foldSized) { foldSized = true; setFoldSpan(narrow() ? 91 : 183); }
@@ -2392,8 +2455,8 @@ function setView(v) {
 // time moves at the scale of the view you're in: the tape drags at that view's pixels per day, and
 // the step buttons take a step that suits it
 const spanDays = () => view === "moon" ? moonSpanDays() : view === "two" ? twoSpan : view === "now" ? nowSpan : (view === "fold" ? fSpan : viewSpan) / DAY;
-const stepDays = () => { const d = spanDays(); if (view === "moon") return 1; return d <= 120 ? 1 : d <= 800 ? 7 : 30; };
-const stepName = () => ({ 1: "1 day", 7: "1 week", 30: "1 month" })[stepDays()];
+const stepDays = () => { const d = spanDays(); if (view === "moon") return d <= 8 ? 1 / 24 : d <= 30 ? 0.25 : 1; return d <= 120 ? 1 : d <= 800 ? 7 : 30; };
+const stepName = () => { const q = stepDays(); return q < 0.1 ? "1 hour" : q < 1 ? "6 hours" : q === 1 ? "1 day" : q === 7 ? "1 week" : "1 month"; };
 function holdStep(btn, sign) {   // press to step once, hold to keep going
   let timer = 0, rep = 0;
   const go = () => { setPlaying(false); setT(t + sign * stepDays() * DAY); };
@@ -2405,7 +2468,7 @@ function holdStep(btn, sign) {   // press to step once, hold to keep going
 holdStep(el("back"), -1); holdStep(el("fwd"), 1); holdStep(el("mBack"), -1); holdStep(el("mFwd"), 1);
 const tape = el("tape"), tg = tape.getContext("2d");
 let tW = 0, tH = 46, tDPR = 1, tapeDown = null;
-const tapePPD = () => { if (view === "moon") return 6; const inner = view === "two" ? tW2 - tGut() : view === "now" ? nW - nGut() : view === "fold" ? fW - F_GUT - 8 : sW - gutter(); return Math.max(2, inner / spanDays()); };
+const tapePPD = () => { if (view === "moon") return Math.max(6, Math.min(60, mPPD())); const inner = view === "two" ? tW2 - tGut() : view === "now" ? nW - nGut() : view === "fold" ? fW - F_GUT - 8 : sW - gutter(); return Math.max(2, inner / spanDays()); };
 function drawTape() {
   if (innerWidth >= 640) return;
   const r = tape.getBoundingClientRect(); if (!r.width) return;
@@ -2442,7 +2505,7 @@ function frame() {
   el("stepLab").textContent = stepName();
   const stepTitle = `${stepName()} at a time; hold to keep going`; el("back").title = el("fwd").title = stepTitle;
   const dd = Math.round((t - today) / DAY);
-  el("whenSub").textContent = turnNote || (dd === 0 ? "today" : dd > 0 ? `${dd} days ahead` : `${-dd} days ago`);
+  el("whenSub").textContent = turnNote || (view === "moon" && moonDays <= 30) ? (turnNote || new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })) : (dd === 0 ? "today" : dd > 0 ? `${dd} days ahead` : `${-dd} days ago`);
   turnNote = "";
 }
 let last = performance.now();
@@ -2470,7 +2533,7 @@ el("sound").addEventListener("click", async () => {
   el("sound").textContent = on ? "Sound" : "Sound off"; el("sound").setAttribute("aria-pressed", String(!on));
 });
 function zoom(f, about) {
-  if (view === "moon") { const o = [3, 6, 13, 26], k = o.indexOf(moonLaps) + (f > 1 ? 1 : -1); setMoonLaps(o[Math.max(0, Math.min(3, k))]); return; }
+  if (view === "moon") { const o = MOON_SPANS.map((q) => q[0]), k = o.indexOf(moonDays) + (f > 1 ? 1 : -1); setMoonSpan(o[Math.max(0, Math.min(o.length - 1, k))]); return; }
   if (view === "two") { const o = [14, 31, 91, 183], k = o.indexOf(twoSpan) + (f > 1 ? 1 : -1); setTwoSpan(o[Math.max(0, Math.min(3, k))]); return; }
   if (view === "now") { const o = [7, 14, 31], k = o.indexOf(nowSpan) + (f > 1 ? 1 : -1); setNowSpan(o[Math.max(0, Math.min(2, k))]); return; }
   if (view === "fold") {
@@ -2548,7 +2611,7 @@ fold.addEventListener("pointerup", (e) => {
 fold.addEventListener("pointercancel", () => { fdown = null; });
 window.addEventListener("keydown", (e) => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
-  const step = e.shiftKey ? 7 : 1;
+  const step = view === "moon" ? stepDays() * (e.shiftKey ? 7 : 1) : e.shiftKey ? 7 : 1;
   if (e.key === "ArrowRight") { e.preventDefault(); setT(t + step * DAY); }
   else if (e.key === "ArrowLeft") { e.preventDefault(); setT(t - step * DAY); }
   else if (e.key === "PageDown") { e.preventDefault(); setT(t + 30 * DAY); }

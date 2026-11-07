@@ -1707,13 +1707,13 @@ const SIGN_THEME = [
 function stelliumText(pat, A) {
   const C = TEXTS.cond || {}, list = pat.list, names = list.map((q) => NAME[q]);
   const join = (xs) => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
-  const topics = join(list.map((q) => TOPIC[q].replace(/^your /, "").split(",")[0]));
+  const topics = join(list.map((q) => TOPIC[q].split(",")[0].replace(/ and .*$/, "")));
   const out = [];
   if (pat.sign !== undefined) {
     out.push(`${join(names)} gather in ${SIGN[pat.sign]}, so its themes, ${SIGN_THEME[pat.sign]}, become a loud note in the whole chart.`);
     if (A.timed) {
       const hs = [...new Set(list.map((q) => houseOf(houses, natal[q])))].sort((a, b) => a - b);
-      out.push(hs.length === 1 ? `They share your ${ORD[hs[0]]} house, so that emphasis plays out in ${HOUSE[hs[0]]}.` : `They fall across your ${join(hs.map((h) => ORD[h]))} houses, so the emphasis plays out in ${join(hs.map((h) => HOUSE[h]))}.`);
+      out.push(hs.length === 1 ? `They share your ${ORD[hs[0]]} house, so the emphasis plays out in ${HOUSE[hs[0]]}.` : `They fall across your ${join(hs.map((h) => ORD[h]))} houses, so the emphasis plays out ${hs.map((h) => `in the ${ORD[h]} (${HOUSE[h]})`).join(" and ")}.`);
     }
   } else {
     const signs = [...new Set(list.map((q) => signOf(natal[q])))];

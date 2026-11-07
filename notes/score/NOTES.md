@@ -1,4 +1,4 @@
-# Sublunary Score: open notes
+# Sublunary: Cantata, open notes
 
 From testing on a phone:
 

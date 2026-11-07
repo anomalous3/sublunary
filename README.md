@@ -19,9 +19,9 @@ the Moon's tilted orbit, its nodes Rahu and Ketu, and every orb as a cap of ligh
 
 And two pieces for your own chart, computed in your browser so your birth data stays with you:
 **[Synastry Chords](https://anomalous3.github.io/sublunary/synastry.html)** plays two charts as one chord, and
-**[Sublunary Score](https://anomalous3.github.io/sublunary/score.html)** is a whole instrument: *Now*, a forecast of
-what begins and ends this week; *Score*, your transits as a piano roll; *Fold*, every planet as a line through time
-with the zodiac folded so aspects become crossings; and *Two*, what connects two charts and what the sky does to each.
+**[Sublunary: Cantata](https://anomalous3.github.io/sublunary/cantata.html)** is a work in four movements: *Now*, a forecast
+of what begins and ends this week; *Score*, your transits as a piano roll; *Fold*, every planet as a line through time
+with the zodiac folded so aspects become crossings; and *Two*, what passes between two charts and what the sky does to each.
 
 Void of course is famously contested, so Sublunary computes several
 definitions side by side, and the disagreement between them is itself

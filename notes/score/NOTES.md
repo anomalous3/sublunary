@@ -12,3 +12,9 @@ From testing on a phone:
 Later: Two (mirrored tracks, likely next), a Moon view (helicorder), Life (tree rings), a mixer in place of the layer checkboxes, a longer span for Fold, a true node and Lilith, tap-to-read Moon contacts.
 
 Real charts stay out of git: first_chart.json and second_chart.json are gitignored and only reach the private build.
+
+Ideas for later:
+
+- Tarot, deterministic, from the sky: each spread position is held by a body and its card is that body's current decan (Golden Dawn), so cadence follows speed. A retrograde flips the card. Voices come from the planetary voices we have. Very slow bodies leave cards stuck for years, which may upset people: make that an option, or let slow positions draw from a seeded pool. Conventions: the correspondences are old; a spread from current positions and retrograde-as-reversed seem to be new, so label them.
+- Long timescales need lossy compression: fast bodies become texture, slow ones stay lines. That opens a longer Fold and Life.
+- Two: lifetime highlights.

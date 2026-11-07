@@ -38,6 +38,7 @@
   button:hover, select:hover { border-color: var(--muted); }
   button[aria-pressed="true"] { background: #262b40; }
   :is(button, select, input, summary, canvas):focus-visible { outline: 2px solid var(--silver); outline-offset: 2px; }
+  .side { display: grid; gap: 12px; min-width: 0; }
   .stage { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 18px; align-items: start; }
   @media (max-width: 860px) { .stage { grid-template-columns: minmax(0, 1fr); } }
   .dialbox { width: 100%; max-width: 480px; aspect-ratio: 1; justify-self: center; }
@@ -73,7 +74,7 @@
   #foldN { width: 100%; accent-color: var(--silver); }
   .foldcap { margin: 0; max-width: 92ch; min-height: 3em; }
   #fold { width: 100%; touch-action: pan-y; cursor: col-resize; }
-  #foldSlot #card { margin-top: 2px; }
+  #foldSlot { display: grid; gap: 10px; min-width: 0; }
   #twobox { display: grid; gap: 12px; }
   .twotop { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
   .twohead { font: 400 21px/1.2 var(--display); margin: 0; flex: 1 1 260px; }
@@ -83,7 +84,9 @@
   .twowheelbox { width: 100%; max-width: 420px; aspect-ratio: 1; margin: 0 auto; }
   .twowheelwrap { min-width: 0; }
   #twoWheel { width: 100%; height: 100%; cursor: pointer; }
-  ol.spine { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 410px; overflow-y: auto; }
+  ol.spine { list-style: none; margin: 0; padding: 0 0 22px; display: grid; gap: 2px; max-height: 410px; overflow-y: auto; }
+  .fades { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); }
+  .fades.at-end { -webkit-mask-image: none; mask-image: none; }
   ol.spine button { width: 100%; text-align: left; display: grid; grid-template-columns: 58px minmax(0, 1fr) auto 40px; gap: 8px; align-items: center; background: transparent; border: 1px solid transparent; padding: 4px 8px; }
   ol.spine button:hover { border-color: var(--line); }
   ol.spine button[aria-pressed="true"] { border-color: var(--muted); background: #161a28; }
@@ -101,6 +104,13 @@
   #nowSlot { position: sticky; top: 12px; min-width: 0; }
   #card { scroll-margin-top: 76px; }
   @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } #nowSlot { position: static; } }
+  .viewnav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .viewnav button { display: grid; gap: 1px; text-align: left; padding: 8px 14px; border-radius: 10px; background: #10121c; border: 1px solid var(--line); color: var(--muted); min-width: 0; }
+  .viewnav button b { font: 400 21px/1.1 var(--display); color: var(--fg); }
+  .viewnav button span { font-size: 12px; line-height: 1.25; }
+  .viewnav button:hover { background: #161a28; }
+  .viewnav button[aria-pressed="true"] { background: #1f2438; border-color: var(--natal); color: var(--fg); box-shadow: inset 0 -2px 0 var(--natal); }
+  @media (max-width: 640px) { .viewnav button { padding: 6px 8px; } .viewnav button b { font-size: 18px; } .viewnav button span { font-size: 10.5px; } }
   .exbar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; color: var(--muted); padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
   .exbar #exText { flex: 1 1 320px; min-width: 0; }
   .exbar label { display: flex; gap: 6px; align-items: center; }
@@ -124,9 +134,8 @@
     .foldcap { font-size: 13.5px; }
     button, select { min-height: 36px; }
   }
-  .passing { position: fixed; z-index: 20; right: max(12px, env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-             width: min(330px, calc(100vw - 32px)); display: grid; justify-items: end; gap: 6px; transition: opacity .25s; }
-  .passing.quiet { opacity: 0; pointer-events: none; }
+  .passing { display: grid; justify-items: start; gap: 6px; transition: opacity .25s; min-width: 0; }
+  .passing.quiet { opacity: 0; pointer-events: none; transition: none; }
   .deckhead { font-size: 13px; background: rgba(16, 18, 28, 0.95); min-height: 34px; }
   .pcards { list-style: none; margin: 0; padding: 0; width: 100%; max-height: min(44vh, 400px); overflow-y: auto; border-radius: 10px; }
   .pcard { position: relative; margin-top: -3px; border: 1px solid var(--line); border-radius: 10px; background: #12141f; box-shadow: 0 -3px 8px rgba(0,0,0,0.35); }
@@ -142,7 +151,6 @@
   .pl { font-size: 12.5px; color: var(--muted); line-height: 1.35; }
   .pm { font: 11.5px var(--mono); font-variant-numeric: tabular-nums; }
   .pread { justify-self: start; margin-top: 4px; font-size: 12.5px; }
-  @media (max-width: 640px) { .passing { left: 16px; right: 16px; width: auto; } .pcards { max-height: 52vh; } }
   #miniScrub { display: none; }
   .stepper { display: inline-flex; align-items: center; gap: 6px; }
   #stepLab { font: 12px var(--mono); color: var(--muted); min-width: 46px; text-align: center; }
@@ -165,12 +173,6 @@
 <div class="page">
   <header>
     <h1>Sublunary Score</h1>
-    <div class="tabs" role="group" aria-label="View">
-      <button type="button" id="vNow" aria-pressed="true">Now</button>
-      <button type="button" id="vScore" aria-pressed="false">Score</button>
-      <button type="button" id="vFold" aria-pressed="false">Fold</button>
-      <button type="button" id="vTwo" aria-pressed="false">Two</button>
-    </div>
     <div class="when"><span id="when"></span><span id="whenSub"></span></div>
     <div class="ctrls">
       <span class="stepper"><button type="button" class="stepb" id="back" aria-label="Step back">‹</button><span id="stepLab"></span><button type="button" class="stepb" id="fwd" aria-label="Step forward">›</button></span>
@@ -186,6 +188,13 @@
       <button type="button" id="cardsBtn" aria-pressed="true" title="Small cards that come and go as aspects near exact">Cards</button>
     </div>
   </header>
+
+  <nav class="viewnav" aria-label="Views">
+    <button type="button" id="vNow" aria-pressed="true"><b>Now</b><span>This week</span></button>
+    <button type="button" id="vScore" aria-pressed="false"><b>Score</b><span>The years</span></button>
+    <button type="button" id="vFold" aria-pressed="false"><b>Fold</b><span>The sky, folded</span></button>
+    <button type="button" id="vTwo" aria-pressed="false"><b>Two</b><span>Two charts</span></button>
+  </nav>
 
   <div id="miniScrub">
     <button type="button" class="stepb" id="mBack" aria-label="Step back">‹</button>
@@ -278,13 +287,13 @@
       <div class="seg" id="foldSpans" role="group" aria-label="How much time to show"></div>
     </div>
     <p class="foldcap" id="foldCap" aria-live="polite"></p>
-    <canvas id="fold" tabindex="0" role="img" aria-label="Every planet as a line through time, with the zodiac as height. Gold horizontal lines are the birth chart. Folding the zodiac makes planets in aspect cross. Click a crossing to read it."></canvas>
+    <canvas id="fold" tabindex="0" role="img" aria-label="Every planet as a line through time, with the zodiac as height. Horizontal lines are the birth chart. Folding the zodiac makes planets in aspect cross. Click a crossing to read it."></canvas>
     <div id="foldSlot"></div>
   </section>
 
   <div class="stage" id="stage">
-    <div class="dialbox"><canvas id="dial" tabindex="0" role="img" aria-label="Chart wheel for the moment under the playhead: the natal planets in gold, the transiting planets in their own colors outside them, and bright lines for the aspects between them. Scroll here to move through time; click a line to read it."></canvas></div>
-    <section id="card" aria-live="polite"></section>
+    <div class="dialbox"><canvas id="dial" tabindex="0" role="img" aria-label="Chart wheel for the moment under the playhead: the natal planets on the inner ring, the transiting planets outside them, and bright lines for the aspects between them. Scroll here to move through time; click a line to read it."></canvas></div>
+    <div class="side" id="stageRight"><section id="card" aria-live="polite"></section><div class="passing" id="passing"></div></div>
   </div>
 
   <section id="scorebox">
@@ -315,8 +324,6 @@
     <p class="fine">A chart entered here stays in this browser. Positions come from <a href="https://github.com/cosinekitty/astronomy" style="color:inherit">Astronomy Engine</a>, computed on this device. Part of <a href="https://github.com/anomalous3/sublunary" style="color:inherit">Sublunary</a>.</p>
   </details>
 </div>
-
-<div class="passing" id="passing"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
 <script>
@@ -774,8 +781,6 @@ function drawDial() {
     const [x0, y0] = dpt(c, rC), [x1, y1] = dpt(c, rZi), ang = i === 0 || i === 9;
     dg.strokeStyle = ang ? "rgba(240,198,116,0.55)" : "rgba(139,145,168,0.22)"; dg.lineWidth = ang ? 1.4 : 1;
     dg.beginPath(); dg.moveTo(x0, y0); dg.lineTo(x1, y1); dg.stroke();
-    const next = houses.cusps[(i + 1) % 12], mid = c + norm(next - c) / 2, [hx, hy] = dpt(mid, rC + R * 0.03);
-    dg.fillStyle = "rgba(143,149,173,0.55)"; dg.font = `${Math.round(R * 0.03)}px var(--mono), monospace`; dg.fillText(String(i + 1), hx, hy);
   });
   // aspect lines
   dLines = [];
@@ -794,6 +799,11 @@ function drawDial() {
     dLines.push({ c, x0, y0, x1, y1 });
   }
   dg.setLineDash([]); dg.globalAlpha = 1;
+  if (!chart.unknown) houses.cusps.forEach((c, i) => {
+    const next = houses.cusps[(i + 1) % 12], mid = c + norm(next - c) / 2, [hx, hy] = dpt(mid, rC + R * 0.03);
+    dg.font = `${Math.round(R * 0.032)}px "IBM Plex Mono", monospace`; dg.lineWidth = 3; dg.strokeStyle = "rgba(8,9,15,0.9)"; dg.strokeText(String(i + 1), hx, hy);
+    dg.fillStyle = "rgba(170,176,198,0.85)"; dg.fillText(String(i + 1), hx, hy);
+  });
   // natal planets, then the transits outside them
   const gs = Math.round(R * 0.062);
   const nat = POINTS.filter((p) => !isAngle(p)), shownN = spread(nat.map((b) => natal[b]), (gs * 1.15) / rN / D2R);
@@ -975,7 +985,7 @@ function eventAt(x, y) {
 // (height = n x longitude, mod 360), which lands everything 360/n apart at the same height: so the
 // nth harmonic's aspects become crossings, and whole groups of signs come to share a band.
 const FOLDS = [
-  { n: 1, name: "Whole circle", bands: SIGN_GLYPH.map((g) => g + VS), cap: "The whole zodiac, bottom to top. A crossing with a gold line is a conjunction with your chart, and a retrograde bends back on itself to cross the same line three times." },
+  { n: 1, name: "Whole circle", bands: SIGN_GLYPH.map((g) => g + VS), cap: "The whole zodiac, bottom to top. A crossing with a horizontal line, one of your natal points, is a conjunction with your chart, and a retrograde bends back on itself to cross the same line three times." },
   { n: 2, name: "Oppositions", bands: ["♈♎", "♉♏", "♊♐", "♋♑", "♌♒", "♍♓"].map((g) => [...g].map((x) => x + VS).join("")), cap: "Folded in two: each sign lies on its opposite, the six axes of the zodiac. Oppositions are now crossings too." },
   { n: 3, name: "Trines", bands: ["Fire", "Earth", "Air", "Water"], cap: "Folded in three: the signs of each element land in one band. Fire, earth, air and water are the circle's third harmonic, and every trine is now a crossing." },
   { n: 4, name: "Squares", bands: ["Cardinal", "Fixed", "Mutable"], cap: "Folded in four: the three modalities separate out. Cardinal, fixed and mutable are the fourth harmonic, and squares, oppositions and conjunctions all meet here." },
@@ -1037,12 +1047,21 @@ function drawFoldCache() {
   }
   g.globalAlpha = 1;
   const ys = pts.map((q) => ({ q, y: fy(natal[q]) })).sort((a, b) => a.y - b.y);
-  for (let k = 1; k < ys.length; k++) if (ys[k].y - ys[k - 1].y < 13) ys[k].ly = (ys[k - 1].ly ?? ys[k - 1].y) + 13;
+  // spread the labels so none overlap, pushing both ways, and tie each to its line
+  const GAP = 14, top = F_TOP + 6, bottom = fH - 8;
+  ys.forEach((r) => { r.ly = r.y; });
+  for (let pass = 0; pass < 30; pass++) {
+    for (let k = 1; k < ys.length; k++) { const d = ys[k].ly - ys[k - 1].ly; if (d < GAP) { ys[k - 1].ly -= (GAP - d) / 2; ys[k].ly += (GAP - d) / 2; } }
+    if (ys.length) { ys[0].ly = Math.max(top, ys[0].ly); ys[ys.length - 1].ly = Math.min(bottom, ys[ys.length - 1].ly); }
+    for (let k = 1; k < ys.length; k++) ys[k].ly = Math.max(ys[k].ly, ys[k - 1].ly + Math.min(GAP, (bottom - top) / Math.max(1, ys.length - 1)));
+    for (let k = ys.length - 2; k >= 0; k--) ys[k].ly = Math.min(ys[k].ly, ys[k + 1].ly - Math.min(GAP, (bottom - top) / Math.max(1, ys.length - 1)));
+  }
   g.textAlign = "right";
   for (const r of ys) {
-    const ly = Math.min(fH - 8, r.ly ?? r.y);
+    const ly = r.ly;
+    g.strokeStyle = COLOR[r.q]; g.globalAlpha = 0.5; g.lineWidth = 1; g.beginPath(); g.moveTo(F_GUT - 4, ly); g.lineTo(F_GUT, r.y); g.stroke(); g.globalAlpha = 1;
     g.fillStyle = COLOR[r.q]; g.font = isAngle(r.q) ? `600 10.5px "Instrument Sans", sans-serif` : `14px ${SYM}`;
-    g.fillText(GLYPH[r.q] + (isAngle(r.q) ? "" : VS), F_GUT - 6, ly);
+    g.fillText(GLYPH[r.q] + (isAngle(r.q) ? "" : VS), F_GUT - 7, ly);
   }
   // the planets, with thicker line where they come within orb of a natal point
   const lo = Math.max(0, Math.floor((fStart - T0) / DAY)), hi = Math.min(NDAYS - 1, Math.ceil((fStart + fSpan - T0) / DAY));
@@ -1182,7 +1201,8 @@ const MODERN7 = ["sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus
 const now = el("now"), ng = now.getContext("2d"), nCache = document.createElement("canvas"), ncg = nCache.getContext("2d");
 let nowEvents = [], nowTurns = [], nW = 800, nH = 500, nDPR = 1, nowDirty = true, nowLayoutDirty = true;
 let nowTicks = 0, nowStyle = "threads", nowSpan = 14, nowS = 0, nowRows = [], nowHits = [], underOpen = false, moonCache = null;
-const nGut = () => (nW < 560 ? 58 : 158), NOW_TOP = 34;
+const nGut = () => (nW < 560 ? 86 : 164), NOW_TOP = 34, LABEL = "#bcc1d3";
+const shortName = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b];
 const nx = (ms) => nGut() + ((ms - nowS) / (nowSpan * DAY)) * (nW - nGut() - 4);
 const ntOf = (x) => nowS + ((x - nGut()) / (nW - nGut() - 4)) * (nowSpan * DAY);
 const localMidnight = (ms) => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -1359,12 +1379,14 @@ function drawNowCache() {
     const e = r.e, cyy = r.y + r.h / 2, half = r.h / 2 - 2, col = COLOR[e.tb], hard = e.kind === 90 || e.kind === 180;
     g.strokeStyle = "rgba(38,43,64,0.55)"; g.beginPath(); g.moveTo(0, r.y + r.h - 0.5); g.lineTo(nW, r.y + r.h - 0.5); g.stroke();
     g.textAlign = "left"; g.font = `${sz}px ${SYM}`;
-    g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, cyy);
-    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, cyy);
+    const wide = gut > 100, gy = wide ? cyy : cyy - 7;
+    g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, gy);
+    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, gy);
     g.fillStyle = COLOR[e.np];
     g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`;
-    g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.15, cyy);
-    if (gut > 100) { g.fillStyle = MUTED; g.font = `12px "Instrument Sans", sans-serif`; const sh = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b]; g.fillText(`${sh(e.tb)}, ${sh(e.np)}`, 2 + sz * (isAngle(e.np) ? 4 : 3.4), cyy); }
+    g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.15, gy);
+    g.fillStyle = LABEL; g.font = `${wide ? 13 : 10.5}px "Instrument Sans", sans-serif`;
+    g.fillText(`${shortName(e.tb)}, ${shortName(e.np)}`, wide ? 2 + sz * (isAngle(e.np) ? 4 : 3.4) : 2, wide ? cyy : cyy + 8);
     g.save(); g.beginPath(); g.rect(gut, r.y, nW - gut, r.h); g.clip();
     // each row is a small Fold: a faint horizontal is exact, and the planet is a thread drifting
     // through it. Height is the real distance from exact, so a steep thread is a quick aspect, a
@@ -1446,7 +1468,7 @@ function drawNow() {
   ng.setTransform(nDPR, 0, 0, nDPR, 0, 0);
   if (selected) {
     const r = [...nowRows.fg, ...nowRows.sky, ...(underOpen ? nowRows.under : [])].find((q) => q.e.key === selected.key);
-    if (r) { ng.strokeStyle = SILVER; ng.lineWidth = 1; ng.strokeRect(0.5, r.y + 0.5, nW - 1, r.h - 1); }
+    if (r) { ng.fillStyle = "rgba(238,241,248,0.06)"; ng.fillRect(0, r.y, nW, r.h); ng.fillStyle = NATAL; ng.fillRect(0, r.y + 2, 2, r.h - 4); }
   }
   const x = nx(t);
   if (x >= nGut() && x <= nW) { ng.strokeStyle = SILVER; ng.lineWidth = 1.5; ng.beginPath(); ng.moveTo(x, NOW_TOP - 8); ng.lineTo(x, nH); ng.stroke(); }
@@ -1541,6 +1563,12 @@ function computeTwo() {
   for (const e of twoEvents) { e.i0 = e.swells[0][0]; e.i1 = e.swells[e.swells.length - 1][1]; e.id = `${e.key}|${e.i0}`; }
   computeSyn(); renderSpine(); twoLayoutDirty = true;
 }
+function wireFade(ol) {
+  const check = () => ol.classList.toggle("at-end", ol.scrollTop + ol.clientHeight >= ol.scrollHeight - 4);
+  ol.classList.add("fades");
+  if (!ol.dataset.fade) { ol.dataset.fade = "1"; ol.addEventListener("scroll", check, { passive: true }); }
+  requestAnimationFrame(check);
+}
 function renderSpine() {
   const ol = el("spine"); if (!ol) return;
   if (!second) { ol.innerHTML = `<li class="empty">Enter a second chart below to see what connects them.</li>`; return; }
@@ -1554,6 +1582,7 @@ function renderSpine() {
     b.addEventListener("click", () => { select(c); renderSpine(); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); });
     li.append(b); return li;
   }));
+  wireFade(ol);
 }
 const twoWheel = el("twoWheel"), twg = twoWheel.getContext("2d");
 function drawTwoWheel() {
@@ -1603,7 +1632,7 @@ twoWheel.addEventListener("click", (e) => {
 // the near term, mirrored
 const two = el("two"), tg2 = two.getContext("2d"), tCache = document.createElement("canvas"), tcg = tCache.getContext("2d");
 let tW2 = 800, tH2 = 400, tDPR2 = 1;
-const tGut = () => (tW2 < 560 ? 50 : 132), TWO_TOP = 26;
+const tGut = () => (tW2 < 560 ? 86 : 140), TWO_TOP = 26;
 const tx2 = (ms) => tGut() + ((ms - twoS) / (twoSpan * DAY)) * (tW2 - tGut() - 4);
 const ttOf = (x) => twoS + ((x - tGut()) / (tW2 - tGut() - 4)) * (twoSpan * DAY);
 function anchorTwo(ms) { twoS = Math.max(T0, Math.min(T1 - twoSpan * DAY, localMidnight(ms - Math.round(twoSpan * 0.12) * DAY))); twoLayoutDirty = true; }
@@ -1632,7 +1661,7 @@ function layoutTwo() {
   bridges.sort((x, y) => x.at - y.at);
   twoRows = { A, B, bridges };
   let y = TWO_TOP;
-  const headH = 22, rowH = tW2 < 560 ? 30 : 32;
+  const headH = 22, rowH = tW2 < 560 ? 36 : 32;
   twoRows.headA = y; y += headH;
   A.forEach((r) => { r.y = y; r.h = rowH; y += rowH; });
   twoRows.spineY = y; const spineH = 46 + (bridges.length ? 16 : 0); twoRows.spineH = spineH; y += spineH;
@@ -1662,10 +1691,12 @@ function drawTwoCache() {
   const drawRow = (r) => {
     const e = r.e, cy = r.y + r.h / 2, col = COLOR[e.tb], hard = e.kind === 90 || e.kind === 180, base = COLOR[e.np];
     g.textAlign = "left"; const sz = 14;
-    g.font = `${sz}px ${SYM}`; g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, cy);
-    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, cy);
-    g.fillStyle = base; g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`; g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.1, cy);
-    if (gut > 100) { g.fillStyle = MUTED; g.font = `11.5px "Instrument Sans", sans-serif`; const sh = (b) => b === "node" ? "Node" : b === "asc" ? "Asc" : b === "mc" ? "MC" : NAME[b]; g.fillText(`${sh(e.tb)}, ${sh(e.np)}`, 2 + sz * (isAngle(e.np) ? 3.9 : 3.3), cy); }
+    const wide = gut > 100, gy = wide ? cy : cy - 7;
+    g.font = `${sz}px ${SYM}`; g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, gy);
+    g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, gy);
+    g.fillStyle = base; g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`; g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.1, gy);
+    g.fillStyle = LABEL; g.font = `${wide ? 12.5 : 10.5}px "Instrument Sans", sans-serif`;
+    g.fillText(`${shortName(e.tb)}, ${shortName(e.np)}`, wide ? 2 + sz * (isAngle(e.np) ? 3.9 : 3.3) : 2, wide ? cy : cy + 8);
     g.save(); g.beginPath(); g.rect(gut, r.y, tW2 - gut, r.h); g.clip();
     const dI = Math.max(0.03, (twoSpan / (tW2 - gut)) * 2);
     g.lineCap = "round";
@@ -1717,7 +1748,7 @@ function drawTwo() {
   if (twoDirty) drawTwoCache();
   tg2.setTransform(1, 0, 0, 1, 0, 0); tg2.clearRect(0, 0, two.width, two.height); tg2.drawImage(tCache, 0, 0);
   tg2.setTransform(tDPR2, 0, 0, tDPR2, 0, 0);
-  if (selected && !selected.syn && !selected.shared) { const r = [...twoRows.A, ...twoRows.B].find((q) => q.e.key === selected.key); if (r) { tg2.strokeStyle = SILVER; tg2.lineWidth = 1; tg2.strokeRect(0.5, r.y + 0.5, tW2 - 1, r.h - 1); } }
+  if (selected && !selected.syn && !selected.shared) { const r = [...twoRows.A, ...twoRows.B].find((q) => q.e.key === selected.key); if (r) { tg2.fillStyle = "rgba(238,241,248,0.06)"; tg2.fillRect(0, r.y, tW2, r.h); tg2.fillStyle = NATAL; tg2.fillRect(0, r.y + 2, 2, r.h - 4); } }
   const x = tx2(t);
   if (x >= tGut() && x <= tW2) { tg2.strokeStyle = SILVER; tg2.lineWidth = 1.5; tg2.beginPath(); tg2.moveTo(x, TWO_TOP - 6); tg2.lineTo(x, tH2); tg2.stroke(); }
 }
@@ -1800,7 +1831,7 @@ function renderBCard(c) {
 let cardsOn = true;
 try { cardsOn = localStorage.getItem("sublunary.score.cards") !== "off"; } catch (_) {}
 const deck = el("passing");
-let lastMove = 0, deckSig = "", deckOpen = innerWidth >= 900, expanded = null, deckList = [];
+let lastMove = 0, deckSig = "", deckOpen = false, expanded = null, deckList = [];
 const lillyRho = (a, b) => (LILLY[a] + LILLY[b]) / 2;
 function deckCandidates() {
   const nI = view === "fold" ? Math.max(1, Math.round(foldTarget)) : 12, out = [];
@@ -1887,13 +1918,15 @@ function renderDeck(total, whole) {
   const old = deck.querySelector(".pcards"), keep = old ? old.scrollTop : 0;
   deck.replaceChildren(head, ol);
   ol.scrollTop = keep;
+  if (deckOpen) wireFade(ol);
   const openBtn = ol.querySelector(".pcard.open .pt");
   if (openBtn) { openBtn.focus({ preventScroll: true }); const c = openBtn.parentElement; if (c.offsetTop + c.offsetHeight > ol.scrollTop + ol.clientHeight) ol.scrollTop = c.offsetTop + c.offsetHeight - ol.clientHeight; }
 }
 function syncCards() {
   const moving = playing || performance.now() - lastMove < 350;
-  deck.classList.toggle("quiet", moving || !cardsOn || view === "now" || view === "two");
-  if (moving || !cardsOn || view === "now" || view === "two") return;
+  deck.hidden = !cardsOn || view === "now" || view === "two";
+  deck.classList.toggle("quiet", moving);
+  if (moving || deck.hidden) return;
   const { total, whole, list } = deckCandidates(), sig = [view, deckOpen, expanded, ...list.map((c) => c.id + (c.off ? c.off.toFixed(1) : ""))].join(",");
   if (sig === deckSig) return;
   deckSig = sig; deckList = list;
@@ -2133,7 +2166,10 @@ function setView(v) {
   // Now decides for itself what's in focus, so these two layers are for the other views
   document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
   deckSig = "";
-  (v === "fold" ? el("foldSlot") : v === "now" ? el("nowSlot") : v === "two" ? el("twoSlot") : el("stage")).append(el("card"));
+  if (v === "fold") el("foldSlot").append(el("passing"), el("card"));
+  else if (v === "now") el("nowSlot").append(el("card"));
+  else if (v === "two") el("twoSlot").append(el("card"));
+  else el("stageRight").append(el("card"), el("passing"));
   try { history.replaceState(null, "", `#${v}-view`); } catch (_) {}
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
   if (v === "two") { if (!twoS) setTwoSpan(31); twoLayoutDirty = true; renderSpine(); if (synList.length && (!selected || !selected.syn)) { selected = synList[0]; renderCard(); } }
@@ -2413,7 +2449,6 @@ el("layers").append(...Object.entries(LAYERS).filter(([, l]) => !l.fixed).map(([
 }));
 fillSecond(); sizeDial(); rebuild(); renderLegend(); el("cardsBtn").setAttribute("aria-pressed", String(cardsOn)); tick(last);
 new ResizeObserver(() => { if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
-el("settings").open = innerWidth >= 900;
 setFold(1, true);
 setView(location.hash === "#fold-view" ? "fold" : location.hash === "#score-view" ? "score" : location.hash === "#two-view" ? "two" : "now");
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { scoreDirty = true; foldDirty = true; nowDirty = true; dirty = true; });

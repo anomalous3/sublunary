@@ -71,6 +71,13 @@
   .seg { display: flex; flex-wrap: wrap; gap: 4px; }
   .seg button { font-size: 13px; padding: 3px 10px; }
   .seg button b { font: 500 14px var(--mono); margin-right: 5px; }
+  #foldBtns button { display: inline-flex; align-items: center; gap: 6px; }
+  #foldBtns button b { margin: 0; }
+  .foldicon { flex: none; color: var(--fg); }
+  #foldBtns button[aria-pressed="true"] { border-color: var(--natal); }
+  #foldBtns button[aria-pressed="true"] .foldicon { color: var(--natal); }
+  .foldintro { margin: 0; max-width: 92ch; font-size: 13.5px; color: var(--muted); }
+  .foldintro b { color: var(--fg); font-weight: 500; }
   #foldN { width: 100%; accent-color: var(--silver); }
   .foldcap { margin: 0; max-width: 92ch; min-height: 3em; }
   #fold { width: 100%; touch-action: pan-y; cursor: col-resize; }
@@ -127,7 +134,8 @@
     h1 { font-size: 22px; }
     .ctrls { margin-left: 0; }
     #foldBtns { flex-wrap: nowrap; }
-    #foldBtns button { flex: 1 1 0; padding: 3px 0; min-height: 38px; }
+    #foldBtns button { flex: 1 1 0; padding: 3px 0; min-height: 46px; flex-direction: column; justify-content: center; gap: 1px; }
+    #foldBtns button b { font-size: 12px; }
     #foldSpans button { padding: 3px 8px; font-size: 12.5px; }
     #foldBtns button b { margin: 0; }
     #foldBtns button span { display: none; }
@@ -283,6 +291,7 @@
 
   <section id="foldbox" hidden>
     <div class="foldctl">
+      <p class="foldintro"><b>Fold the zodiac.</b> Height is a planet's place in the circle. Folding stacks points that are the same angle apart, so planets in that aspect land at the same height, and where two lines cross the aspect is exact. Each button shows the shape it brings together.</p>
       <div class="seg" id="foldBtns" role="group" aria-label="How many times to fold the zodiac"></div>
       <input id="foldN" type="range" min="1" max="12" step="0.01" value="1" aria-label="Fold">
       <div class="seg" id="foldSpans" role="group" aria-label="How much time to show"></div>
@@ -335,7 +344,7 @@ const VS = "︎";
 const BODIES = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
 const LAYERS = {   // what the score and the wheel carry; the slow planets always
   slow: { label: "Mars to Pluto", bodies: ["mars", "jupiter", "saturn", "uranus", "neptune", "pluto"], fixed: true, on: true },
-  fast: { label: "Sun, Mercury, Venus", bodies: ["sun", "mercury", "venus"], on: false },
+  fast: { label: "Sun, Mercury, Venus", bodies: ["sun", "mercury", "venus"], on: true },
   chiron: { label: "Chiron", bodies: ["chiron"], on: true },
   lilith: { label: "Lilith", bodies: ["lilith"], on: true },
   node: { label: "Node", bodies: ["node"], on: true },
@@ -986,14 +995,14 @@ function eventAt(x, y) {
 // (height = n x longitude, mod 360), which lands everything 360/n apart at the same height: so the
 // nth harmonic's aspects become crossings, and whole groups of signs come to share a band.
 const FOLDS = [
-  { n: 1, name: "Whole circle", bands: SIGN_GLYPH.map((g) => g + VS), cap: "The whole zodiac, bottom to top. A crossing with a horizontal line, one of your natal points, is a conjunction with your chart, and a retrograde bends back on itself to cross the same line three times." },
+  { n: 1, name: "Conjunctions", bands: SIGN_GLYPH.map((g) => g + VS), cap: "The whole zodiac, bottom to top. A crossing with a horizontal line, one of your natal points, is a conjunction with your chart, and a retrograde bends back on itself to cross the same line three times." },
   { n: 2, name: "Oppositions", bands: ["♈♎", "♉♏", "♊♐", "♋♑", "♌♒", "♍♓"].map((g) => [...g].map((x) => x + VS).join("")), cap: "Folded in two: each sign lies on its opposite, the six axes of the zodiac. Oppositions are now crossings too." },
   { n: 3, name: "Trines", bands: ["Fire", "Earth", "Air", "Water"], cap: "Folded in three: the signs of each element land in one band. Fire, earth, air and water are the circle's third harmonic, and every trine is now a crossing." },
   { n: 4, name: "Squares", bands: ["Cardinal", "Fixed", "Mutable"], cap: "Folded in four: the three modalities separate out. Cardinal, fixed and mutable are the fourth harmonic, and squares, oppositions and conjunctions all meet here." },
   { n: 5, name: "Quintiles", bands: null, cap: "Folded in five, which no sign grouping survives: this is Kepler's own addition to the aspects, the quintile of 72°." },
   { n: 6, name: "Sextiles", bands: ["Fire, air", "Earth, water"], cap: "Folded in six: only polarity is left, active signs against receptive ones. Sextiles, trines and oppositions all cross." },
   { n: 8, name: "Semisquares", bands: null, cap: "Folded in eight: the hard family, every 45°. This is close to the dial the Uranian astrologers work on." },
-  { n: 12, name: "All", bands: ["Any sign, 0° to 30°"], cap: "Folded in twelve: all the signs lie on top of one another and height is only the degree within a sign. Every major aspect is a crossing." },
+  { n: 12, name: "All aspects", bands: ["Any sign, 0° to 30°"], cap: "Folded in twelve: all the signs lie on top of one another and height is only the degree within a sign. Every major aspect is a crossing." },
 ];
 const fold = el("fold"), fg = fold.getContext("2d"), fCache = document.createElement("canvas"), fcg = fCache.getContext("2d");
 let view = "score", foldN = 1, foldTarget = 1, fW = 900, fH = 560, fDPR = 1, foldDirty = true, crossings = [];
@@ -1114,7 +1123,7 @@ function drawFoldCache() {
     }
     // with room to read, each crossing names itself
     const pxPerCross = ((fW - F_GUT) * plotH) / Math.max(1, crossings.length);
-    if (pxPerCross > 4200) {
+    if (pxPerCross > 7000) {
       g.font = `12px ${SYM}`; g.textAlign = "left"; g.textBaseline = "middle"; g.lineWidth = 3; g.strokeStyle = "rgba(8,9,15,0.85)";
       for (const c of crossings) {
         if (c.sky) continue;
@@ -1172,9 +1181,15 @@ function setFold(n, instant) {
   if (f) el("foldCap").textContent = f.cap;
   el("foldBtns").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.n) === n)));
 }
+// each fold's shape: its points around the circle, joined. Two is an opposition's line, three a trine's triangle, four a square.
+function foldIcon(n) {
+  const pts = [...Array(n)].map((_, i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; return [10 + 8 * Math.cos(a), 10 + 8 * Math.sin(a)]; });
+  const line = n > 1 ? `<polygon points="${pts.map((q) => q.map((v) => v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="currentColor" stroke-width="1.1"/>` : "";
+  return `<svg class="foldicon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-opacity="0.3"/>${line}${pts.map((q) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="${n > 8 ? 1 : 1.5}" fill="currentColor"/>`).join("")}</svg>`;
+}
 el("foldBtns").append(...FOLDS.map((f) => {
   const b = document.createElement("button"); b.type = "button"; b.dataset.n = f.n;
-  b.innerHTML = `<b>${f.n}</b><span>${f.name}</span>`; b.setAttribute("aria-label", `Fold ${f.n}: ${f.name}`);
+  b.innerHTML = `${foldIcon(f.n)}<b>${f.n}</b><span>${f.name}</span>`; b.setAttribute("aria-label", `Fold ${f.n}: ${f.name}`);
   b.addEventListener("click", () => setFold(f.n));
   return b;
 }));

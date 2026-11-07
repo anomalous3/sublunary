@@ -19,7 +19,7 @@ the Moon's tilted orbit, its nodes Rahu and Ketu, and every orb as a cap of ligh
 
 And two pieces for your own chart, computed in your browser so your birth data stays with you:
 **[Synastry Chords](https://anomalous3.github.io/sublunary/synastry.html)** plays two charts as one chord, and
-**[Sublunary: Cantata](https://anomalous3.github.io/sublunary/cantata.html)** is a work in five movements: *Now*, a forecast
+**[Sublunary: Cantata](https://anomalous3.github.io/sublunary/cantata.html)** is a work in six movements: *Chart*, your birth chart read at three depths, with William Lilly's dignities, combustion and receptions; *Now*, a forecast
 of what begins and ends this week; *Moon*, her laps stacked like a seismograph's drum, from two years down to the hour; *Score*, your transits as a piano roll; *Fold*, every planet as a line through time
 with the zodiac folded so aspects become crossings; and *Two*, what passes between two charts and what the sky does to each.
 

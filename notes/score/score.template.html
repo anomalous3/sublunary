@@ -82,6 +82,37 @@
   .foldcap { margin: 0; max-width: 92ch; min-height: 3em; }
   #fold { width: 100%; touch-action: pan-y; cursor: col-resize; }
   #foldSlot { display: grid; gap: 10px; min-width: 0; }
+  #chartbox { display: grid; gap: 12px; }
+  .chartgrid { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .chartgrid { grid-template-columns: minmax(0, 1fr); } }
+  #chartWheel { width: 100%; height: 100%; cursor: pointer; }
+  .chartread { display: grid; gap: 14px; min-width: 0; max-width: 78ch; }
+  .chartread h3 { font: 400 20px/1.2 var(--display); margin: 6px 0 0; }
+  .hl { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .hl .k { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+  .hl .t { font: 400 19px/1.25 var(--display); }
+  .hl p { margin: 0; }
+  .hl details summary { font-size: 12.5px; }
+  .hl details p { margin: 6px 0 0; color: var(--fg); }
+  .tagrow { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ptag { font-size: 11.5px; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; color: var(--muted); }
+  .ptag.good { color: #a9dcb0; border-color: #3c5a42; } .ptag.hard { color: #e7b2a5; border-color: #5e3d36; } .ptag.rx { color: #c9b3ff; border-color: #4a3f6e; }
+  .plist { display: grid; gap: 10px; }
+  .prow { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 4px 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .prow .g { font-size: 22px; line-height: 1.1; }
+  .prow .h { font-weight: 500; }
+  .prow p { margin: 2px 0 0; grid-column: 2; }
+  .alist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .alist li { padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .alist li.focus { border-color: var(--natal); }
+  .alist li.wide { opacity: 0.75; }
+  .alist .ag { font-size: 16px; margin-right: 6px; }
+  .alist .ao { font: 11.5px var(--mono); color: var(--muted); margin-left: 6px; }
+  .alist p { margin: 4px 0 0; font-size: 13.5px; }
+  table.every { border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; width: 100%; }
+  table.every th, table.every td { text-align: left; padding: 3px 8px 3px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.every th { color: var(--muted); font-weight: 400; }
+  .everywrap { overflow-x: auto; }
   #moonbox { display: grid; gap: 10px; }
   #moon { width: 100%; touch-action: pan-y; cursor: pointer; }
   #twobox { display: grid; gap: 12px; }
@@ -113,7 +144,8 @@
   #nowSlot { position: sticky; top: 12px; min-width: 0; }
   #card { scroll-margin-top: 76px; }
   @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } #nowSlot { position: static; } }
-  .viewnav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .viewnav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  @media (max-width: 640px) { .viewnav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .viewnav button { display: grid; gap: 1px; text-align: left; padding: 8px 14px; border-radius: 10px; background: #10121c; border: 1px solid var(--line); color: var(--muted); min-width: 0; }
   .viewnav button b { font: 400 21px/1.1 var(--display); color: var(--fg); }
   .viewnav button span { font-size: 12px; line-height: 1.25; }
@@ -201,6 +233,7 @@
   </header>
 
   <nav class="viewnav" aria-label="Views">
+    <button type="button" id="vChart" aria-pressed="false"><b>Chart</b><span>The birth chart</span></button>
     <button type="button" id="vNow" aria-pressed="true"><b>Now</b><span>This week</span></button>
     <button type="button" id="vMoon" aria-pressed="false"><b>Moon</b><span>Her laps</span></button>
     <button type="button" id="vScore" aria-pressed="false"><b>Score</b><span>The years</span></button>
@@ -248,6 +281,21 @@
     <div class="nowgrid">
       <canvas id="now" tabindex="0" role="img" aria-label="A forecast: days across the top, the Moon's track with its signs, phases and void periods, turning points, then this period's aspects as rows in the order they peak, the sky's own aspects, and the long slow transits underneath"></canvas>
       <div id="nowSlot"></div>
+    </div>
+  </section>
+
+  <section id="chartbox" hidden>
+    <div class="twotop">
+      <h2 class="twohead" id="chartHead"></h2>
+      <div class="tabs" role="group" aria-label="How deep to read">
+        <button type="button" data-depth="headline" aria-pressed="true">Headline</button>
+        <button type="button" data-depth="full" aria-pressed="false">Full</button>
+        <button type="button" data-depth="everything" aria-pressed="false">Everything</button>
+      </div>
+    </div>
+    <div class="chartgrid">
+      <div class="twowheelwrap"><div class="twowheelbox"><canvas id="chartWheel" role="img" aria-label="The birth chart: signs, houses, planets and the aspects between them. Click a line to read that aspect."></canvas></div></div>
+      <div id="chartRead" class="chartread"></div>
     </div>
   </section>
 
@@ -1430,6 +1478,7 @@ function drawNowCache() {
     g.textAlign = "left"; g.font = `${sz}px ${SYM}`;
     const wide = gut > 100, gy = wide ? cyy : cyy - 7;
     g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, gy);
+    if (table[e.tb] && e.tb !== "node" && e.tb !== "lilith" && retroAt(e.tb, Math.max(0, Math.min(NDAYS - 2, Math.round(r.at))))) { g.save(); g.font = `600 9px "Instrument Sans", sans-serif`; g.fillStyle = "#c9b3ff"; g.fillText("℞", 2 + sz * 0.72, gy - sz * 0.42); g.restore(); }
     g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, gy);
     g.fillStyle = COLOR[e.np];
     g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`;
@@ -1552,6 +1601,231 @@ now.addEventListener("pointerup", (e) => {
   if (row) { select(row.e); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
 });
 now.addEventListener("pointercancel", () => { ndown = null; });
+// ---------------------------------------------------------------- chart
+// The birth chart as a reading at three depths. Headline picks the few things that win on aspect
+// type (conjunctions and oppositions, then squares, then trines and sextiles), on which bodies
+// (the lights, the chart ruler, the angles), and on tightness. Full adds Lilly's older nuance:
+// essential dignity, combustion and cazimi, reception, sect, the shape of the whole. Everything
+// is the numbers. Readings come from a small library of texts, composed, never stored per chart.
+const TEXTS = /*__TEXTS__*/null || { sign: {}, house: {}, cond: {} };
+const TRAD = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+const DOMICILE = { sun: [4], moon: [3], mercury: [2, 5], venus: [1, 6], mars: [0, 7], jupiter: [8, 11], saturn: [9, 10] };
+const EXALT = { sun: 0, moon: 1, mercury: 5, venus: 11, mars: 9, jupiter: 3, saturn: 6 };
+const RULER = ["mars", "venus", "mercury", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "saturn", "jupiter"];
+const MODERN_RULER = { 7: "pluto", 10: "uranus", 11: "neptune" };
+const TRIP = { fire: ["sun", "jupiter"], earth: ["venus", "moon"], air: ["saturn", "mercury"], water: ["mars", "mars"] };   // Lilly: [day, night]
+const CHALDEAN = ["saturn", "jupiter", "mars", "sun", "venus", "mercury", "moon"];
+const faceOf = (lon) => CHALDEAN[(Math.floor(norm(lon) / 10) + 2) % 7];   // Aries' first ten degrees belong to Mars, and on down the Chaldean order
+function dignity(p, lon, day) {
+  const sign = signOf(lon), out = [];
+  if (!TRAD.includes(p)) return { list: out, score: null, main: null };
+  if (DOMICILE[p].includes(sign)) out.push(["Domicile", 5]);
+  if (EXALT[p] === sign) out.push(["Exaltation", 4]);
+  if (day !== null && TRIP[ELEMENT[sign % 4]][day ? 0 : 1] === p) out.push(["Triplicity", 3]);
+  if (faceOf(lon) === p) out.push(["Face", 1]);
+  if (DOMICILE[p].includes((sign + 6) % 12)) out.push(["Detriment", -5]);
+  if ((EXALT[p] + 6) % 12 === sign) out.push(["Fall", -4]);
+  if (!out.some(([, v]) => v > 0)) out.push(["Peregrine", -5]);
+  const main = out.find(([n]) => ["Domicile", "Exaltation", "Detriment", "Fall", "Peregrine"].includes(n));
+  return { list: out, score: out.reduce((a, [, v]) => a + v, 0), main: main ? main[0] : null };
+}
+const NATAL_ORB = { sun: 8, moon: 8, mercury: 6, venus: 6, mars: 6, jupiter: 6, saturn: 6, uranus: 5, neptune: 5, pluto: 5, chiron: 3, node: 3, asc: 5, mc: 5 };
+const WEIGHT = { sun: 3, moon: 3, asc: 2.5, mc: 2, mercury: 2, venus: 2, mars: 2, jupiter: 1.5, saturn: 1.5, uranus: 1, neptune: 1, pluto: 1, chiron: 1, node: 1 };
+const TIER = { 0: 3, 180: 3, 90: 2, 120: 1.3, 60: 1.1 };
+const OUTER = ["uranus", "neptune", "pluto"];
+const firstSentence = (t) => (t || "").split(/(?<=[.!?])\s/)[0];
+let depth = "headline", chartFocus = null;
+try { depth = localStorage.getItem("sublunary.depth") || "headline"; } catch (_) {}
+function analyze() {
+  const timed = !chart.unknown, pts = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "chiron", "node", ...(timed ? ["asc", "mc"] : [])].filter((q) => natal[q] != null);
+  const sunHouse = timed ? houseOf(houses, natal.sun) : null, day = timed ? sunHouse >= 7 : null;
+  const ruler = timed ? RULER[signOf(natal.asc)] : null;
+  const planets = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"].map((p) => {
+    const lon = natal[p], dg = dignity(p, lon, day), sep = Math.abs(wrap180(lon - natal.sun));
+    const sunlight = p === "sun" || OUTER.includes(p) ? null : sep < 17 / 60 ? "cazimi" : sep < 8.5 ? "combust" : sep < 17 ? "under_beams" : null;
+    const host = RULER[signOf(lon)], received = TRAD.includes(p) && host !== p ? host : null;
+    const mutual = received && TRAD.includes(received) && RULER[signOf(natal[received])] === p;
+    return { p, lon, sign: signOf(lon), house: timed ? houseOf(houses, lon) : null, dg, retro: !!natal.retro[p], sunlight, received, mutual };
+  });
+  const aspects = [];
+  for (let x = 0; x < pts.length; x++) for (let y = x + 1; y < pts.length; y++) {
+    const a = pts[x], b = pts[y];
+    if (isAngle(a) && isAngle(b)) continue;
+    if ((a === "node" && b === "asc") || (a === "node" && b === "mc")) continue;
+    const sep = Math.abs(wrap180(natal[a] - natal[b]));
+    for (const kind of ASPECT_KINDS) {
+      const off = Math.abs(sep - kind), orb = (NATAL_ORB[a] + NATAL_ORB[b]) / 2, lilly = ((LILLY[a] || 5) + (LILLY[b] || 5)) / 2;
+      if (off >= Math.max(orb, lilly)) continue;
+      const wide = off >= orb, d = 1 - off / (wide ? lilly : orb);
+      let rank = TIER[kind] * ((WEIGHT[a] || 1) + (WEIGHT[b] || 1) + (a === ruler || b === ruler ? 1.5 : 0)) * (0.35 + 0.65 * d) * (wide ? 0.35 : 1);
+      if (OUTER.includes(a) && OUTER.includes(b)) rank *= 0.25;   // a generation's, not a person's
+      aspects.push({ key: `${a}|${b}|${kind}`, a, b, kind, off, wide, rank });
+    }
+  }
+  aspects.sort((p, q) => q.rank - p.rank);
+  // the shape of the whole, from the aspects within working orbs among the planets
+  const P10 = planets.map((q) => q.p), has = (a, b, k) => aspects.some((x) => !x.wide && x.kind === k && ((x.a === a && x.b === b) || (x.a === b && x.b === a)));
+  const quinc = (a, b) => Math.abs(Math.abs(wrap180(natal[a] - natal[b])) - 150) < 3;
+  const patterns = [], seen = new Set(), add = (type, list) => { const k = type + [...list].sort().join(); if (!seen.has(k)) { seen.add(k); patterns.push({ type, list }); } };
+  for (const a of P10) for (const b of P10) for (const c of P10) {
+    if (a >= b || a === c || b === c) continue;
+    if (has(a, b, 180) && has(a, c, 90) && has(b, c, 90)) add("t_square", [a, b, c]);
+    if (c > b && has(a, b, 120) && has(a, c, 120) && has(b, c, 120)) add("grand_trine", [a, b, c]);
+    if (has(a, b, 60) && quinc(a, c) && quinc(b, c)) add("yod", [a, b, c]);
+  }
+  for (const gt of patterns.filter((q) => q.type === "grand_trine")) for (const v of gt.list) for (const w of P10) {
+    const others = gt.list.filter((q) => q !== v);
+    if (!gt.list.includes(w) && has(v, w, 180) && others.every((o) => has(o, w, 60))) add("kite", [...gt.list, w]);
+  }
+  for (const ts of patterns.filter((q) => q.type === "t_square")) for (const w of P10) {
+    const [a, b, c] = ts.list;
+    if (![a, b, c].includes(w) && has(c, w, 180) && has(a, w, 90) && has(b, w, 90)) add("grand_cross", [a, b, c, w]);
+  }
+  for (let sgn = 0; sgn < 12; sgn++) { const inSign = P10.filter((q) => signOf(natal[q]) === sgn); if (inSign.length >= 3) add("stellium", inSign); }
+  return { timed, day, ruler, planets, aspects, patterns };
+}
+const tagHTML = (cls, text) => `<span class="ptag ${cls}">${text}</span>`;
+function planetTags(q) {
+  const t = [];
+  if (q.dg.main) t.push(tagHTML(["Domicile", "Exaltation"].includes(q.dg.main) ? "good" : "hard", q.dg.main));
+  if (q.retro) t.push(tagHTML("rx", "Retrograde"));
+  if (q.sunlight) t.push(tagHTML(q.sunlight === "cazimi" ? "good" : "hard", { cazimi: "Cazimi", combust: "Combust", under_beams: "Under the beams" }[q.sunlight]));
+  if (q.mutual) t.push(tagHTML("good", `Mutual reception with ${NAME[q.received]}`));
+  else if (q.received) t.push(tagHTML("", `Received by ${NAME[q.received]}`));
+  return t.join(" ");
+}
+const where = (q, A, named = true) => `${named ? NAME[q.p] + " " : ""}in ${SIGN[q.sign]}${A.timed ? `, ${ORD[q.house]} house` : ""}`;
+function aspectSentence(x, A) {
+  const ta = TOPIC[x.a], tb = TOPIC[x.b], out = [`${MANNER[x.kind].note.split(". ")[0]}. Here it joins ${ta} with ${tb}.`];
+  const q = A && Object.fromEntries(A.planets.map((r) => [r.p, r]));
+  if (q) {
+    const other = x.a === "sun" ? q[x.b] : x.b === "sun" ? q[x.a] : null;
+    if (x.kind === 0 && other && other.sunlight === "combust") out.push(`In Lilly's terms ${NAME[other.p]} is combust here, so its side of this is harder to see and asks for patience.`);
+    if (x.kind === 0 && other && other.sunlight === "cazimi") out.push(`${NAME[other.p]} is cazimi, in the heart of the Sun, which the tradition counts as great strength.`);
+    const qa = q[x.a], qb = q[x.b];
+    if (qa && qb && qa.mutual && qa.received === x.b) out.push(`They're also in each other's signs, so the tradition reads them as helping each other${x.kind === 90 || x.kind === 180 ? ", even across this hard aspect" : ""}.`);
+    else if (qa && qa.received === x.b) out.push(`${NAME[x.a]} sits in ${NAME[x.b]}'s sign, so ${NAME[x.b]} has the upper hand here.`);
+    else if (qb && qb.received === x.a) out.push(`${NAME[x.b]} sits in ${NAME[x.a]}'s sign, so ${NAME[x.a]} has the upper hand here.`);
+  }
+  return out.join(" ");
+}
+function renderChartRead() {
+  const box = el("chartRead"); if (!box) return;
+  const A = analyze(), C = TEXTS.cond || {}, S = TEXTS.sign || {}, Hs = TEXTS.house || {};
+  el("chartHead").textContent = `${chart.name ? chart.name + "'s" : "The"} birth chart`;
+  document.querySelectorAll("[data-depth]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.depth === depth)));
+  const pl = Object.fromEntries(A.planets.map((q) => [q.p, q]));
+  const signText = (q) => (S[q.p] || {})[SIGN[q.sign].toLowerCase()] || "";
+  const houseText = (q) => A.timed ? (Hs[q.p] || {})[String(q.house)] || "" : "";
+  const conditionText = (q) => [q.retro && C.natal_retrograde ? C.natal_retrograde[q.p] : "", q.sunlight && C[q.sunlight] ? C[q.sunlight] : "", q.dg.main === "Peregrine" && C.peregrine ? C.peregrine : "", q.mutual && C.mutual_reception ? C.mutual_reception : ""].filter(Boolean).join(" ");
+  if (depth === "everything") {
+    const rows = A.planets.map((q) => `<tr><td>${GLYPH[q.p]}${VS} ${NAME[q.p]}</td><td>${fmtLon(q.lon)}</td><td>${q.retro ? "℞" : ""}</td><td>${A.timed ? q.house : ""}</td><td>${q.dg.list.map(([n, v]) => `${n} ${v > 0 ? "+" : ""}${v}`).join(", ") || ""}</td><td>${q.dg.score ?? ""}</td><td>${NAME[faceOf(q.lon)]}</td><td>${q.sunlight ? { cazimi: "cazimi", combust: "combust", under_beams: "under beams" }[q.sunlight] : ""}</td></tr>`).join("");
+    const angles = A.timed ? `<tr><td>Ascendant</td><td>${fmtLon(natal.asc)}</td><td></td><td>1</td><td colspan="4">ruled by ${NAME[A.ruler]}${MODERN_RULER[signOf(natal.asc)] ? ` (modern: ${NAME[MODERN_RULER[signOf(natal.asc)]]})` : ""}</td></tr><tr><td>Midheaven</td><td>${fmtLon(natal.mc)}</td><td></td><td>10</td><td colspan="4"></td></tr>` : "";
+    const asp = A.aspects.map((x) => `<tr><td>${NAME[x.a]}</td><td>${ASPECT[x.kind]}</td><td>${NAME[x.b]}</td><td>${x.off.toFixed(2)}°</td><td>${x.wide ? "Lilly's orbs" : "working orbs"}</td><td>${x.rank.toFixed(1)}</td></tr>`).join("");
+    box.innerHTML = `<div class="everywrap"><table class="every"><tr><th>Body</th><th>Position</th><th>℞</th><th>House</th><th>Dignities (Lilly's points)</th><th>Total</th><th>Face</th><th>Sun</th></tr>${rows}${angles}</table></div>
+      <p class="fine">${A.timed ? `${A.day ? "Day" : "Night"} chart (the Sun is ${A.day ? "above" : "below"} the horizon). ` : "Birth time unknown: no houses, angles or sect. "}Dignities are Lilly's, with triplicities by sect and Chaldean faces; terms aren't counted, so a planet marked peregrine might hold a term. Combust within 8°30′ of the Sun, cazimi within 17′, under the beams within 17°.</p>
+      <div class="everywrap"><table class="every"><tr><th>Body</th><th>Aspect</th><th>Body</th><th>Orb</th><th>Within</th><th>Salience</th></tr>${asp}</table></div>
+      <p class="fine">Salience ranks conjunctions and oppositions over squares over trines and sextiles, weights the lights, the chart ruler and the angles, then tightness. Aspects only Lilly's wider orbs reach count for a third; aspects between two outer planets, shared by a whole generation, for a quarter.</p>`;
+    return;
+  }
+  // headline: a few things, each one opens
+  const items = [];
+  const big = A.timed ? `Sun in ${SIGN[pl.sun.sign]}, Moon in ${SIGN[pl.moon.sign]}, ${SIGN[signOf(natal.asc)]} rising` : `Sun in ${SIGN[pl.sun.sign]}, Moon in ${SIGN[pl.moon.sign]}`;
+  items.push({ k: "The big three", t: big, p: `<b>Sun:</b> ${firstSentence(signText(pl.sun))} <b>Moon:</b> ${firstSentence(signText(pl.moon))}`, more: [signText(pl.sun), signText(pl.moon), A.timed ? `${SIGN[signOf(natal.asc)]} rising: the sign on the horizon at birth sets your manner and your body, and makes ${NAME[A.ruler]} the ruler of the chart.` : "Without a birth time there's no rising sign, so no chart ruler or houses."].join(" ") });
+  if (A.ruler) { const q = pl[A.ruler]; items.push({ k: "The chart ruler", t: `${NAME[A.ruler]}, ${where(q, A, false)}`, tags: planetTags(q), p: `Whatever ${NAME[A.ruler]} is doing, the whole chart leans that way. ${firstSentence(signText(q))}`, more: [signText(q), houseText(q), conditionText(q)].filter(Boolean).join(" ") }); }
+  for (const x of A.aspects.filter((q) => !q.wide).slice(0, 2)) items.push({ k: "A strong aspect", t: `${NAME[x.a]} ${ASPECT[x.kind]} ${NAME[x.b]}`, p: aspectSentence(x, A), more: `${x.off.toFixed(1)}° from exact.`, key: x.key });
+  const pat = A.patterns.find((q) => q.type !== "stellium") || A.patterns[0];
+  if (pat) items.push({ k: "The shape of the chart", t: `${{ t_square: "A T-square", grand_trine: "A grand trine", grand_cross: "A grand cross", stellium: "A stellium", yod: "A yod", kite: "A kite" }[pat.type]}: ${pat.list.map((q) => NAME[q]).join(", ")}`, p: firstSentence((C.patterns || {})[pat.type]), more: (C.patterns || {})[pat.type] || "" });
+  const note = A.planets.find((q) => q.sunlight === "cazimi") || A.planets.find((q) => q.mutual) || A.planets.find((q) => q.sunlight === "combust" && TRAD.includes(q.p)) || A.planets.filter((q) => ["moon", "mercury", "venus", "mars"].includes(q.p) && q.dg.main && q.dg.main !== "Peregrine").sort((a, b) => Math.abs(b.dg.score) - Math.abs(a.dg.score))[0];
+  if (note) {
+    const why = note.sunlight === "cazimi" ? `${NAME[note.p]} is cazimi, in the heart of the Sun.` : note.mutual ? `${NAME[note.p]} and ${NAME[note.received]} are in each other's signs.` : note.sunlight === "combust" ? `${NAME[note.p]} is combust: within ${Math.abs(wrap180(note.lon - natal.sun)).toFixed(1)}° of the Sun.` : `${NAME[note.p]} is in its ${note.dg.main.toLowerCase()}.`;
+    items.push({ k: "An older nuance", t: why, p: firstSentence(note.sunlight ? C[note.sunlight] : note.mutual ? C.mutual_reception : signText(note)), more: [note.sunlight ? C[note.sunlight] : note.mutual ? C.mutual_reception : "", signText(note)].filter(Boolean).join(" ") });
+  }
+  const headline = items.map((it) => `<div class="hl"><span class="k">${it.k}</span><span class="t">${it.t}</span>${it.tags ? `<div class="tagrow">${it.tags}</div>` : ""}<p>${it.p}</p>${it.more ? `<details><summary>More</summary><p>${it.more}</p></details>` : ""}</div>`).join("");
+  if (depth === "headline") { box.innerHTML = headline + `<p class="fine">Choose Full for every planet, every aspect and the older nuances. Positions are measured; the meanings are tradition, not measurement.</p>`; return; }
+  // full
+  const plist = A.planets.map((q) => `<div class="prow"><span class="g" style="color:${COLOR[q.p]}">${GLYPH[q.p]}${VS}</span><div><div class="h">${where(q, A)} <span class="ao">${fmtLon(q.lon)}</span></div><div class="tagrow">${planetTags(q)}</div></div><p>${[signText(q), houseText(q), conditionText(q)].filter(Boolean).join(" ")}</p></div>`).join("");
+  const group = (label, list) => list.length ? `<h3>${label}</h3><ol class="alist">${list.map((x) => `<li class="${x.key === chartFocus ? "focus" : ""}${x.wide ? " wide" : ""}" data-key="${x.key}"><span class="ag"><span style="color:${COLOR[x.a]}">${GLYPH[x.a]}${isAngle(x.a) ? "" : VS}</span>${ASPECT_GLYPH[x.kind]}${VS}<span style="color:${COLOR[x.b]}">${GLYPH[x.b]}${isAngle(x.b) ? "" : VS}</span></span>${NAME[x.a]} ${ASPECT[x.kind]} ${NAME[x.b]}<span class="ao">${x.off.toFixed(1)}°${x.wide ? ", by Lilly's orbs" : ""}</span><p>${aspectSentence(x, A)}</p></li>`).join("")}</ol>` : "";
+  const ws = A.aspects.filter((x) => !x.wide), wd = A.aspects.filter((x) => x.wide);
+  const pats = A.patterns.map((q) => `<div class="hl"><span class="t">${{ t_square: "T-square", grand_trine: "Grand trine", grand_cross: "Grand cross", stellium: "Stellium", yod: "Yod", kite: "Kite" }[q.type]}: ${q.list.map((x) => NAME[x]).join(", ")}</span><p>${(C.patterns || {})[q.type] || ""}</p></div>`).join("");
+  box.innerHTML = headline
+    + `<h3>The planets</h3><div class="plist">${plist}</div>`
+    + group("Conjunctions and oppositions", ws.filter((x) => x.kind === 0 || x.kind === 180))
+    + group("Squares", ws.filter((x) => x.kind === 90))
+    + group("Trines and sextiles", ws.filter((x) => x.kind === 120 || x.kind === 60))
+    + (wd.length ? `<details><summary>Wider, by Lilly's orbs (${wd.length})</summary>${group("", wd)}</details>` : "")
+    + (pats ? `<h3>The shape of the whole</h3>${pats}` : "")
+    + (A.timed ? `<h3>Day or night</h3><p>${A.day ? C.sect_day || "" : C.sect_night || ""} ${C.sect_note || ""}</p>` : "")
+    + `<p class="fine">Positions are measured; the meanings are tradition, not measurement. Dignities follow William Lilly, without terms.</p>`;
+  if (chartFocus) { const li = box.querySelector(`li[data-key="${chartFocus}"]`); if (li) li.scrollIntoView({ block: "center", behavior: "smooth" }); }
+}
+const chartWheel = el("chartWheel"), cwg = chartWheel.getContext("2d");
+let chartLines = [];
+function drawChartWheel() {
+  const r0 = chartWheel.getBoundingClientRect(); if (!r0.width) return;
+  const W = r0.width, DPR = Math.min(2, devicePixelRatio || 1);
+  if (chartWheel.width !== Math.round(W * DPR)) chartWheel.width = chartWheel.height = Math.round(W * DPR);
+  const g = cwg, R = W / 2 - 4, rZi = R * 0.87, rP = R * 0.72, rC = R * 0.56, A = analyze();
+  const pt = (lon, r) => { const a = (180 + lon - natal.asc) * D2R; return [W / 2 + r * Math.cos(a), W / 2 - r * Math.sin(a)]; };
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, W); g.textAlign = "center"; g.textBaseline = "middle";
+  const TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+  for (let k = 0; k < 12; k++) {
+    const a0 = (180 + k * 30 - natal.asc) * D2R, a1 = a0 + 30 * D2R;
+    g.beginPath(); g.arc(W / 2, W / 2, R, -a0, -a1, true); g.arc(W / 2, W / 2, rZi, -a1, -a0, false); g.closePath(); g.fillStyle = TINT[k % 4]; g.fill();
+    const [gx, gy] = pt(k * 30 + 15, (R + rZi) / 2); g.fillStyle = MUTED; g.font = `${Math.round(R * 0.07)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (const r of [R, rZi, rC]) { g.beginPath(); g.arc(W / 2, W / 2, r, 0, 7); g.strokeStyle = LINE; g.lineWidth = 1; g.stroke(); }
+  if (A.timed) houses.cusps.forEach((c, i) => {
+    const [x0, y0] = pt(c, rC), [x1, y1] = pt(c, rZi), ang = i === 0 || i === 9;
+    g.strokeStyle = ang ? "rgba(240,198,116,0.55)" : "rgba(139,145,168,0.2)"; g.lineWidth = ang ? 1.4 : 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  });
+  chartLines = [];
+  const list = A.aspects.filter((x) => depth !== "headline" || !x.wide);
+  for (const x of [...list].reverse()) {
+    const [x0, y0] = pt(natal[x.a], rC), [x1, y1] = pt(natal[x.b], rC), on = !chartFocus || chartFocus === x.key;
+    const grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, COLOR[x.a]); grad.addColorStop(1, COLOR[x.b]);
+    g.strokeStyle = grad; g.globalAlpha = (on ? 0.35 : 0.1) * (x.wide ? 0.5 : 1) + (on ? 0.5 * Math.min(1, x.rank / 15) : 0); g.lineWidth = 0.8 + Math.min(2.5, x.rank / 8) + (chartFocus === x.key ? 1 : 0);
+    g.setLineDash(x.kind === 90 || x.kind === 180 ? [5, 4] : []);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    chartLines.push({ x, x0, y0, x1, y1 });
+  }
+  g.setLineDash([]); g.globalAlpha = 1;
+  const body = A.planets.map((q) => q.p), gs = Math.round(R * 0.07), shown = spread(body.map((b) => natal[b]), (gs * 1.15) / rP / D2R);
+  body.forEach((b, i) => {
+    const [a0, b0] = pt(natal[b], rC), [a1, b1] = pt(natal[b], rC + R * 0.025);
+    g.strokeStyle = COLOR[b]; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a0, b0); g.lineTo(a1, b1); g.stroke();
+    const [gx, gy] = pt(shown[i], rP); g.fillStyle = COLOR[b]; g.font = `${gs}px ${SYM}`; g.fillText(GLYPH[b] + VS, gx, gy);
+    if (natal.retro[b]) { g.font = `${Math.round(gs * 0.45)}px "Instrument Sans", sans-serif`; g.fillText("℞", gx + gs * 0.6, gy + gs * 0.45); }
+  });
+  if (A.timed) { g.font = `500 ${Math.round(R * 0.034)}px "Instrument Sans", sans-serif`; g.fillStyle = NATAL; for (const [n, l] of [["AC", natal.asc], ["MC", natal.mc]]) { const [x, y] = pt(l, rZi - R * 0.025); g.fillText(n, x, y); } }
+}
+chartWheel.addEventListener("click", (e) => {
+  const r = chartWheel.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, tol = coarse ? 18 : 10;
+  let best = null, bd = tol;
+  for (const l of chartLines) { const dx = l.x1 - l.x0, dy = l.y1 - l.y0, u = Math.max(0, Math.min(1, ((x - l.x0) * dx + (y - l.y0) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(x - l.x0 - u * dx, y - l.y0 - u * dy); if (d < bd) { bd = d; best = l.x; } }
+  chartFocus = best ? best.key : null;
+  if (best && depth === "headline") depth = "full";
+  renderChartRead(); dirty = true;
+});
+document.querySelectorAll("[data-depth]").forEach((b) => b.addEventListener("click", () => {
+  depth = b.dataset.depth; try { localStorage.setItem("sublunary.depth", depth); } catch (_) {}
+  renderChartRead(); dirty = true;
+}));
+// a transit's retrograde story: which pass this is, and what a backward pass is read as
+function retroNote(e, det) {
+  const C = TEXTS.cond || {}, out = [];
+  const n = det.exact.length;
+  if (n >= 2 && n <= 3) {
+    const idx = det.exact.reduce((bi, q, i) => Math.abs(q.ms - t) < Math.abs(det.exact[bi].ms - t) ? i : bi, 0);
+    const key = n === 2 ? ["first_of_two", "second_of_two"][idx] : ["first_of_three", "second_of_three", "third_of_three"][idx];
+    if (C.passes && C.passes[key]) out.push(`<b>Pass ${idx + 1} of ${n}${det.exact[idx].retro ? ", retrograde" : ""}.</b> ${C.passes[key]}`);
+  }
+  const iNow = Math.max(0, Math.min(NDAYS - 2, Math.round((t - T0) / DAY)));
+  if (table[e.tb] && e.tb !== "node" && e.tb !== "lilith" && retroAt(e.tb, iNow) && C.transit_retrograde && C.transit_retrograde[e.tb]) out.push(`<b>${NAME[e.tb]} is retrograde now.</b> ${C.transit_retrograde[e.tb]}`);
+  const st = det.stations.find((q) => Math.abs(q.ms - t) < 20 * DAY);
+  if (st && C.station) out.push(`<b>${NAME[e.tb]} stations ${st.to} around ${fmtDate(st.ms)}.</b> ${C.station} ${(st.to === "retrograde" ? C.station_retrograde : C.station_direct) || ""}`);
+  return out.length ? `<p class="read">${out.join(" ")}</p>` : "";
+}
 // ---------------------------------------------------------------- moon
 // A helicorder: the seismograph's drum, one line per turn. Longitude runs across and time runs
 // down at a steady rate, so her laps stack, the chart's points are verticals, and whatever she
@@ -2025,6 +2299,7 @@ function drawTwoCache() {
     g.textAlign = "left"; const sz = 14;
     const wide = gut > 100, gy = wide ? cy : cy - 7;
     g.font = `${sz}px ${SYM}`; g.fillStyle = col; g.fillText(GLYPH[e.tb] + VS, 2, gy);
+    if (table[e.tb] && e.tb !== "node" && retroAt(e.tb, Math.max(0, Math.min(NDAYS - 2, Math.round(r.at))))) { g.save(); g.font = `600 9px "Instrument Sans", sans-serif`; g.fillStyle = "#c9b3ff"; g.fillText("℞", 2 + sz * 0.72, gy - sz * 0.42); g.restore(); g.font = `${sz}px ${SYM}`; }
     g.fillStyle = MUTED; g.fillText(ASPECT_GLYPH[e.kind] + VS, 2 + sz * 1.1, gy);
     g.fillStyle = base; g.font = isAngle(e.np) ? `600 ${sz - 4}px "Instrument Sans", sans-serif` : `${sz}px ${SYM}`; g.fillText(GLYPH[e.np] + (isAngle(e.np) ? "" : VS), 2 + sz * 2.1, gy);
     g.fillStyle = LABEL; g.font = `${wide ? 14 : 10.5}px "Instrument Sans", sans-serif`;
@@ -2146,6 +2421,7 @@ function renderBCard(c) {
   c.innerHTML = `<h2><span style="color:${COLOR[e.tb]}">${GLYPH[e.tb]}${VS}</span> ${NAME[e.tb]} ${ASPECT[e.kind]} <span style="color:${COLOR[e.np]}">${GLYPH[e.np]}${isAngle(e.np) ? "" : VS}</span> ${possB()} ${NAME[e.np]}</h2>
     <p class="sub" id="cardNow"></p>
     <p class="read">${NAME[e.tb]}, ${act.epithet}, ${man.verb} ${possB() === "Their" ? "their" : possB()} ${NAME[e.np]}, which speaks for ${third(TOPIC[e.np])}.</p>
+    ${retroNote(e, det)}
     ${second.unknown ? "" : `<p class="read">${NAME[e.tb]} is moving through ${possB() === "Their" ? "their" : possB()} ${ORD[htr]} house: ${HOUSE[htr]}. ${NAME[e.np]} sits in ${possB() === "Their" ? "their" : possB()} ${ORD[hn]}: ${HOUSE[hn]}.</p>`}
     <details><summary>The numbers</summary><table class="nums">
       <tr><th>In orb</th><td>${fmtDate(T0 + e.i0 * DAY)} to ${fmtDate(T0 + e.i1 * DAY)}</td></tr>
@@ -2237,7 +2513,8 @@ function renderDeck(total, whole) {
       b.innerHTML = `<span class="ptt"><i style="color:${c.m.big ? SILVER : COLOR[c.m.b]}">${GLYPH[c.m.b]}${VS}</i> ${c.m.what}</span>`;
     } else {
       const col = COLOR[c.np];
-      b.innerHTML = `<span class="ptt"><i style="color:${COLOR[c.tb]}">${GLYPH[c.tb]}${VS}</i> ${NAME[c.tb]} ${ASPECT[c.kind]} <i style="color:${col}">${GLYPH[c.np]}${isAngle(c.np) ? "" : VS}</i> ${isAngle(c.np) ? "" : NAME[c.np]}</span><span class="po">${c.off.toFixed(1)}°</span>`;
+      const rx = table[c.tb] && c.tb !== "node" && c.tb !== "lilith" && retroAt(c.tb, Math.max(0, Math.min(NDAYS - 2, Math.round((t - T0) / DAY))));
+      b.innerHTML = `<span class="ptt"><i style="color:${COLOR[c.tb]}">${GLYPH[c.tb]}${VS}</i> ${NAME[c.tb]}${rx ? " ℞" : ""} ${ASPECT[c.kind]} <i style="color:${col}">${GLYPH[c.np]}${isAngle(c.np) ? "" : VS}</i> ${isAngle(c.np) ? "" : NAME[c.np]}</span><span class="po">${c.off.toFixed(1)}°</span>`;
       li.style.setProperty("--d", `${Math.round(c.depth * 100)}%`);
       if (!c.working) li.classList.add("wide");
     }
@@ -2266,7 +2543,7 @@ function renderDeck(total, whole) {
 }
 function syncCards() {
   const moving = playing || performance.now() - lastMove < 350;
-  deck.hidden = !cardsOn || view === "now" || view === "two" || view === "moon";
+  deck.hidden = !cardsOn || view === "now" || view === "two" || view === "moon" || view === "chart";
   deck.classList.toggle("quiet", moving);
   if (moving || deck.hidden) return;
   const { total, whole, list } = deckCandidates(), sig = [view, deckOpen, expanded, ...list.map((c) => c.id + (c.off ? c.off.toFixed(1) : ""))].join(",");
@@ -2338,6 +2615,7 @@ function renderCard() {
     <p class="sub" id="cardNow"></p>
     ${life ? `<p class="life"><b>${life[0]}.</b> ${life[1]}</p>` : ""}
     <p class="read">${tn}, ${act.epithet}, ${man.verb} ${article} ${nm}, which speaks for ${TOPIC[e.np]}.</p>
+    ${retroNote(e, det)}
     ${chart.unknown ? "" : `<p class="read">${tn} is moving through your ${ORD[htr]} house: ${HOUSE[htr]}. ${nm} sits in your ${ORD[hn]}: ${HOUSE[hn]}.</p>`}
     ${chart.unknown && e.np === "moon" ? `<p class="fine">Birth time unknown, so the natal Moon could be up to 6.5° either way.</p>` : ""}
     <details>
@@ -2503,12 +2781,14 @@ setInterval(() => { if (audio && audio.ctx.state === "running") audio.set(active
 // ---------------------------------------------------------------- frame
 function setView(v) {
   view = v;
-  for (const [id, name] of [["vNow", "now"], ["vMoon", "moon"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"]]) el(id).setAttribute("aria-pressed", String(v === name));
-  el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two"; el("moonbox").hidden = v !== "moon";
-  el("cardsBtn").hidden = v === "now" || v === "two" || v === "moon";
+  for (const [id, name] of [["vChart", "chart"], ["vNow", "now"], ["vMoon", "moon"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"]]) el(id).setAttribute("aria-pressed", String(v === name));
+  el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two"; el("moonbox").hidden = v !== "moon"; el("chartbox").hidden = v !== "chart";
+  el("cardsBtn").hidden = v === "now" || v === "two" || v === "moon" || v === "chart";
+  for (const id of ["play", "speed", "today", "back", "fwd", "stepLab"]) el(id).hidden = v === "chart";
+  el("miniScrub").hidden = v === "chart"; document.querySelector(".stepper").hidden = v === "chart";
   renderExBar();
   // Now decides for itself what's in focus, so these two layers are for the other views
-  document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two" || v === "moon") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
+  document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two" || v === "moon" || v === "chart") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
   deckSig = "";
   if (v === "fold") el("foldSlot").append(el("passing"), el("card"));
   else if (v === "now") el("nowSlot").append(el("card"));
@@ -2517,6 +2797,7 @@ function setView(v) {
   else el("stageRight").append(el("card"), el("passing"));
   try { history.replaceState(null, "", `#${v}-view`); } catch (_) {}
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
+  if (v === "chart") { el("card").hidden = true; renderChartRead(); } else el("card").hidden = false;
   if (v === "moon") { if (!moonStart) setMoonSpan(innerWidth < 640 ? 164 : 355); else { sizeMoon(); } }
   if (v === "two") { if (!twoS) setTwoSpan(31); twoLayoutDirty = true; renderSpine(); if (synList.length && (!selected || !selected.syn)) { selected = synList[0]; renderCard(); } }
   if (v === "fold") {
@@ -2567,11 +2848,12 @@ for (const ev of ["pointerup", "pointercancel"]) tape.addEventListener(ev, () =>
 el("vNow").addEventListener("click", () => setView("now"));
 el("vTwo").addEventListener("click", () => setView("two"));
 el("vMoon").addEventListener("click", () => setView("moon"));
+el("vChart").addEventListener("click", () => setView("chart"));
 el("vScore").addEventListener("click", () => setView("score"));
 el("vFold").addEventListener("click", () => setView("fold"));
 function frame() {
   computeNow();
-  if (view === "fold") drawFold(); else if (view === "now") drawNow(); else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else { drawDial(); drawScore(); }
+  if (view === "fold") drawFold(); else if (view === "now") drawNow(); else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else if (view === "chart") drawChartWheel(); else { drawDial(); drawScore(); }
   liveCard(); syncCards();
   el("when").textContent = new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   drawTape();
@@ -2775,7 +3057,7 @@ el("ownBtn").addEventListener("click", () => el("exOwn").click());
 el("exOwn").addEventListener("click", () => { el("chartBox").open = true; el("chartBox").scrollIntoView({ block: "start", behavior: "smooth" }); el("fName").focus({ preventScroll: true }); });
 function rebuild() {
   renderExBar();
-  computeChart(); computeSecond(); computeEvents(); layoutScore(); computeNow();
+  computeChart(); computeSecond(); chartFocus = null; computeEvents(); layoutScore(); computeNow();
   const first = active.find((c) => !c.sky);
   selected = first ? eventFor(first.key, t) : null; chosen = false;
   renderCard(); dirty = true;
@@ -2798,9 +3080,9 @@ el("layers").append(...Object.entries(LAYERS).filter(([, l]) => !l.fixed).map(([
   return lab;
 }));
 fillSecond(); sizeDial(); rebuild(); renderLegend(); el("cardsBtn").setAttribute("aria-pressed", String(cardsOn)); tick(last);
-new ResizeObserver(() => { if (view === "moon") { sizeMoon(); dirty = true; } else if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
+new ResizeObserver(() => { if (view === "chart") { dirty = true; } else if (view === "moon") { sizeMoon(); dirty = true; } else if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
 setFold(1, true);
-setView(location.hash === "#fold-view" ? "fold" : location.hash === "#score-view" ? "score" : location.hash === "#two-view" ? "two" : location.hash === "#moon-view" ? "moon" : "now");
+setView(location.hash === "#fold-view" ? "fold" : location.hash === "#score-view" ? "score" : location.hash === "#two-view" ? "two" : location.hash === "#moon-view" ? "moon" : location.hash === "#chart-view" ? "chart" : "now");
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { scoreDirty = true; foldDirty = true; nowDirty = true; dirty = true; });
 </script>
 </body>

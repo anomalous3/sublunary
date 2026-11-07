@@ -8,7 +8,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+import json
+texts = {k: (json.loads((HERE / "texts" / f"{f}.json").read_text()) if (HERE / "texts" / f"{f}.json").exists() else {})
+         for k, f in (("sign", "planet_in_sign"), ("house", "planet_in_house"), ("cond", "conditions"))}
 page = (HERE / "score.template.html").read_text().replace("/*__BODIES__*/null", (HERE / "bodies.json").read_text())
+page = page.replace("/*__TEXTS__*/null", json.dumps(texts, ensure_ascii=False))
 
 
 def inject(text, tag, name):

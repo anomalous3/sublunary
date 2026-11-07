@@ -1,0 +1,50 @@
+{
+  "natal_retrograde": {
+    "mercury": "Mercury retrograde at birth is traditionally read as thinking that turns inward first. You may reflect, reread and revise before you speak, and your way of communicating often arrives a little later and more considered.",
+    "venus": "Venus retrograde is read as affection and taste that develop on a private timetable. You may take longer to trust what you value or whom you love, and tend to return to old attachments with fresh eyes.",
+    "mars": "Mars retrograde is traditionally taken as drive that does not discharge straight away. Effort tends to go inward, into planning and holding back, and anger or ambition may surface slowly and then with some care.",
+    "jupiter": "Jupiter retrograde is read as growth and belief worked out from within. You may build your own philosophy slowly instead of adopting a ready-made one, and find your sense of luck in private rather than public terms.",
+    "saturn": "Saturn retrograde is traditionally read as an internal sense of duty and limit. Structure, authority and responsibility may be questioned or rebuilt on your own terms, often with a strict inner critic that can be learned from.",
+    "uranus": "Uranus is retrograde for about five months of every year, so this is common and quiet. It is read as a streak of independence that shows up privately, in your own thinking, more than in outward rebellion.",
+    "neptune": "Neptune is retrograde for about five months each year, so many people carry it, and the effect is considered mild. It is read as imagination and idealism that stay personal and are sorted by inner experience.",
+    "pluto": "Pluto is retrograde for around half of each year, so this is very common and its reading is subtle. It tends to point to deep change and intensity that work privately and surface slowly over time."
+  },
+  "transit_retrograde": {
+    "mercury": "Mercury moving backward is read as a time to review. Messages, plans and agreements tend to need a second look, and old contacts or unfinished conversations often return.",
+    "venus": "Venus moving backward is read as a time to reconsider what you value. Old relationships, tastes and money matters tend to resurface for a second look before anything new is settled.",
+    "mars": "Mars moving backward is read as energy that turns back on itself. Projects stall or need redoing, and old conflicts or unfinished efforts tend to ask for attention before new ones can go well.",
+    "jupiter": "Jupiter moving backward is read as growth that pauses to take stock. Plans for expansion tend to be reviewed, and past opportunities or beliefs may be revisited and measured again.",
+    "saturn": "Saturn moving backward is read as a time to inspect structures and commitments. Responsibilities you set aside or built poorly tend to come back, and fixing them can feel slow but solid.",
+    "uranus": "Uranus moving backward is read as change that turns inward for a spell. Restlessness may be worked out in private, and ideas you meant to act on tend to be reconsidered before you commit.",
+    "neptune": "Neptune moving backward is read as a thinning of illusions. Hopes, ideals and vague situations tend to be seen more plainly, which can be disappointing and clarifying at once.",
+    "pluto": "Pluto moving backward is read as slow, deep work revisiting something long buried. Old patterns of power, loss or control tend to come up again, this time with a chance to rework them."
+  },
+  "passes": {
+    "single": "An aspect made once is read as a single event with a clear beginning and end. The theme arrives, is felt, and passes without being reopened.",
+    "first_of_three": "The first of three passes is read as the opening: the theme is raised and you begin to notice it. It is usually felt as a preview, with more to follow.",
+    "second_of_three": "The second pass, made while the planet moves backward, is read as the reworking. The theme returns, often with new information, and asks for a second look at what you did the first time.",
+    "third_of_three": "The third and last pass is read as the settling. After the opening and the review, you tend to know more about what the theme asks of you, and it can be put to rest.",
+    "first_of_two": "The first of two passes is read as the introduction. The theme appears and is partly understood, and it tends to come back before it is finished.",
+    "second_of_two": "The second pass is read as the completion. It returns to the first contact with more perspective, and the matter tends to resolve or at least become clearer."
+  },
+  "station": "A planet that stands still on or near a point in your chart is read as strongly emphasised there. Its themes tend to feel concentrated and hard to ignore, because the planet lingers close to the same degree for days.",
+  "station_retrograde": "A planet stationing retrograde is read as a turn inward, when its themes begin to be reviewed instead of pushed forward.",
+  "station_direct": "A planet stationing direct is read as the review ending, when its themes begin to move forward again, often with clearer direction.",
+  "combust": "A planet within about 8.5 degrees of the Sun was called combust by William Lilly, meaning burnt by the Sun's light. Its matters are read as overpowered or strained, which can mean they are hard to see in yourself, and often asks for patient attention.",
+  "under_beams": "A planet within about 17 degrees of the Sun is said to be under the beams, read as working out of sight and harder to notice.",
+  "cazimi": "A planet within 17 arc-minutes of the Sun is cazimi, called in the heart of the Sun. The tradition reads this as the reverse of combustion: the planet is greatly strengthened, like a counsellor admitted to the king's private room.",
+  "reception": "A planet in a sign ruled by another planet is read as received by that ruler, and so it depends on it and is hosted by it. How well the ruler is placed tends to colour how comfortably the guest can act.",
+  "mutual_reception": "When two planets each stand in a sign ruled by the other, they are in mutual reception. Tradition read even a hard aspect between them as cooperative, because each is at home in the other's house and can help it.",
+  "sect_day": "In a day chart, with the Sun above the horizon, the Sun, Jupiter and Saturn are in their own sect and tend to work more easily, while Mars is read as harder to manage.",
+  "sect_night": "In a night chart, with the Sun below the horizon, the Moon, Venus and Mars are in their own sect, so Mars is read as more workable and Saturn as harder.",
+  "sect_note": "Sect is older Hellenistic technique, which William Lilly inherited in part, so it sits at the edge of the later Renaissance tradition.",
+  "patterns": {
+    "t_square": "A T-square joins two planets in opposition with a third square to both. It is read as a pattern of tension with a pressure point at the focal planet, which tends to push you into action and develop skill there.",
+    "grand_trine": "A grand trine links three planets in the same element, each trine to the others. It is read as a closed circuit of ease and natural talent, which can be so comfortable that it takes an outside prompt to put it to use.",
+    "grand_cross": "A grand cross joins four planets in two oppositions with four squares between them. It is read as a pattern of constant tension from several directions, which tends to demand flexibility and often builds considerable endurance.",
+    "stellium": "A stellium is a cluster of three or more planets in one sign or house. It is read as a strong concentration of focus on that area of life, which can bring depth and skill and also a narrow view.",
+    "yod": "A yod has two planets in sextile, both quincunx to a third at the apex. It is read as an awkward adjustment that the apex planet keeps asking you to make, sometimes called a finger of fate in modern books.",
+    "kite": "A kite is a grand trine with a fourth planet opposite one of its points, sextile to the other two. It is read as giving the easy flow of the trine a direction and a task, which makes the talent easier to apply."
+  },
+  "peregrine": "A planet with no essential dignity in its position was called peregrine by Lilly, a wanderer. It is read as acting on its own without support from its sign, so how it behaves depends heavily on the aspects it makes."
+}

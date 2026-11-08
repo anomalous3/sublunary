@@ -25,11 +25,10 @@ def main():
         lines.append(f"{name}\t{c['countrycode']}\t{c.get('admin1code', '')}\t"
                      f"{c['latitude']:.3f}\t{c['longitude']:.3f}\t{c['timezone']}")
     text = "# GeoNames (geonames.org), CC BY 4.0. Cities of 5000+, most populous first.\n" + "\n".join(lines) + "\n"
-    gz = ROOT / "custom_components" / "sublunary" / "cities.txt.gz"
-    gz.write_bytes(gzip.compress(text.encode(), mtime=0))
+    # the web pages read the plain list; the Home Assistant integration (sublunary-ha) ships it gzipped
     for d in (ROOT / "docs", ROOT / "notes" / "astrolabe"):
         (d / "cities.txt").write_text(text)
-    print(f"{len(lines)} cities; {len(text)/1024:.0f} KB plain, {gz.stat().st_size/1024:.0f} KB gzipped")
+    print(f"{len(lines)} cities; {len(text)/1024:.0f} KB")
 
 
 if __name__ == "__main__":

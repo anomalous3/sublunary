@@ -84,7 +84,7 @@ def document(fragment, description):
             + "\n</body>\n</html>\n")
 
 
-(docs / "index.html").write_text(document(
+(docs / "astrolabe.html").write_text(document(
     page, "A lunar month of Lilly's orbs on a zodiac wheel, and the bulb color Sublunary would produce, frame by frame."))
 (docs / ".nojekyll").write_text("")
 

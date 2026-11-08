@@ -9,17 +9,17 @@ sensors (sign, phase, applying aspects, void-of-course) so automations can
 drive lights from it. It's an art project: the astrology is taken seriously as
 a system of definitions, and none of it is claimed as a mechanism.
 
-**[Watch a lunar month on the Sublunary Astrolabe →](https://anomalous3.github.io/sublunary/)**
+**[Watch a lunar month on the Sublunary Astrolabe →](https://sublunary.app/astrolabe.html)**
 Lilly's orbs on a zodiac wheel, and what one bulb does with them. Its companion,
-**[Sublunary Houses](https://anomalous3.github.io/sublunary/houses.html)**, shows the sign and natal-house colors, with your own chart computed in the browser.
-And **[Lilly's Orbs on the Sphere](https://anomalous3.github.io/sublunary/sphere.html)**: a year of the Moon
+**[Sublunary Houses](https://sublunary.app/houses.html)**, shows the sign and natal-house colors, with your own chart computed in the browser.
+And **[Lilly's Orbs on the Sphere](https://sublunary.app/sphere.html)**: a year of the Moon
 threading Lilly's orbs on the actual sky rather than flattened onto the ecliptic.
-And **[The Sublunary Sphere](https://anomalous3.github.io/sublunary/sublunary-sphere.html)**: the same sky in 3D, with
+And **[The Sublunary Sphere](https://sublunary.app/sublunary-sphere.html)**: the same sky in 3D, with
 the Moon's tilted orbit, its nodes Rahu and Ketu, and every orb as a cap of light.
 
 And two pieces for your own chart, computed in your browser so your birth data stays with you:
-**[Synastry Chords](https://anomalous3.github.io/sublunary/synastry.html)** plays two charts as one chord, and
-**[Sublunary: Cantata](https://anomalous3.github.io/sublunary/cantata.html)** is a work in six movements: *Chart*, your birth chart read at three depths, with William Lilly's dignities, combustion and receptions; *Now*, a forecast
+**[Synastry Chords](https://sublunary.app/synastry.html)** plays two charts as one chord, and
+**[Sublunary: Cantata](https://sublunary.app/)** is a work in six movements: *Chart*, your birth chart read at three depths, with William Lilly's dignities, combustion and receptions; *Now*, a forecast
 of what begins and ends this week; *Moon*, her laps stacked like a seismograph's drum, from two years down to the hour; *Score*, your transits as a piano roll; *Fold*, every planet as a line through time
 with the zodiac folded so aspects become crossings; and *Two*, what passes between two charts and what the sky does to each.
 

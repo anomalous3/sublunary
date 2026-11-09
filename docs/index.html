@@ -92,6 +92,29 @@
   .hl .k { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
   .hl .t { font: 400 19px/1.25 var(--display); }
   .combos { display: grid; gap: 8px; }
+  form.chart textarea, form.chart select { font: inherit; color: var(--fg); background: #0c0e17; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; width: 100%; min-width: 0; box-sizing: border-box; }
+  form.chart textarea { resize: vertical; }
+  #askbox { display: grid; gap: 14px; }
+  .askgrid { display: grid; grid-template-columns: minmax(0, 440px) minmax(0, 1fr); gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .askgrid { grid-template-columns: minmax(0, 1fr); } }
+  #askWheel { width: 100%; height: 100%; }
+  ol.journal { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  ol.journal li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 6px; }
+  ol.journal .jq { text-align: left; background: transparent; border: 0; padding: 0; display: grid; gap: 2px; min-height: 0; }
+  ol.journal .jt { font: 400 16px/1.3 var(--display); }
+  ol.journal .jm { font-size: 12px; color: var(--muted); }
+  ol.journal textarea { font: inherit; font-size: 13px; color: var(--fg); background: #0c0e17; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; resize: vertical; }
+  ol.journal .jdel { justify-self: start; font-size: 12px; padding: 2px 8px; min-height: 0; }
+  ul.cautions { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  #askRead { gap: 8px; }
+  #askRead p { margin: 0; }
+  #askRead h3 { margin: 12px 0 0; }
+  .testi { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .testi { grid-template-columns: 1fr; } }
+  .testi h4 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 500; }
+  .testi ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .testi .w { font-size: 9px; letter-spacing: 1px; vertical-align: 1px; }
+  .testi .w.good { color: #9fd49b; } .testi .w.hard { color: #ff9a8a; }
   .combos .hl { cursor: pointer; }
   .combos .hl p { margin: 0; }
   .hl .t .who { font: 500 10.5px var(--body); color: var(--muted); vertical-align: sub; margin: 0 3px 0 1px; }
@@ -159,8 +182,8 @@
   .howto p { margin: 6px 0 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
   #card { scroll-margin-top: 76px; }
   @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } .nowside { display: contents; } .nowwheelbox { order: -1; max-width: min(420px, 70svh); } }
-  .viewnav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-  @media (max-width: 640px) { .viewnav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .viewnav { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  @media (max-width: 640px) { .viewnav { grid-template-columns: repeat(3, minmax(0, 1fr)); } #vAsk { grid-column: 1 / -1; } }
   .viewnav button { display: grid; gap: 1px; text-align: left; padding: 8px 14px; border-radius: 10px; background: #10121c; border: 1px solid var(--line); color: var(--muted); min-width: 0; }
   .viewnav button b { font: 400 21px/1.1 var(--display); color: var(--fg); }
   .viewnav button span { font-size: 12px; line-height: 1.25; }
@@ -229,7 +252,7 @@
   form.chart .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
   .one form.chart, form.chart.one { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
   @media (max-width: 640px) { form.chart, form.chart details.coords > div { grid-template-columns: minmax(0, 1fr); } form.chart input { padding: 9px 10px; } }
-  @media (pointer: coarse), (max-width: 640px) { input, select, form.chart input { font-size: 16px; } }
+  @media (pointer: coarse), (max-width: 640px) { input, select, textarea, form.chart input, form.chart textarea, form.chart select, ol.journal textarea { font-size: 16px; } }
   .welcome { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; }
   .welcome h2 { margin: 0; font-size: 18px; font-weight: 500; }
   .welcome p { margin: 0; max-width: 62ch; }
@@ -277,6 +300,7 @@
     <button type="button" id="vScore" aria-pressed="false"><b>Score</b><span>The years</span></button>
     <button type="button" id="vFold" aria-pressed="false"><b>Fold</b><span>The sky, folded</span></button>
     <button type="button" id="vTwo" aria-pressed="false"><b>Two</b><span>What passes between</span></button>
+    <button type="button" id="vAsk" aria-pressed="false"><b>Ask</b><span>A question, now</span></button>
   </nav>
 
   <div id="miniScrub">
@@ -369,6 +393,36 @@
     </div>
     <canvas id="moon" tabindex="0" role="img" aria-label="The Moon's path through the zodiac, one lap after another, with time running down the page, natal points as vertical lines and the planets as curves. Click a contact to read it."></canvas>
     <div id="moonSlot"></div>
+  </section>
+
+  <section id="askbox" hidden>
+    <p class="foldintro"><b>Ask.</b> Horary is astrology's oldest way of answering a question: a chart cast for the moment the question is truly asked, read the way William Lilly read one in 1647. It doesn't need a birth chart. Ask about one matter you genuinely want to know about, and ask it once; the tradition holds that the second asking tells you less.</p>
+    <div class="askgrid">
+      <form class="chart one" id="askForm" novalidate>
+        <label for="askText">Your question<textarea id="askText" rows="2" maxlength="500" placeholder="Will I get the job I interviewed for?"></textarea></label>
+        <label for="askWhose">Whose matter is it?<select id="askWhose"></select></label>
+        <label for="askWhat">What is it about?<select id="askWhat"></select></label>
+        <label class="check" for="askNow"><input id="askNow" type="checkbox" checked> Now, as I ask it</label>
+        <label for="askWhen">Or the moment I first asked it<input id="askWhen" type="datetime-local"></label>
+        <label for="hPlace">Where you are<input id="hPlace" type="text" autocomplete="off" placeholder="Type a city"></label>
+        <ul class="results" id="hResults"></ul>
+        <div class="acts"><button type="button" id="askHere">Use my location</button></div>
+        <details class="coords"><summary>Coordinates</summary><div><label for="hLat">Latitude<input id="hLat" type="number" step="0.001"></label><label for="hLon">Longitude (east +)<input id="hLon" type="number" step="0.001"></label><input id="hTz" type="hidden"></div></details>
+        <div class="acts"><button type="submit">Cast the chart</button></div>
+        <p class="err" id="askErr" role="status"></p>
+        <p class="fine">Your questions, their charts and the journal stay in this browser. Your location is used only to cast the chart.</p>
+      </form>
+      <div style="min-width:0">
+        <h3 id="askJournalHead" class="twolabel" hidden>Your questions, newest first</h3>
+        <ol class="journal" id="askJournal"></ol>
+      </div>
+    </div>
+    <div id="askResult" hidden>
+      <div class="chartgrid">
+        <div class="twowheelwrap"><div class="twowheelbox"><canvas id="askWheel" role="img" aria-label="The horary chart, with your significator and the matter's ringed, and their meeting drawn"></canvas></div><p class="fine" id="askWheelNote" style="text-align:center;margin-top:4px"></p></div>
+        <div id="askRead" class="chartread"></div>
+      </div>
+    </div>
   </section>
 
   <section id="twobox" hidden>
@@ -3026,7 +3080,7 @@ function renderDeck(total, whole) {
 }
 function syncCards() {
   const moving = playing || performance.now() - lastMove < 350;
-  deck.hidden = !cardsOn || view === "now" || view === "two" || view === "moon" || view === "chart";
+  deck.hidden = !cardsOn || view === "now" || view === "two" || view === "moon" || view === "chart" || view === "ask";
   deck.classList.toggle("quiet", moving);
   if (moving || deck.hidden) return;
   const { total, whole, list } = deckCandidates(), sig = [view, deckOpen, expanded, ...list.map((c) => c.id + (c.off ? c.off.toFixed(1) : ""))].join(",");
@@ -3264,11 +3318,12 @@ setInterval(() => { if (audio && audio.ctx.state === "running") audio.set(active
 // ---------------------------------------------------------------- frame
 function setView(v) {
   view = v;
-  for (const [id, name] of [["vChart", "chart"], ["vNow", "now"], ["vMoon", "moon"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"]]) el(id).setAttribute("aria-pressed", String(v === name));
-  el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two"; el("moonbox").hidden = v !== "moon"; el("chartbox").hidden = v !== "chart";
-  el("cardsBtn").hidden = v === "now" || v === "two" || v === "moon" || v === "chart";
-  for (const id of ["play", "speed", "today", "back", "fwd", "stepLab"]) el(id).hidden = v === "chart";
-  el("miniScrub").hidden = v === "chart"; document.querySelector(".stepper").hidden = v === "chart";
+  for (const [id, name] of [["vChart", "chart"], ["vNow", "now"], ["vMoon", "moon"], ["vScore", "score"], ["vFold", "fold"], ["vTwo", "two"], ["vAsk", "ask"]]) el(id).setAttribute("aria-pressed", String(v === name));
+  el("stage").hidden = el("scorebox").hidden = v !== "score"; el("foldbox").hidden = v !== "fold"; el("nowbox").hidden = v !== "now"; el("twobox").hidden = v !== "two"; el("moonbox").hidden = v !== "moon"; el("chartbox").hidden = v !== "chart"; el("askbox").hidden = v !== "ask";
+  const still = v === "chart" || v === "ask";
+  el("cardsBtn").hidden = v === "now" || v === "two" || v === "moon" || still;
+  for (const id of ["play", "speed", "today", "back", "fwd", "stepLab", "sound"]) el(id).hidden = still;
+  el("miniScrub").hidden = still; document.querySelector(".stepper").hidden = still; el("settings").hidden = v === "ask"; el("chartBox").hidden = v === "ask";
   renderExBar();
   // Now decides for itself what's in focus, so these two layers are for the other views
   document.querySelectorAll("[data-layer]").forEach((l) => { l.hidden = (v === "now" || v === "two" || v === "moon" || v === "chart") && ["fast", "chiron", "lilith", "node"].includes(l.dataset.layer); });
@@ -3280,7 +3335,7 @@ function setView(v) {
   else el("stageRight").append(el("card"), el("passing"));
   writeHash(); setTimeout(syncCue, 250);
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
-  if (v === "chart") { el("card").hidden = true; renderChartRead(); } else el("card").hidden = false;
+  if (v === "chart") { el("card").hidden = true; renderChartRead(); } else el("card").hidden = v === "ask";
   if (v === "moon") { if (!moonStart) setMoonSpan(innerWidth < 640 ? 164 : 355); else { sizeMoon(); } }
   if (v === "two") { if (!twoS) setTwoSpan(31); twoLayoutDirty = true; renderSpine(); if (synList.length && (!selected || !selected.syn)) { selected = synList[0]; renderCard(); } }
   if (v === "fold") {
@@ -3332,11 +3387,12 @@ el("vNow").addEventListener("click", () => setView("now"));
 el("vTwo").addEventListener("click", () => setView("two"));
 el("vMoon").addEventListener("click", () => setView("moon"));
 el("vChart").addEventListener("click", () => setView("chart"));
+el("vAsk").addEventListener("click", () => setView("ask"));
 el("vScore").addEventListener("click", () => setView("score"));
 el("vFold").addEventListener("click", () => setView("fold"));
 function frame() {
   computeNow();
-  if (view === "fold") drawFold(); else if (view === "now") { drawNow(); drawNowWheel(); } else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else if (view === "chart") drawChartWheel(); else { drawDial(); drawScore(); }
+  if (view === "fold") drawFold(); else if (view === "now") { drawNow(); drawNowWheel(); } else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else if (view === "chart") drawChartWheel(); else if (view === "ask") drawAskWheel(); else { drawDial(); drawScore(); }
   liveCard(); syncCards();
   el("when").textContent = new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   drawTape();
@@ -3677,11 +3733,332 @@ el("layers").append(...Object.entries(LAYERS).filter(([, l]) => !l.fixed).map(([
   });
   return lab;
 }));
+// ---------------------------------------------------------------- ask: horary
+// A chart for the moment a question is asked and understood, judged the way William Lilly judged
+// one in Christian Astrology (1647): first whether the chart is fit to judge, then who's who, whether
+// the significators come together, what helps or hinders, the Moon's story and the timing. What it
+// gives back is the testimonies and the way they lean, never a verdict. Seven planets, Ptolemaic
+// aspects, Lilly's moieties, Regiomontanus houses.
+const SEVEN = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"];
+const DAY_RULER = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"];
+const NATURE = { saturn: "earth", jupiter: "air", mars: "fire", sun: "fire", venus: "water", moon: "water" };
+const WHOSE = [[1, "My own", "your"], [7, "My partner's, or one particular person's", "the other person's"], [5, "My child's", "your child's"], [3, "My sibling's", "your sibling's"], [11, "A friend's", "your friend's"], [4, "My father's", "your father's"], [10, "My mother's", "your mother's"]];
+const MATTER = [[1, "Health, body, how things are going", "wellbeing"], [2, "Money, possessions, something lost", "money or possessions"], [3, "Messages, short trips, siblings, neighbours, contracts", "messages, trips or contracts"], [4, "Home, property, land, how something ends", "home or property"], [5, "Romance, pleasure, pregnancy, children", "romance, pleasure or children"], [6, "Daily work, illness, employees, small animals", "daily work or health"], [7, "A partner, a particular person, an opponent, a deal", "partner, or the other party"], [8, "Shared money, debts, loans, inheritance", "shared money or debts"], [9, "Long journeys, study, law, faith, publishing", "journey, studies or legal matter"], [10, "Career, a job or promotion, reputation", "career or standing"], [11, "Friends, allies, a hope or wish", "friends, hopes or wishes"], [12, "Hidden troubles, secret enemies, confinement", "hidden troubles"]];
+const UNITS = [["days", "weeks", "months"], ["weeks", "months", "years"], ["months", "years", "years"]];   // [angular, succedent, cadent][movable, common, fixed]
+const MALEFIC = new Set(["mars", "saturn"]), BENEFIC = new Set(["venus", "jupiter"]);
+const hSpeed = (b, ms) => wrap180(longitude(b, ms + 3600000) - longitude(b, ms - 3600000)) * 12;
+const stepFor = (...bs) => bs.includes("moon") ? 3600000 : bs.some((b) => ["sun", "mercury", "venus", "mars"].includes(b)) ? 6 * 3600000 : DAY;
+const bisect = (x, y, f) => { let fx = f(x); for (let k = 0; k < 24; k++) { const m = (x + y) / 2, fm = f(m); if (fx * fm <= 0) y = m; else { x = m; fx = fm; } } return (x + y) / 2; };
+// every exact Ptolemaic aspect between two moving bodies in (from, to]
+function hCrossings(a, b, from, to, step = stepFor(a, b)) {
+  const out = [], angs = [0, 60, -60, 90, -90, 120, -120, 180];
+  let prev = angs.map((g) => wrap180(longitude(a, from) - longitude(b, from) - g));
+  for (let ms = from + step; ms < to + step; ms += step) {
+    const m1 = Math.min(ms, to), la = longitude(a, m1), lb = longitude(b, m1), cur = angs.map((g) => wrap180(la - lb - g));
+    cur.forEach((q, i) => { const p = prev[i]; if (p !== 0 && p * q <= 0 && Math.abs(p - q) < 30) out.push({ ms: bisect(m1 - step, m1, (m) => wrap180(longitude(a, m) - longitude(b, m) - angs[i])), kind: Math.abs(angs[i]), with: b }); });
+    prev = cur;
+    if (m1 >= to) break;
+  }
+  return out.sort((p, q) => p.ms - q.ms);
+}
+// when a body next leaves the sign it's in, looking at most max days ahead
+function signExit(b, from, max = 400) {
+  const s0 = signOf(longitude(b, from)), step = stepFor(b);
+  for (let ms = from + step; ms <= from + max * DAY; ms += step) {
+    if (signOf(longitude(b, ms)) !== s0) { const at = bisect(ms - step, ms, (m) => (signOf(longitude(b, m)) === s0 ? 1 : -1)); return { ms: at, to: signOf(longitude(b, at + 60000)) }; }
+  }
+  return { ms: from + max * DAY, to: null };
+}
+function stationIn(b, from, to) {
+  if (b === "sun" || b === "moon") return null;
+  const step = stepFor(b); let s0 = Math.sign(hSpeed(b, from));
+  for (let ms = from + step; ms <= to; ms += step) { const s = Math.sign(hSpeed(b, ms)); if (s !== s0) return { ms, to: s < 0 ? "retrograde" : "direct" }; }
+  return null;
+}
+// the planetary hour: day and night each in twelve unequal hours from sunrise and sunset, in the Chaldean order
+function planetaryHour(ms, lat, lon) {
+  try {
+    const obs = new Astronomy.Observer(lat, lon, 0), ev = (from, dir) => { const r = Astronomy.SearchRiseSet(Astronomy.Body.Sun, obs, dir, Astronomy.MakeTime(new Date(from)), 2); return r ? r.date.getTime() : null; };
+    let r0 = ev(ms - 1.2 * DAY, +1); if (!r0) return null;
+    let r1 = ev(r0 + 60000, +1);
+    while (r1 && r1 <= ms) { r0 = r1; r1 = ev(r0 + 60000, +1); }
+    const s = ev(r0 + 60000, -1); if (!s || !r1) return null;
+    const night = ms >= s, idx = night ? 12 + Math.floor((ms - s) / ((r1 - s) / 12)) : Math.floor((ms - r0) / ((s - r0) / 12));
+    const dayRuler = DAY_RULER[new Date(r0 + (lon / 15) * 3600000).getUTCDay()];
+    return { ruler: CHALDEAN[(CHALDEAN.indexOf(dayRuler) + idx) % 7], dayRuler, night };
+  } catch (_) { return null; }
+}
+const angularity = (h) => [1, 4, 7, 10].includes(h) ? 0 : [2, 5, 8, 11].includes(h) ? 1 : 2;
+const modality = (sign) => [0, 2, 1][sign % 3];
+const recv = (x, y, pos) => DOMICILE[y] && (DOMICILE[y].includes(signOf(pos[x])) || EXALT[y] === signOf(pos[x]));   // y receives x
+function castHorary(q) {
+  const ms = q.ms, pos = {}, spd = {};
+  for (const b of [...SEVEN, "uranus", "neptune", "pluto", "node"]) { pos[b] = longitude(b, ms); spd[b] = hSpeed(b, ms); }
+  const H = computeHouses(ms, q.lat, q.lon, "regiomontanus"), hOf = (l) => houseOf(H, l);
+  const house = ((q.whose - 1) + (q.what - 1)) % 12 + 1, day = hOf(pos.sun) >= 7;
+  let querent = RULER[signOf(H.asc)], quesited = RULER[signOf(H.cusps[house - 1])], moonTakesQuerent = false;
+  if (house !== 1 && quesited === querent) { querent = "moon"; moonTakesQuerent = true; }
+  const cond = (p) => {
+    const sep = Math.abs(wrap180(pos[p] - pos.sun));
+    return { p, sign: signOf(pos[p]), house: hOf(pos[p]), dg: dignity(p, pos[p], day), retro: spd[p] < 0 && p !== "sun" && p !== "moon",
+      sun: p === "sun" ? null : sep < 17 / 60 ? "cazimi" : sep < 8.5 ? "combust" : sep < 17 ? "under the beams" : null };
+  };
+  const out = { q, ms, pos, spd, H, house, day, querent, quesited, moonTakesQuerent, cautions: [], testimonies: [], story: [] };
+  const T = (w, text) => out.testimonies.push({ w, text });
+  // is the chart fit to judge?
+  const ascDeg = H.asc % 30;
+  if (ascDeg < 3) out.cautions.push(`The Ascendant is in its first ${ascDeg.toFixed(0) === "0" ? "degree" : "three degrees"} (${fmtLon(H.asc)}): Lilly read this as asking too early, before the matter has formed.`);
+  if (ascDeg > 27) out.cautions.push(`The Ascendant is in the last degrees of its sign (${fmtLon(H.asc)}): Lilly read this as asking too late, after the matter is already decided, or as an asker who has tried to settle it elsewhere first.`);
+  if (pos.moon >= 195 && pos.moon < 225) out.cautions.push("The Moon is in the via combusta, between 15° Libra and 15° Scorpio: the tradition reads matters as unsettled and unreliable here.");
+  const satH = hOf(pos.saturn);
+  if (satH === 1 || satH === 7) out.cautions.push(`Saturn is in the ${ORD[satH]} house: Lilly warned that ${satH === 1 ? "the asker's own fears or slowness" : "the astrologer's judgement"} may be at fault in this matter.`);
+  const hour = planetaryHour(ms, q.lat, q.lon);
+  out.hour = hour;
+  if (hour) {
+    const asc = signOf(H.asc), el = ELEMENT[asc % 4], ruler = RULER[asc];
+    const agree = hour.ruler === ruler || hour.ruler === "mercury" || NATURE[hour.ruler] === el || TRIP[el].includes(hour.ruler);
+    if (!agree) out.cautions.push(`It's the hour of ${NAME[hour.ruler]}, which doesn't agree with ${SIGN[asc]} rising or its ruler ${NAME[ruler]}. Lilly took that agreement as a sign the chart is radical, fit to judge; without it, he judged with more care.`);
+  }
+  // the Moon: what she last did, what she'll do before she leaves her sign, and whether she's void
+  const moonOut = signExit("moon", ms, 3);
+  const next = SEVEN.filter((b) => b !== "moon").flatMap((b) => hCrossings("moon", b, ms, moonOut.ms, 3600000)).sort((p, q) => p.ms - q.ms);
+  const last = SEVEN.filter((b) => b !== "moon").flatMap((b) => hCrossings("moon", b, ms - 3 * DAY, ms, 3600000)).sort((p, q) => q.ms - p.ms)[0] || null;
+  out.moon = { exit: moonOut, next, last, cond: cond("moon") };
+  if (!next.length) {
+    const soft = [1, 3, 8, 11].includes(signOf(pos.moon));
+    out.cautions.push(`The Moon is void of course: she makes no aspect to another planet before she leaves ${SIGN[signOf(pos.moon)]}. "Nothing will come of it," the tradition says${soft ? `, though Lilly allowed that in ${SIGN[signOf(pos.moon)]} she still performs somewhat` : ""}.`);
+    T(soft ? -1 : -2, "The Moon is void of course.");
+  }
+  // who's who, and how able each is
+  out.cq = cond(querent); out.cs = cond(quesited); out.cm = cond("moon");
+  const ability = (c, who) => {
+    if (c.dg.score !== null && c.dg.score >= 4) T(1, `${who} (${NAME[c.p]}) is strong in its own dignity: able to act.`);
+    else if (c.dg.main === "Detriment" || c.dg.main === "Fall") T(-1, `${who} (${NAME[c.p]}) is in its ${c.dg.main.toLowerCase()}: weak, or acting against its own grain.`);
+    if (c.sun === "combust") T(-1, `${who} (${NAME[c.p]}) is combust, lost in the Sun's glare: hidden, or overpowered.`);
+    if (c.sun === "cazimi") T(1, `${who} (${NAME[c.p]}) is cazimi, in the heart of the Sun: greatly strengthened.`);
+    if (c.retro) T(-1, `${who} (${NAME[c.p]}) is retrograde: going back on itself.`);
+  };
+  ability(out.cq, "Your significator"); if (house !== 1) ability(out.cs, "The matter's significator");
+  if (house === 1) {
+    // a question about yourself is judged by the condition of the ruler of the 1st and the Moon, and what they meet next
+    const mNext = next[0];
+    if (mNext) T(BENEFIC.has(mNext.with) || mNext.with === "sun" && mNext.kind !== 90 && mNext.kind !== 180 ? 1 : MALEFIC.has(mNext.with) && (mNext.kind === 90 || mNext.kind === 180 || mNext.kind === 0) ? -1 : 0, `The Moon next meets ${NAME[mNext.with]} by ${ASPECT[mNext.kind]}.`);
+    if (angularity(out.cq.house) === 0) T(1, `Your significator is angular, in the ${ORD[out.cq.house]} house: in a place of strength.`);
+    if (angularity(out.cq.house) === 2) T(-1, `Your significator is cadent, in the ${ORD[out.cq.house]} house: in a weak place.`);
+    out.testimonies = out.testimonies.filter((x) => x.w !== 0);
+    return out;
+  }
+  // do they come together?
+  const A = querent, B = quesited, exitA = signExit(A, ms), exitB = signExit(B, ms), end = Math.min(exitA.ms, exitB.ms);
+  const perf = A === B ? null : hCrossings(A, B, ms, end)[0] || null;
+  out.perf = perf; out.exit = { A: exitA, B: exitB };
+  const fast = Math.abs(spd[A]) >= Math.abs(spd[B]) ? A : B, slow = fast === A ? B : A;
+  if (perf) {
+    const how = { 0: "by conjunction: directly, by meeting", 60: "by sextile: with ease, given a little effort", 120: "by trine: easily", 90: "by square: with difficulty and delay", 180: "by opposition: the matter comes, but with contention, and often regret" }[perf.kind];
+    T({ 0: 3, 60: 2, 120: 3, 90: 2, 180: 1 }[perf.kind], `${NAME[A]} and ${NAME[B]} perfect an aspect before either leaves its sign, ${how}.`);
+    // something else gets there first: prohibition
+    for (const t of SEVEN.filter((b) => b !== A && b !== B && b !== "moon")) {
+      const c = hCrossings(t, slow, ms, perf.ms)[0];
+      if (c && (!out.prohibit || c.ms < out.prohibit.ms)) out.prohibit = { ...c, by: t };
+    }
+    if (out.prohibit) { const p = out.prohibit, hard = MALEFIC.has(p.by) || p.kind === 90 || p.kind === 180; T(hard ? -2 : -1, `${NAME[p.by]} reaches ${NAME[slow]} first, by ${ASPECT[p.kind]} on ${fmtDate(p.ms)}: a prohibition${hard ? ", something that gets in the way" : ", someone or something else that intervenes"}.`); }
+  } else {
+    const later = A === B ? null : hCrossings(A, B, end, end + 120 * DAY)[0];
+    const st = stationIn(fast, ms, end + 30 * DAY);
+    const close = Math.min(...[0, 60, 90, 120, 180].map((k) => Math.abs(Math.abs(wrap180(pos[A] - pos[B])) - k)));
+    if (st && close < 12 && (!later || st.ms < later.ms)) { out.refrain = st; T(-2, `${NAME[fast]} turns ${st.to} on ${fmtDate(st.ms)} before the aspect can perfect: refranation, a withdrawal, someone backing out.`); }
+    else if (later) { out.later = later; T(-1, `${NAME[A]} and ${NAME[B]} only perfect after one of them changes sign (${fmtDate(later.ms)}): the matter may come about, but in a changed form.`); }
+    else T(-2, `${NAME[A]} and ${NAME[B]} don't come together: no aspect perfects between them before they leave their signs.`);
+    const sepNow = [0, 60, 90, 120, 180].find((k) => { const off = Math.abs(Math.abs(wrap180(pos[A] - pos[B])) - k), off2 = Math.abs(Math.abs(wrap180(longitude(A, ms + 3600000) - longitude(B, ms + 3600000))) - k); return off < lillyRho(A, B) && off2 > off; });
+    if (sepNow !== undefined) { out.separating = sepNow; T(-1, `They're separating from a ${ASPECT[sepNow]}: what they had between them is already passing.`); }
+  }
+  // translation of light: a quicker planet carries one significator's light to the other
+  // it must be quicker than both, just past one within orb, and already applying to the other within orb
+  const offTo = (x, y, k) => Math.min(Math.abs(wrap180(pos[x] - pos[y] - k)), Math.abs(wrap180(pos[x] - pos[y] + k)));
+  for (const t of SEVEN.filter((b) => b !== A && b !== B && Math.abs(spd[b]) > Math.abs(spd[A]) && Math.abs(spd[b]) > Math.abs(spd[B]))) for (const [x, y] of [[A, B], [B, A]]) {
+    const was = hCrossings(t, x, ms - (t === "moon" ? 2.5 : 20) * DAY, ms).pop();
+    if (!was || offTo(t, x, was.kind) > lillyRho(t, x)) continue;
+    const to = hCrossings(t, y, ms, signExit(t, ms, t === "moon" ? 3 : 120).ms)[0];
+    if (to && offTo(t, y, to.kind) > lillyRho(t, y)) continue;
+    if (to && !out.translate) { out.translate = { by: t, from: x, to: y, ms: to.ms, kind: to.kind }; T(2, `${NAME[t]} carries the light from ${NAME[x]} to ${NAME[y]}: translation of light. A go-between, a message or a third person brings it about.`); }
+  }
+  // collection of light: a slower planet receives both
+  if (!perf) for (const t of SEVEN.filter((b) => b !== A && b !== B && b !== "moon" && Math.abs(spd[b]) < Math.abs(spd[A]) && Math.abs(spd[b]) < Math.abs(spd[B]))) {
+    const ca = hCrossings(A, t, ms, exitA.ms)[0], cb = hCrossings(B, t, ms, exitB.ms)[0];
+    if (ca && cb && offTo(A, t, ca.kind) <= lillyRho(A, t) && offTo(B, t, cb.kind) <= lillyRho(B, t) && !out.collect) { out.collect = { by: t }; T(2, `${NAME[A]} and ${NAME[B]} both apply to ${NAME[t]}, who collects their light: someone with more weight than either may bring it together.`); }
+  }
+  // reception
+  const rAB = recv(A, B, pos), rBA = recv(B, A, pos);
+  if (rAB && rBA) T(2, `${NAME[A]} and ${NAME[B]} are in mutual reception, each in the other's dignity: they're well disposed to each other, which can bring it about even without an aspect.`);
+  else if (rAB) T(1, `${NAME[B]} receives ${NAME[A]} (${NAME[A]} is in ${NAME[B]}'s dignity): the matter is open to you.`);
+  else if (rBA) T(1, `${NAME[A]} receives ${NAME[B]} (${NAME[B]} is in ${NAME[A]}'s dignity): you're well disposed to it.`);
+  // the Moon's next aspect, to either significator
+  const mToSig = next.find((c) => c.with === B || c.with === A);
+  if (mToSig && !moonTakesQuerent && A !== "moon" && B !== "moon") T(mToSig.kind === 90 || mToSig.kind === 180 ? 0 : 1, `The Moon applies to ${NAME[mToSig.with]} by ${ASPECT[mToSig.kind]} before leaving her sign${mToSig.kind === 90 || mToSig.kind === 180 ? ", though by a hard aspect" : ""}.`);
+  out.testimonies = out.testimonies.filter((x) => x.w !== 0);
+  // timing, by Lilly's symbolic measure: degrees still to go, in units set by sign and house
+  if (perf) {
+    const deg = Math.min(...[perf.kind, -perf.kind].map((g) => Math.abs(wrap180(pos[A] - pos[B] - g)))), cf = cond(fast);
+    out.timing = { deg, unit: UNITS[angularity(cf.house)][modality(cf.sign)], fast };
+  }
+  return out;
+}
+function leaningOf(h) {
+  const s = h.testimonies.reduce((a, x) => a + x.w, 0), about = h.house === 1;
+  const word = s >= 4 ? (about ? "leans clearly favourable" : "leans clearly toward yes") : s >= 2 ? (about ? "leans favourable" : "leans toward yes") : s >= 1 ? (about ? "leans slightly favourable" : "leans slightly toward yes")
+    : s <= -4 ? (about ? "leans clearly troubled" : "leans clearly toward no") : s <= -2 ? (about ? "leans troubled" : "leans toward no") : s <= -1 ? (about ? "leans slightly troubled" : "leans slightly toward no") : "doesn't lean either way";
+  return { s, word };
+}
+const esc = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function condText(c) {
+  const bits = [`in ${SIGN[c.sign]}, ${ORD[c.house]} house (${["angular", "succedent", "cadent"][angularity(c.house)]})`];
+  if (c.dg.main) bits.push(c.dg.main === "Peregrine" ? "peregrine, with no dignity of its own" : `in its ${c.dg.main.toLowerCase()}`);
+  if (c.retro) bits.push("retrograde");
+  if (c.sun) bits.push(c.sun);
+  return bits.join(", ");
+}
+function renderAsk(h) {
+  const box = el("askRead"), L = leaningOf(h), whose = WHOSE.find((w) => w[0] === h.q.whose), what = MATTER.find((m) => m[0] === h.q.what);
+  const sig = (p, col) => `<span style="color:${COLOR[p]}">${GLYPH[p]}${VS}</span> ${NAME[p]}`;
+  const sec = (title, body) => body ? `<h3>${title}</h3>${body}` : "";
+  const fit = h.cautions.length ? `<ul class="cautions">${h.cautions.map((c) => `<li>${c}</li>`).join("")}</ul><p class="fine">These are Lilly's considerations before judgement. None forbids reading the chart; together they say how far to trust it.</p>` : `<p>None of Lilly's cautions apply: the chart is fit to judge.</p>`;
+  const who = h.house === 1
+    ? `<p>You're shown by ${sig(h.querent)}, ruler of the Ascendant (${SIGN[signOf(h.H.asc)]} rising): ${condText(h.cq)}. The Moon, ${condText(h.cm)}, is your co-significator. A question about yourself is read from their condition and what they meet next.</p>`
+    : `<p>You're shown by ${sig(h.querent)}${h.moonTakesQuerent ? `, because the same planet rules both the Ascendant and the matter, so Lilly gives the asker to the Moon` : `, ruler of the Ascendant (${SIGN[signOf(h.H.asc)]} rising)`}: ${condText(h.cq)}.</p>
+       <p>${cap(whose[2])} ${what[2]} ${h.q.whose === 1 ? "is" : "falls in"} the ${ORD[h.house]} house${h.q.whose !== 1 ? ` (the ${ORD[h.q.what]} counted from the ${ORD[h.q.whose]})` : ""}, ruled by ${sig(h.quesited)}: ${condText(h.cs)}.</p>`;
+  let meet = "";
+  if (h.house !== 1) {
+    if (h.perf) meet = `<p>${NAME[h.querent]} and ${NAME[h.quesited]} come together by <b>${ASPECT[h.perf.kind]}</b>, exact on ${fmtWhen(h.perf.ms)}, before either changes sign. In horary this is the plainest sign that a matter comes about.</p>`;
+    else if (h.refrain) meet = `<p>${NAME[h.querent]} and ${NAME[h.quesited]} are moving toward an aspect, but ${NAME[h.refrain.to === "retrograde" ? h.querent : h.quesited]} turns ${h.refrain.to} first: refranation.</p>`;
+    else if (h.later) meet = `<p>${NAME[h.querent]} and ${NAME[h.quesited]} don't meet while they're in their present signs; they do on ${fmtWhen(h.later.ms)}, after a change of sign.</p>`;
+    else meet = `<p>${NAME[h.querent]} and ${NAME[h.quesited]} make no aspect before they leave their signs.</p>`;
+    if (h.translate) meet += `<p>${NAME[h.translate.by]} translates light from ${NAME[h.translate.from]} to ${NAME[h.translate.to]}, reaching ${NAME[h.translate.to]} by ${ASPECT[h.translate.kind]} on ${fmtWhen(h.translate.ms)}.</p>`;
+    if (h.collect) meet += `<p>${NAME[h.collect.by]} collects the light of both.</p>`;
+    if (h.prohibit) meet += `<p>But ${NAME[h.prohibit.by]} reaches ${NAME[Math.abs(h.spd[h.querent]) >= Math.abs(h.spd[h.quesited]) ? h.quesited : h.querent]} first, on ${fmtWhen(h.prohibit.ms)}: a prohibition.</p>`;
+  }
+  const m = h.moon, story = [
+    m.last ? `She last made a ${ASPECT[m.last.kind]} to ${NAME[m.last.with]} (${fmtWhen(m.last.ms)}): that's the recent past of the matter.` : "",
+    m.next.length ? `Before she leaves ${SIGN[signOf(h.pos.moon)]} she ${joinAnd(m.next.map((c) => `meets ${NAME[c.with]} by ${ASPECT[c.kind]} (${fmtWhen(c.ms)})`))}: that's what comes next, in order.` : `She makes no more aspects before leaving ${SIGN[signOf(h.pos.moon)]}.`,
+  ].filter(Boolean).join(" ");
+  const n = h.timing ? Math.max(1, Math.round(h.timing.deg)) : 0;
+  const when = h.timing ? `<p>${NAME[h.timing.fast]}, the quicker of the two, has ${h.timing.deg.toFixed(1)}° to go, so Lilly would count about <b>${n}</b> units of time. Its sign and house suggest ${h.timing.unit}, but he let the nature of the question choose between days, weeks, months and years, whichever is plausible for the matter. In the sky itself the aspect perfects on ${fmtDate(h.perf.ms)}, which is sometimes the timing that holds.</p>` : "";
+  const plus = h.testimonies.filter((x) => x.w > 0), minus = h.testimonies.filter((x) => x.w < 0);
+  const dots = (w) => "●".repeat(Math.abs(w));
+  const tbl = `<div class="testi"><div><h4>For</h4>${plus.length ? `<ul>${plus.map((x) => `<li><span class="w good">${dots(x.w)}</span> ${x.text}</li>`).join("")}</ul>` : `<p class="fine">None.</p>`}</div><div><h4>Against</h4>${minus.length ? `<ul>${minus.map((x) => `<li><span class="w hard">${dots(x.w)}</span> ${x.text}</li>`).join("")}</ul>` : `<p class="fine">None.</p>`}</div></div>`;
+  box.innerHTML = `<div class="hl"><span class="k">${fmtWhen(h.ms)}${h.q.place ? `, ${esc(h.q.place)}` : ""}</span><span class="t" id="askQText"></span><p>The chart <b>${L.word}</b>${h.cautions.length ? `, with ${h.cautions.length} ${h.cautions.length > 1 ? "cautions" : "caution"} about judging it` : ""}.</p></div>`
+    + sec("Is the chart fit to judge?", fit) + sec("Who's who", who) + sec("Do they come together?", meet) + sec("The Moon's story", `<p>${story}</p>`) + sec("When", when)
+    + sec("The testimonies", tbl + `<p>Weighed together, the chart ${L.word}.</p>`)
+    + `<p class="fine">Horary is a tradition of reading, not a measurement. Lilly judged by weighing testimonies, and so does this page: the leaning is their weight, not an answer you have to accept. Seven planets, Ptolemaic aspects, Lilly's moieties, Regiomontanus houses. Positions and times are measured.</p>`;
+  el("askQText").textContent = h.q.text || "A question without words";
+}
+// the chart itself, with the two significators ringed and their meeting drawn
+const askWheel = el("askWheel"), awg = askWheel.getContext("2d");
+let askCast = null;
+function drawAskWheel() {
+  const h = askCast, r0 = askWheel.getBoundingClientRect(); if (!h || !r0.width) return;
+  const W = r0.width, DPR = Math.min(2, devicePixelRatio || 1);
+  if (askWheel.width !== Math.round(W * DPR)) askWheel.width = askWheel.height = Math.round(W * DPR);
+  const g = awg, c = W / 2, R = W / 2 - 4, rZi = R * 0.87, rP = R * 0.72, rC = R * 0.56;
+  const pt = (lon, r) => { const a = (180 + lon - h.H.asc) * D2R; return [c + r * Math.cos(a), c - r * Math.sin(a)]; };
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, W); g.textAlign = "center"; g.textBaseline = "middle";
+  const TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+  for (let k = 0; k < 12; k++) {
+    const a0 = (180 + k * 30 - h.H.asc) * D2R, a1 = a0 + 30 * D2R;
+    g.beginPath(); g.arc(c, c, R, -a0, -a1, true); g.arc(c, c, rZi, -a1, -a0, false); g.closePath(); g.fillStyle = TINT[k % 4]; g.fill();
+    const [gx, gy] = pt(k * 30 + 15, (R + rZi) / 2); g.fillStyle = MUTED; g.font = `${Math.round(R * 0.07)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (const r of [R, rZi, rC]) { g.beginPath(); g.arc(c, c, r, 0, 7); g.strokeStyle = LINE; g.lineWidth = 1; g.stroke(); }
+  h.H.cusps.forEach((cu, i) => {
+    const [x0, y0] = pt(cu, rC), [x1, y1] = pt(cu, rZi), axis = i === 0 || i === 9, mine = i + 1 === h.house && h.house !== 1;
+    g.strokeStyle = mine ? "rgba(143,184,255,0.8)" : axis ? "rgba(240,198,116,0.55)" : "rgba(139,145,168,0.2)"; g.lineWidth = mine || axis ? 1.4 : 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    const [nx2, ny2] = pt(cu + norm(h.H.cusps[(i + 1) % 12] - cu) / 2, rC + R * 0.05); g.fillStyle = mine ? "#8fb8ff" : "rgba(143,149,173,0.55)"; g.font = `${Math.round(R * 0.032)}px "Instrument Sans", sans-serif`; g.fillText(String(i + 1), nx2, ny2);
+  });
+  if (h.perf || h.later) {
+    const [x0, y0] = pt(h.pos[h.querent], rC), [x1, y1] = pt(h.pos[h.quesited], rC), k = (h.perf || h.later).kind;
+    const grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, NATAL); grad.addColorStop(1, "#8fb8ff");
+    g.strokeStyle = grad; g.lineWidth = 2.2; g.globalAlpha = h.perf ? 0.95 : 0.45; g.setLineDash(k === 90 || k === 180 ? [6, 4] : []);
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]); g.globalAlpha = 1;
+  }
+  const bodies = [...SEVEN, "uranus", "neptune", "pluto", "node"], gs = Math.round(R * 0.07), shown = spread(bodies.map((b) => h.pos[b]), (gs * 1.15) / rP / D2R);
+  bodies.forEach((b, i) => {
+    const outer = !SEVEN.includes(b), [a0, b0] = pt(h.pos[b], rC), [a1, b1] = pt(h.pos[b], rC + R * 0.025), [gx, gy] = pt(shown[i], rP);
+    g.globalAlpha = outer ? 0.45 : 1; g.strokeStyle = COLOR[b]; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a0, b0); g.lineTo(a1, b1); g.stroke();
+    g.fillStyle = COLOR[b]; g.font = `${gs}px ${SYM}`; g.fillText(GLYPH[b] + VS, gx, gy);
+    if (h.spd[b] < 0 && b !== "node") { g.font = `${Math.round(gs * 0.45)}px "Instrument Sans", sans-serif`; g.fillText("℞", gx + gs * 0.6, gy + gs * 0.45); }
+    const role = b === h.querent ? NATAL : b === h.quesited && h.house !== 1 ? "#8fb8ff" : null;
+    if (role) { g.globalAlpha = 1; g.strokeStyle = role; g.lineWidth = 1.6; g.beginPath(); g.arc(gx, gy, gs * 0.78, 0, 7); g.stroke(); }
+    g.globalAlpha = 1;
+  });
+  g.font = `500 ${Math.round(R * 0.034)}px "Instrument Sans", sans-serif`; g.fillStyle = NATAL;
+  for (const [n, l] of [["AC", h.H.asc], ["MC", h.H.mc]]) { const [x, y] = pt(l, rZi - R * 0.025); g.fillText(n, x, y); }
+  el("askWheelNote").innerHTML = `<span style="color:${NATAL}">○</span> you: ${NAME[h.querent]}${h.house !== 1 ? ` &nbsp; <span style="color:#8fb8ff">○</span> the matter: ${NAME[h.quesited]}, ruler of the ${ORD[h.house]}` : ""}`;
+}
+// the journal: every question cast here, kept in this browser, with a place to say how it turned out
+const JSTORE = "sublunary.ask.journal", PSTORE = "sublunary.ask.place";
+const loadJournal = () => { try { const j = JSON.parse(localStorage.getItem(JSTORE) || "[]"); return Array.isArray(j) ? j : []; } catch (_) { return []; } };
+const saveJournal = (j) => { try { localStorage.setItem(JSTORE, JSON.stringify(j.slice(0, 300))); } catch (_) {} };
+function renderJournal() {
+  const j = loadJournal(), box = el("askJournal");
+  el("askJournalHead").hidden = !j.length;
+  box.replaceChildren(...j.map((e) => {
+    const li = document.createElement("li"), head = document.createElement("button"), note = document.createElement("textarea"), del = document.createElement("button");
+    head.type = "button"; head.className = "jq";
+    const qs = document.createElement("span"); qs.className = "jt"; qs.textContent = e.text || "A question without words";
+    const meta = document.createElement("span"); meta.className = "jm"; meta.textContent = `${fmtDate(e.ms)} · ${e.leaning}`;
+    head.append(qs, meta);
+    head.addEventListener("click", () => { fillAsk(e); doCast(e, false); scrollTo({ top: el("askbox").offsetTop - 8, behavior: "smooth" }); });
+    note.rows = 2; note.placeholder = "How did it turn out?"; note.value = e.outcome || ""; note.setAttribute("aria-label", "How it turned out");
+    note.addEventListener("change", () => { const jj = loadJournal(), k = jj.findIndex((x) => x.id === e.id); if (k >= 0) { jj[k].outcome = note.value.slice(0, 2000); saveJournal(jj); } });
+    del.type = "button"; del.className = "jdel"; del.textContent = "Remove"; del.setAttribute("aria-label", "Remove this question");
+    del.addEventListener("click", () => { if (confirm("Remove this question from the journal?")) { saveJournal(loadJournal().filter((x) => x.id !== e.id)); renderJournal(); } });
+    li.append(head, note, del); return li;
+  }));
+}
+function fillAsk(e) {
+  el("askText").value = e.text || ""; el("askWhose").value = String(e.whose); el("askWhat").value = String(e.what);
+  el("hPlace").value = e.place || ""; el("hLat").value = e.lat; el("hLon").value = e.lon;
+  el("askWhen").value = toLocalInput(e.ms); el("askNow").checked = false;
+}
+const toLocalInput = (ms) => { const d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000); return d.toISOString().slice(0, 16); };
+function readAsk() {
+  const lat = parseFloat(el("hLat").value), lon = parseFloat(el("hLon").value);
+  if (!(Math.abs(lat) <= 90) || !(Math.abs(lon) <= 180)) return { err: "Choose where you are: a city from the list, or Use my location." };
+  if (Math.abs(lat) >= 66) return { err: "Regiomontanus houses fail this close to the poles, so horary can't be cast here." };
+  const ms = el("askNow").checked ? Date.now() : new Date(el("askWhen").value).getTime();
+  if (!Number.isFinite(ms)) return { err: "Choose the moment you asked, or tick Now." };
+  if (ms < T0 - 3650 * DAY || ms > Date.now() + 366 * DAY) return { err: "Choose a moment within the last ten years." };
+  return { text: el("askText").value.trim().slice(0, 500), whose: +el("askWhose").value, what: +el("askWhat").value, ms, lat, lon, place: cleanText(el("hPlace").value) };
+}
+function doCast(q, record) {
+  el("askErr").textContent = "Casting…";
+  setTimeout(() => {
+    try {
+      const h = castHorary(q); askCast = h; el("askResult").hidden = false; renderAsk(h); el("askErr").textContent = ""; dirty = true;
+      try { localStorage.setItem(PSTORE, JSON.stringify({ place: q.place, lat: q.lat, lon: q.lon })); } catch (_) {}
+      if (record) { const j = loadJournal(); j.unshift({ id: `${q.ms}-${Math.random().toString(36).slice(2, 7)}`, ...q, leaning: leaningOf(h).word }); saveJournal(j); renderJournal(); }
+      el("askResult").scrollIntoView({ block: "start", behavior: "smooth" });
+    } catch (x) { el("askErr").textContent = "Something went wrong casting this chart."; console.error(x); }
+  }, 30);
+}
+el("askWhose").append(...WHOSE.map(([h, label]) => Object.assign(document.createElement("option"), { value: h, textContent: label })));
+el("askWhat").append(...MATTER.map(([h, label]) => Object.assign(document.createElement("option"), { value: h, textContent: label })));
+el("askWhat").value = "7";
+el("askNow").addEventListener("change", () => { el("askWhen").disabled = el("askNow").checked; if (!el("askNow").checked && !el("askWhen").value) el("askWhen").value = toLocalInput(Date.now()); });
+el("askWhen").disabled = true;
+el("askHere").addEventListener("click", () => {
+  if (!navigator.geolocation) { el("askErr").textContent = "This browser can't share its location; choose a city instead."; return; }
+  el("askErr").textContent = "Finding where you are…";
+  navigator.geolocation.getCurrentPosition((p) => { el("hLat").value = p.coords.latitude.toFixed(3); el("hLon").value = p.coords.longitude.toFixed(3); el("hPlace").value = "Here"; el("askErr").textContent = ""; },
+    () => { el("askErr").textContent = "Location wasn't shared; choose a city instead."; }, { maximumAge: 600000, timeout: 15000 });
+});
+el("askForm").addEventListener("submit", (e) => { e.preventDefault(); const q = readAsk(); if (q.err) { el("askErr").textContent = q.err; return; } doCast(q, true); });
+try { const p = JSON.parse(localStorage.getItem(PSTORE) || "null"); if (p && Number.isFinite(+p.lat)) { el("hPlace").value = cleanText(p.place); el("hLat").value = +p.lat; el("hLon").value = +p.lon; } } catch (_) {}
+attachPlace("h"); renderJournal();
 fillSecond(); sizeDial(); rebuild(); renderLegend(); el("cardsBtn").setAttribute("aria-pressed", String(cardsOn)); tick(last);
-new ResizeObserver(() => { if (view === "chart") { dirty = true; } else if (view === "moon") { sizeMoon(); dirty = true; } else if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
+new ResizeObserver(() => { if (view === "chart" || view === "ask") { dirty = true; } else if (view === "moon") { sizeMoon(); dirty = true; } else if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
 setFold(1, true);
 const arriving = hashArg("c");
-setView((location.hash.match(/^#(chart|now|moon|score|fold|two)-view/) || [])[1] || (mode === "example" ? "chart" : "now"));
+setView((location.hash.match(/^#(chart|now|moon|score|fold|two|ask)-view/) || [])[1] || (mode === "example" ? "chart" : "now"));
 if (mode === "welcome") enterWelcome();
 if (arriving) offerShared(arriving);
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { scoreDirty = true; foldDirty = true; nowDirty = true; dirty = true; });

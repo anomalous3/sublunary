@@ -209,6 +209,21 @@
   form.chart label { display: grid; gap: 3px; color: var(--muted); font-size: 12.5px; }
   form.chart input { font: inherit; color: var(--fg); background: #0c0e17; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; width: 100%; min-width: 0; }
   .err { color: #ff9a8a; font-size: 12.5px; min-height: 1em; margin: 0; }
+  form.chart details.coords { grid-column: 1 / -1; }
+  form.chart details.coords > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 12px; margin-top: 6px; }
+  form.chart .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .one form.chart, form.chart.one { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
+  @media (max-width: 640px) { form.chart, form.chart details.coords > div { grid-template-columns: minmax(0, 1fr); } form.chart input { padding: 9px 10px; } }
+  @media (pointer: coarse), (max-width: 640px) { input, select, form.chart input { font-size: 16px; } }
+  .welcome { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 8px; }
+  .welcome h2 { margin: 0; font-size: 18px; font-weight: 500; }
+  .welcome p { margin: 0; max-width: 62ch; }
+  body.onboarding .page > :not(header):not(#welcome) { display: none !important; }
+  body.onboarding header .ctrls { display: none; }
+  dialog { color: var(--fg); background: #10121c; border: 1px solid var(--line); border-radius: 12px; padding: 16px; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; }
+  dialog::backdrop { background: rgba(4, 5, 10, 0.7); }
+  dialog h2 { margin: 0 0 8px; font-size: 17px; font-weight: 500; }
+  dialog .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -231,6 +246,14 @@
       <button type="button" id="cardsBtn" aria-pressed="true" title="Small cards that come and go as aspects near exact">Cards</button>
     </div>
   </header>
+
+  <section class="welcome one" id="welcome" hidden>
+    <h2>Begin with a birth chart</h2>
+    <p>Cantata reads a birth chart, then the sky moving across it: this week, the Moon's laps, the years ahead, and what passes between two people. It shows what's in play and when, never a verdict on what will happen.</p>
+    <p class="fine">Everything is computed on this device. Nothing you type is sent anywhere, and your chart stays in this browser.</p>
+    <div id="welcomeSlot"></div>
+    <p class="fine">Or look around first, with <a href="#chart-view&amp;example=invented" style="color:inherit">two invented people</a> or <a href="#chart-view&amp;example=history" style="color:inherit">Kepler and Lilly</a>.</p>
+  </section>
 
   <nav class="viewnav" aria-label="Views">
     <button type="button" id="vChart" aria-pressed="false"><b>Chart</b><span>The birth chart</span></button>
@@ -265,6 +288,7 @@
         <option value="whole_sign">Whole sign</option>
         <option value="equal">Equal</option>
         <option value="porphyry">Porphyry</option>
+        <option value="regiomontanus">Regiomontanus (Lilly's)</option>
       </select></label>
     </div>
   </details>
@@ -292,6 +316,13 @@
         <button type="button" data-depth="full" aria-pressed="false">Full</button>
         <button type="button" data-depth="everything" aria-pressed="false">Everything</button>
       </div>
+      <label for="chartHsys" style="font-size:13px;color:var(--muted)">Houses <select id="chartHsys">
+        <option value="placidus">Placidus</option>
+        <option value="whole_sign">Whole sign</option>
+        <option value="equal">Equal</option>
+        <option value="porphyry">Porphyry</option>
+        <option value="regiomontanus">Regiomontanus (Lilly's)</option>
+      </select></label>
     </div>
     <div class="chartgrid">
       <div class="twowheelwrap"><div class="twowheelbox"><canvas id="chartWheel" role="img" aria-label="The birth chart: signs, houses, planets and the aspects between them. Click a line to read that aspect."></canvas></div></div>
@@ -315,6 +346,12 @@
   </section>
 
   <section id="twobox" hidden>
+    <section class="welcome one" id="twoWelcome" hidden>
+      <h2>Two charts, and what passes between them</h2>
+      <p>Add a second person's birth details. Two lays both charts on one wheel and reads the aspects between them, then shows what the sky does to each of you over the coming weeks, and where a single planet touches you both at once.</p>
+      <p class="fine">If they've sent you a Cantata link, open it and choose "Add it beside mine". Like yours, this chart stays in this browser.</p>
+      <div id="twoWelcomeSlot"></div>
+    </section>
     <div class="twotop">
       <h2 class="twohead" id="twoHead"></h2>
       <div class="tabs" role="group" aria-label="Read the two charts for">
@@ -337,19 +374,21 @@
     </div>
     <canvas id="two" tabindex="0" role="img" aria-label="Time runs across. The first chart's transits rise above a central spine and the second's hang below it. A bright bridge across the spine marks one planet touching both charts at once."></canvas>
     <div id="twoSlot"></div>
-    <details>
+    <details id="secondDetails">
       <summary id="secondLabel"></summary>
       <form class="chart" id="secondForm" novalidate>
-        <label for="sName">Name<input id="sName" type="text" autocomplete="off"></label>
+        <label for="sName">Name (optional)<input id="sName" type="text" autocomplete="off" maxlength="40"></label>
         <label for="sDate">Birth date<input id="sDate" type="date"></label>
         <label for="sTime">Local time<input id="sTime" type="time"></label>
         <label class="check" for="sUnknown"><input id="sUnknown" type="checkbox"> Time unknown (no houses; Moon approximate)</label>
         <label for="sPlace">Birthplace<input id="sPlace" type="text" autocomplete="off" placeholder="Type a city, e.g. Lisbon or Austin, TX"></label>
         <ul class="results" id="sResults"></ul>
+        <details class="coords" id="sCoords"><summary>Coordinates and time zone (the city fills these in)</summary><div>
         <label for="sLat">Latitude<input id="sLat" type="number" step="0.001"></label>
         <label for="sLon">Longitude (east +)<input id="sLon" type="number" step="0.001"></label>
         <label for="sTz">Time zone<input id="sTz" type="text" autocomplete="off" placeholder="Filled in by the city, or LMT"></label>
-        <div style="display:flex;gap:8px;align-items:end"><button type="submit">Use this chart</button></div>
+        </div></details>
+        <div class="acts"><button type="submit">Use this chart</button><button type="button" id="sShare">Share…</button><button type="button" id="sClear">Remove</button></div>
       </form>
       <p class="err" id="sErr" role="status"></p>
     </details>
@@ -385,21 +424,40 @@
   <details id="chartBox">
     <summary id="chartLabel"></summary>
     <form class="chart" id="chartForm" novalidate>
-      <label for="fName">Name<input id="fName" type="text" autocomplete="off"></label>
+      <label for="fName">Name (optional)<input id="fName" type="text" autocomplete="off" maxlength="40"></label>
       <label for="fDate">Birth date<input id="fDate" type="date"></label>
       <label for="fTime">Local time<input id="fTime" type="time"></label>
       <label class="check" for="fUnknown"><input id="fUnknown" type="checkbox"> Time unknown (no houses; Moon approximate)</label>
       <label for="fPlace">Birthplace<input id="fPlace" type="text" autocomplete="off" placeholder="Type a city, e.g. Lisbon or Austin, TX"></label>
       <ul class="results" id="fResults"></ul>
+      <details class="coords" id="fCoords"><summary>Coordinates and time zone (the city fills these in)</summary><div>
       <label for="fLat">Latitude<input id="fLat" type="number" step="0.001"></label>
       <label for="fLon">Longitude (east +)<input id="fLon" type="number" step="0.001"></label>
       <label for="fTz">Time zone<input id="fTz" type="text" autocomplete="off" placeholder="Filled in by the city, or LMT"></label>
-      <div style="display:flex;gap:8px;align-items:end"><button type="submit">Use this chart</button><button type="button" id="fReset">Reset</button></div>
+      </div></details>
+      <div class="acts"><button type="submit" id="fSubmit">Use this chart</button><button type="button" id="fShare">Share…</button><button type="button" id="fReset">Forget saved charts</button></div>
     </form>
     <p class="err" id="fErr" role="status"></p>
-    <p class="fine">A chart entered here stays in this browser. Positions come from <a href="https://github.com/cosinekitty/astronomy" style="color:inherit">Astronomy Engine</a>, computed on this device. Part of <a href="https://github.com/anomalous3/sublunary" style="color:inherit">Sublunary</a>.</p>
+    <p class="fine">A chart entered here stays in this browser, though Safari and private windows can forget it. A share link (Share…) is a backup you can keep anywhere. Positions come from <a href="https://github.com/cosinekitty/astronomy" style="color:inherit">Astronomy Engine</a>, computed on this device. Part of <a href="https://github.com/anomalous3/sublunary" style="color:inherit">Sublunary</a>.</p>
   </details>
 </div>
+
+<dialog id="shareDlg">
+  <h2>Share a chart</h2>
+  <form class="chart one" id="shareForm" novalidate>
+    <label for="shName">Name on the chart<input id="shName" type="text" autocomplete="off" maxlength="40"></label>
+    <label class="check" for="shTime"><input id="shTime" type="checkbox" checked> Include the birth time (houses, angles and the Moon's exact place need it)</label>
+    <label class="check" for="shPlace"><input id="shPlace" type="checkbox" checked> Include the birthplace name (without it, coordinates are rounded to about 10 km)</label>
+    <label for="shLink">Link<input id="shLink" type="text" readonly></label>
+  </form>
+  <p class="fine" style="margin-top:8px">The chart travels inside the link, after the #, which browsers never send to a server. Anyone who has the link can read what's in it.</p>
+  <div class="acts"><button type="button" id="shCopy">Copy link</button><button type="button" id="shNative" hidden>Share</button><button type="button" id="shDone">Done</button></div>
+</dialog>
+<dialog id="inDlg">
+  <h2 id="inTitle"></h2>
+  <p class="fine" id="inText"></p>
+  <div class="acts"><button type="button" data-in="own" id="inOwn">Make it my chart</button><button type="button" data-in="second" id="inSecond">Add it beside mine</button><button type="button" data-in="look">Just look</button><button type="button" data-in="">Cancel</button></div>
+</dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
 <script>
@@ -583,7 +641,7 @@ function placidusCusp(ramc, eps, phi, f, above) {
 }
 function computeHouses(ms, lat, lon, system) {
   const { ramc, eps, asc, mc } = angles(ms, lat, lon);
-  if (system === "placidus" && Math.abs(lat) >= 66) system = "porphyry";
+  if ((system === "placidus" || system === "regiomontanus") && Math.abs(lat) >= 66) system = "porphyry";
   let cusps;
   if (system === "whole_sign") { const f = Math.floor(asc / 30) * 30; cusps = [...Array(12)].map((_, i) => norm(f + 30 * i)); }
   else if (system === "equal") cusps = [...Array(12)].map((_, i) => norm(asc + 30 * i));
@@ -591,6 +649,11 @@ function computeHouses(ms, lat, lon, system) {
     const ic = norm(mc + 180), q1 = norm(ic - asc), q2 = norm(asc + 180 - ic);
     const c = [asc, asc + q1 / 3, asc + 2 * q1 / 3, ic, ic + q2 / 3, ic + 2 * q2 / 3].map(norm);
     cusps = [...c, ...c.map((x) => norm(x + 180))];
+  } else if (system === "regiomontanus") {
+    // Lilly's houses: equal arcs of the equator, projected through circles that meet at the horizon's poles
+    const pole = (H) => { const tp = Math.tan(lat * D2R) * Math.sin(H * D2R), r = (ramc + H) * D2R; return norm(Math.atan2(Math.sin(r), Math.cos(r) * Math.cos(eps) - tp * Math.sin(eps)) / D2R); };
+    const first = [asc, pole(120), pole(150), norm(mc + 180), norm(pole(30) + 180), norm(pole(60) + 180)];
+    cusps = [...first, ...first.map((x) => norm(x + 180))];
   } else {
     const phi = lat * D2R;
     const c11 = placidusCusp(ramc, eps, phi, 1 / 3, true), c12 = placidusCusp(ramc, eps, phi, 2 / 3, true);
@@ -631,15 +694,33 @@ const EXAMPLES = {
     b: { name: "Lilly", date: "1602-05-11", time: "12:00", unknown: true, place: "Diseworth, GB", lat: 52.81, lon: -1.30, tz: "LMT" } },
 };
 const FIRST_PRIVATE = /*__FIRST__*/null;
-const DEFAULT_CHART = FIRST_PRIVATE || EXAMPLES.invented.a;
 const STORE = "sublunary.score.chart";
 const SECOND_DEFAULT = /*__SECOND__*/null, STORE2 = "sublunary.score.second";
-let second = SECOND_DEFAULT || (FIRST_PRIVATE ? null : EXAMPLES.invented.b);
-try { const s2 = JSON.parse(localStorage.getItem(STORE2) || "null"); if (s2 && s2.date) second = s2; } catch (_) {}
+// names and places reach the page as text, and arrive from links, so they're cleaned wherever they come in
+const cleanText = (x) => String(x ?? "").replace(/'/g, "’").replace(/[<>&"`|\u0000-\u001f]/g, "").trim().slice(0, 60);
+function cleanChart(c) {
+  if (!c || typeof c !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(c.date) || !/^\d{2}:\d{2}$/.test(c.time || "12:00")) return null;
+  const o = { name: cleanText(c.name), date: c.date, time: c.time || "12:00", place: cleanText(c.place), lat: +c.lat, lon: +c.lon, tz: cleanText(c.tz) || "LMT" };
+  if (c.unknown) o.unknown = true;
+  return Number.isFinite(o.lat) && Number.isFinite(o.lon) ? o : null;
+}
+const loadChart = (k) => { try { return cleanChart(JSON.parse(localStorage.getItem(k) || "null")); } catch (_) { return null; } };
+function saveChart(k, c) {
+  try { if (c) localStorage.setItem(k, JSON.stringify(c)); else localStorage.removeItem(k); } catch (_) {}
+  try { navigator.storage?.persist?.().catch(() => {}); } catch (_) {}
+}
+const ownChart = () => loadChart(STORE) || FIRST_PRIVATE;
+const ownSecond = () => loadChart(STORE2) || SECOND_DEFAULT;
+// mode: "own" (saved in this browser), "example", "visit" (a shared chart, not saved), or "welcome" (nothing yet)
+let mode = "own", exKey = "invented", visitCode = "", chart, second;
 let natalB = {}, housesB = null;
-let chart = DEFAULT_CHART;
-let onExample = !FIRST_PRIVATE;
-try { const s = JSON.parse(localStorage.getItem(STORE) || "null"); if (s && s.date) { chart = s; onExample = false; } } catch (_) {}
+function useOwn() {
+  chart = ownChart(); second = ownSecond(); mode = chart ? "own" : "welcome";
+  if (!chart) { chart = EXAMPLES.invented.a; second = null; }
+}
+function useExample(k) { exKey = EXAMPLES[k] ? k : "invented"; chart = EXAMPLES[exKey].a; second = EXAMPLES[exKey].b; mode = "example"; }
+const hashArg = (k) => new URLSearchParams(location.hash.slice(1).replace(/^[a-z]+-view&?/, "")).get(k);
+if (hashArg("example")) useExample(hashArg("example")); else useOwn();
 let natal = {}, houses = null, hsys = "placidus", orbMode = "working", events = [], rows = [], selected = null;
 const WORK = { sun: 3, mercury: 3, venus: 3, mars: 3, jupiter: 3, saturn: 3, uranus: 2, neptune: 2, pluto: 2, chiron: 2, lilith: 2, node: 2, ceres: 1.5, pallas: 1.5, juno: 1.5, vesta: 1.5 };
 // William Lilly's orbs (Christian Astrology, 1647); bodies he never named and the angles get placeholders
@@ -660,6 +741,7 @@ function computeChart() {
   natal.ms = ms;
   const d = new Date(ms);
   el("chartLabel").textContent = `Chart: ${chart.name || "unnamed"}, ${chart.date}, ${chart.time}, ${chart.place || `${chart.lat}, ${chart.lon}`}. Change it`;
+  if (mode === "welcome") return;
   el("fUnknown").checked = !!chart.unknown; el("fName").value = chart.name; el("fDate").value = chart.date; el("fTime").value = chart.time; el("fPlace").value = chart.place; el("fLat").value = chart.lat; el("fLon").value = chart.lon; el("fTz").value = chart.tz;
 }
 function computeSecond() {
@@ -2053,8 +2135,25 @@ function drawMoonCache() {
   if (yt > M_TOP && yt < mH) { g.strokeStyle = "rgba(238,241,248,0.3)"; g.setLineDash([2, 3]); g.lineWidth = 1; g.beginPath(); g.moveTo(gut, yt); g.lineTo(mW, yt); g.stroke(); g.setLineDash([]); }
   moonDirty = false;
 }
+// the card follows time: as the playhead reaches a contact, that contact takes the card
+let moonFollowT = null;
+function followMoon() {
+  if (t === moonFollowT) return;
+  moonFollowT = t;
+  const m = moonInfo(), skyShown = moonHits.some((h) => h.c.skyC);
+  let best = null, bd = 36 * 3600000;
+  for (const c of [...m.contacts, ...(skyShown ? m.skyContacts : [])]) {
+    const d = Math.abs(c.ms - t);
+    if (d < bd && contactShown(c)) { bd = d; best = c; }
+  }
+  if (!best) return;
+  const key = best.skyC ? `moonsky|${best.np}|${best.a}` : `moon|${best.np}|${best.a}`;
+  if (selected && selected.moonContact && selected.key === key && selected.ms === best.ms) return;
+  selected = { ...best, moonContact: true, moon: true, key }; renderCard();
+}
 function drawMoon() {
   if (moonDirty) drawMoonCache();
+  followMoon();
   mg.setTransform(1, 0, 0, 1, 0, 0); mg.clearRect(0, 0, moonC.width, moonC.height); mg.drawImage(mCache, 0, 0);
   mg.setTransform(mDPR, 0, 0, mDPR, 0, 0);
   const y = my(t), lm = lonNow.moon, m = moonInfo();
@@ -2424,11 +2523,20 @@ el("secondForm").addEventListener("submit", (e) => {
   const c = readChartForm("s");
   const msg = chartFormError(c);
   el("sErr").textContent = msg; if (msg) return;
-  second = c; try { localStorage.setItem(STORE2, JSON.stringify(c)); } catch (_) {}
-  fillSecond(); computeSecond(); computeTwo(); dirty = true;
+  second = c; saveChart(STORE2, c);
+  fillSecond(); computeSecond(); computeTwo(); renderSpine(); twoLayoutDirty = true; dirty = true;
 });
+el("sClear").addEventListener("click", () => { second = null; saveChart(STORE2, null); fillSecond(); computeSecond(); computeTwo(); renderSpine(); twoLayoutDirty = true; dirty = true; });
+el("sShare").addEventListener("click", () => { if (second) openShare(second); else el("sErr").textContent = "Enter the chart first."; });
 function fillSecond() {
   const c = second || {};
+  // with no second chart, Two opens on its own short introduction, with the form inside it
+  const empty = !second;
+  el("twoWelcome").hidden = !empty;
+  for (const n of el("twobox").children) if (n.id !== "twoWelcome") n.hidden = empty;
+  const form = el("secondForm");
+  if (empty) el("twoWelcomeSlot").append(form, el("sErr")); else if (form.parentElement.id === "twoWelcomeSlot") el("secondDetails").append(form, el("sErr"));
+  el("sClear").hidden = el("sShare").hidden = empty;
   el("secondLabel").textContent = second ? `Second chart: ${c.name || "unnamed"}, ${c.date}, ${c.time}, ${c.place || ""}. Change it` : "Add a second chart";
   el("sUnknown").checked = !!c.unknown; el("sName").value = c.name || ""; el("sDate").value = c.date || ""; el("sTime").value = c.time || ""; el("sPlace").value = c.place || ""; el("sLat").value = c.lat ?? ""; el("sLon").value = c.lon ?? ""; el("sTz").value = c.tz || "";
 }
@@ -2677,7 +2785,7 @@ function renderCard() {
         <tr><th>Natal point</th><td>${fmtLon(natal[e.np])}</td></tr>
         <tr><th>Orb allowed</th><td>${e.orb.toFixed(1)}° (${orbMode === "lilly" || e.lilly ? "Lilly's moieties" : "working orbs"})</td></tr>
         <tr><th>Sounds</th><td>${ratio}</td></tr>
-        <tr><th>Zodiac and houses</th><td>${chart.unknown ? "no birth time, so no houses; " : ""}${{ placidus: "Placidus", whole_sign: "Whole sign", equal: "Equal", porphyry: "Porphyry" }[houses.system]}, tropical zodiac</td></tr>
+        <tr><th>Zodiac and houses</th><td>${chart.unknown ? "no birth time, so no houses; " : ""}${{ placidus: "Placidus", whole_sign: "Whole sign", equal: "Equal", porphyry: "Porphyry", regiomontanus: "Regiomontanus" }[houses.system]}, tropical zodiac</td></tr>
       </table>
     </details>
     ${e.lilly ? `<p class="fine">In orb by Lilly's wider measure, outside the working orbs the page is showing, so it won't appear as a shape in the score.</p>` : ""}
@@ -2835,7 +2943,7 @@ function setView(v) {
   else if (v === "moon") el("moonSlot").append(el("card"));
   else if (v === "two") el("twoSlot").append(el("card"));
   else el("stageRight").append(el("card"), el("passing"));
-  try { history.replaceState(null, "", `#${v}-view`); } catch (_) {}
+  writeHash();
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
   if (v === "chart") { el("card").hidden = true; renderChartRead(); } else el("card").hidden = false;
   if (v === "moon") { if (!moonStart) setMoonSpan(innerWidth < 640 ? 164 : 355); else { sizeMoon(); } }
@@ -2948,7 +3056,14 @@ el("orbs").addEventListener("change", (e) => {
   if (was) selected = eventFor(was.key, t) || events.find((x) => x.key === was.key) || null;
   renderCard(); dirty = true;
 });
-el("hsys").addEventListener("change", (e) => { hsys = e.target.value; computeChart(); computeSecond(); twoLayoutDirty = true; scoreDirty = true; foldDirty = true; renderCard(); dirty = true; });
+function setHsys(v) {
+  hsys = v; el("hsys").value = el("chartHsys").value = v;
+  try { localStorage.setItem("sublunary.hsys", v); } catch (_) {}
+  rebuild(); if (view === "chart") renderChartRead(); twoLayoutDirty = true; scoreDirty = true; foldDirty = true; nowLayoutDirty = true; dirty = true;
+}
+for (const id of ["hsys", "chartHsys"]) el(id).addEventListener("change", (e) => setHsys(e.target.value));
+try { const h = localStorage.getItem("sublunary.hsys"); if (h && [...el("hsys").options].some((o) => o.value === h)) hsys = h; } catch (_) {}
+el("hsys").value = el("chartHsys").value = hsys;
 // the wheel is the dial: scrolling on it turns time
 function wheelDays(e) { const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1; return ((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit) / 40; }
 dial.addEventListener("wheel", (e) => { e.preventDefault(); setT(t + wheelDays(e) * DAY); }, { passive: false });
@@ -3025,19 +3140,29 @@ el("chartForm").addEventListener("submit", (e) => {
   const c = readChartForm("f");
   const msg = chartFormError(c);
   el("fErr").textContent = msg; if (msg) return;
-  chart = c; onExample = false; try { localStorage.setItem(STORE, JSON.stringify(c)); } catch (_) {}
-  rebuild();
+  const fresh = mode === "welcome";
+  chart = c; mode = "own"; saveChart(STORE, c); second = ownSecond();
+  leaveWelcome(); fillSecond(); rebuild(); setView(fresh ? "chart" : view);
+  if (fresh) scrollTo({ top: 0 });
 });
-el("fReset").addEventListener("click", () => { chart = DEFAULT_CHART; onExample = !FIRST_PRIVATE; try { localStorage.removeItem(STORE); } catch (_) {} el("fErr").textContent = ""; rebuild(); });
+el("fReset").addEventListener("click", () => {
+  if (!confirm("Forget the charts saved in this browser? A share link you've kept will still bring one back.")) return;
+  saveChart(STORE, null); saveChart(STORE2, null); el("fErr").textContent = "";
+  useOwn(); fillSecond(); rebuild();
+  if (mode === "welcome") enterWelcome(); else setView(view);
+});
+el("fShare").addEventListener("click", () => openShare(chart));
 function readChartForm(x) {
   const unknown = el(x + "Unknown").checked;
-  const c = { name: el(x + "Name").value.trim(), date: el(x + "Date").value, time: unknown ? "12:00" : el(x + "Time").value, place: el(x + "Place").value.trim(), lat: parseFloat(el(x + "Lat").value), lon: parseFloat(el(x + "Lon").value), tz: el(x + "Tz").value.trim() || "LMT" };
+  const c = { name: cleanText(el(x + "Name").value), date: el(x + "Date").value, time: unknown ? "12:00" : el(x + "Time").value, place: cleanText(el(x + "Place").value), lat: parseFloat(el(x + "Lat").value), lon: parseFloat(el(x + "Lon").value), tz: cleanText(el(x + "Tz").value) || "LMT" };
   if (unknown) c.unknown = true;
   return c;
 }
 function chartFormError(c) {
   if (!c.date) return "Enter a birth date.";
   if (!c.unknown && !c.time) return "Enter a birth time, or tick Time unknown.";
+  const [hh, mm] = (c.time || "12:00").split(":").map(Number), [, mo, dd] = c.date.split("-").map(Number);
+  if (!(hh < 24 && mm < 60 && mo >= 1 && mo <= 12 && dd >= 1 && dd <= 31)) return "That date or time doesn't exist.";
   const y = Number(c.date.slice(0, 4));
   if (y < 1000 || y > 2099) return "Birth years from 1000 to 2099 work here.";
   if (!(Math.abs(c.lat) <= 90) || !(Math.abs(c.lon) <= 180)) return "Pick a city from the list, or enter latitude within ±90 and longitude within ±180.";
@@ -3086,15 +3211,100 @@ function attachPlace(x) {
 }
 attachPlace("f"); attachPlace("s");
 function renderExBar() {
-  el("exBar").hidden = !onExample || view !== "two";
-  el("ownBtn").hidden = !onExample || view === "two";
-  if (!onExample) return;
-  const k = el("exPick").value;
-  el("exText").textContent = `You're looking at ${EXAMPLES[k].label}, read as if the chart were yours. ${EXAMPLES[k].note}`;
+  const away = mode === "example" || mode === "visit";
+  el("exBar").hidden = !away || view !== "two";
+  el("ownBtn").hidden = !away || view === "two";
+  el("ownBtn").textContent = el("exOwn").textContent = ownChart() ? "Back to your chart" : "Use your own chart";
+  el("exPick").parentElement.hidden = mode !== "example";
+  if (!away) return;
+  el("exPick").value = exKey;
+  el("exText").textContent = mode === "visit" ? `You're looking at ${chart.name || "a chart"}, opened from a link and not saved.`
+    : `You're looking at ${EXAMPLES[exKey].label}, read as if the chart were yours. ${EXAMPLES[exKey].note}`;
 }
-el("exPick").addEventListener("change", (e) => { const x = EXAMPLES[e.target.value]; chart = x.a; second = x.b; fillSecond(); rebuild(); });
+function writeHash() {
+  const tail = mode === "example" ? `&example=${exKey}` : mode === "visit" ? `&c=${visitCode}` : "";
+  try { history.replaceState(null, "", mode === "welcome" ? location.pathname + location.search : `#${view}-view${tail}`); } catch (_) {}
+}
+el("exPick").addEventListener("change", (e) => { useExample(e.target.value); fillSecond(); rebuild(); writeHash(); });
 el("ownBtn").addEventListener("click", () => el("exOwn").click());
-el("exOwn").addEventListener("click", () => { el("chartBox").open = true; el("chartBox").scrollIntoView({ block: "start", behavior: "smooth" }); el("fName").focus({ preventScroll: true }); });
+el("exOwn").addEventListener("click", () => { useOwn(); fillSecond(); rebuild(); if (mode === "welcome") enterWelcome(); else setView(view); });
+function enterWelcome() {
+  mode = "welcome"; document.body.classList.add("onboarding"); el("welcome").hidden = false;
+  el("welcomeSlot").append(el("chartForm"), el("fErr"));
+  el("chartForm").reset(); el("fReset").hidden = el("fShare").hidden = true; el("fSubmit").textContent = "Open my chart";
+  writeHash(); scrollTo({ top: 0 });
+}
+function leaveWelcome() {
+  if (!document.body.classList.contains("onboarding")) return;
+  document.body.classList.remove("onboarding"); el("welcome").hidden = true;
+  el("chartBox").insertBefore(el("fErr"), el("chartBox").querySelector(".fine")); el("chartBox").insertBefore(el("chartForm"), el("fErr"));
+  el("fReset").hidden = el("fShare").hidden = false; el("fSubmit").textContent = "Use this chart";
+}
+// share links carry one chart in the fragment: version|name|date|time|lat|lon|tz|place, as base64url
+const b64e = (str) => btoa(String.fromCharCode(...new TextEncoder().encode(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64d = (str) => new TextDecoder().decode(Uint8Array.from(atob(str.replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0)));
+const packChart = (c) => b64e(["1", c.name, c.date, c.unknown ? "" : c.time, +(+c.lat).toFixed(3), +(+c.lon).toFixed(3), c.tz, c.place].join("|"));
+function unpackChart(code) {
+  try {
+    const [v, name, date, time, lat, lon, tz, place] = b64d(code).split("|");
+    if (v !== "1") return null;
+    const c = cleanChart({ name, date, time: time || "12:00", unknown: !time, lat, lon, tz, place });
+    return c && !chartFormError(c) ? c : null;
+  } catch (_) { return null; }
+}
+let shareSrc = null;
+function shareLink() {
+  const c = { ...shareSrc, name: cleanText(el("shName").value) };
+  if (!el("shTime").checked) { c.unknown = true; c.time = "12:00"; }
+  if (!el("shPlace").checked) { c.place = ""; c.lat = Math.round(c.lat * 10) / 10; c.lon = Math.round(c.lon * 10) / 10; }
+  return `https://sublunary.app/#c=${packChart(c)}`;
+}
+function openShare(c) {
+  shareSrc = c; el("shName").value = c.name || "";
+  el("shTime").checked = !c.unknown; el("shTime").disabled = !!c.unknown;
+  el("shPlace").checked = true; el("shLink").value = shareLink();
+  el("shNative").hidden = !navigator.share; el("shCopy").textContent = "Copy link";
+  el("shareDlg").showModal();
+}
+el("shareForm").addEventListener("input", () => { el("shLink").value = shareLink(); el("shCopy").textContent = "Copy link"; });
+el("shareForm").addEventListener("submit", (e) => e.preventDefault());
+el("shCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(el("shLink").value); el("shCopy").textContent = "Copied"; }
+  catch (_) { el("shLink").select(); el("shCopy").textContent = "Select and copy"; }
+});
+el("shNative").addEventListener("click", () => navigator.share({ title: "A birth chart in Sublunary: Cantata", url: el("shLink").value }).catch(() => {}));
+el("shDone").addEventListener("click", () => el("shareDlg").close());
+let incoming = null;
+function offerShared(code) {
+  const c = unpackChart(code);
+  if (!c) { alert("That chart link looks damaged, so nothing was opened."); if (mode === "welcome") writeHash(); else setView(view); return; }
+  incoming = { c, code };
+  const mine = ownChart();
+  el("inTitle").textContent = c.name ? `${c.name}'s birth chart` : "A birth chart";
+  el("inText").textContent = `Born ${c.date}${c.unknown ? ", time not given" : ` at ${c.time}`}${c.place ? `, ${c.place}` : ""}. Nothing is saved until you choose.`;
+  el("inOwn").textContent = mine ? "Replace my chart with it" : "Make it my chart";
+  el("inSecond").hidden = !mine;
+  el("inDlg").showModal();
+}
+el("inDlg").querySelectorAll("[data-in]").forEach((b) => b.addEventListener("click", () => takeShared(b.dataset.in)));
+el("inDlg").addEventListener("cancel", () => takeShared(""));
+function takeShared(v) {
+  const got = incoming; incoming = null;
+  if (el("inDlg").open) el("inDlg").close();
+  if (!got) return;
+  if (!v) { if (mode === "welcome") writeHash(); else setView(view); return; }
+  leaveWelcome();
+  let go = "chart";
+  if (v === "own") { if (ownChart() && !confirm("Replace the chart saved in this browser?")) { setView(view); return; } chart = got.c; mode = "own"; saveChart(STORE, got.c); second = ownSecond(); }
+  else if (v === "second") { useOwn(); second = got.c; saveChart(STORE2, got.c); go = "two"; }
+  else { chart = got.c; second = null; mode = "visit"; visitCode = got.code; }
+  fillSecond(); rebuild(); setView(go); scrollTo({ top: 0 });
+}
+addEventListener("hashchange", () => {
+  const c = hashArg("c"), ex = hashArg("example");
+  if (c && c !== visitCode) offerShared(c);
+  else if (ex && (mode !== "example" || ex !== exKey)) { const fresh = mode === "welcome"; leaveWelcome(); useExample(ex); fillSecond(); rebuild(); setView(fresh ? "chart" : view); }
+});
 function rebuild() {
   renderExBar();
   computeChart(); computeSecond(); chartFocus = null; computeEvents(); layoutScore(); computeNow();
@@ -3122,7 +3332,10 @@ el("layers").append(...Object.entries(LAYERS).filter(([, l]) => !l.fixed).map(([
 fillSecond(); sizeDial(); rebuild(); renderLegend(); el("cardsBtn").setAttribute("aria-pressed", String(cardsOn)); tick(last);
 new ResizeObserver(() => { if (view === "chart") { dirty = true; } else if (view === "moon") { sizeMoon(); dirty = true; } else if (view === "two") { twoLayoutDirty = true; dirty = true; } else if (view === "now") { nowLayoutDirty = true; dirty = true; } else if (view === "fold") sizeFold(); else { sizeDial(); layoutScore(); dirty = true; } }).observe(document.querySelector(".page"));
 setFold(1, true);
-setView(location.hash === "#fold-view" ? "fold" : location.hash === "#score-view" ? "score" : location.hash === "#two-view" ? "two" : location.hash === "#moon-view" ? "moon" : location.hash === "#chart-view" ? "chart" : "now");
+const arriving = hashArg("c");
+setView((location.hash.match(/^#(chart|now|moon|score|fold|two)-view/) || [])[1] || (mode === "example" ? "chart" : "now"));
+if (mode === "welcome") enterWelcome();
+if (arriving) offerShared(arriving);
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { scoreDirty = true; foldDirty = true; nowDirty = true; dirty = true; });
 </script>
 </body>

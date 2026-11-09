@@ -141,9 +141,19 @@
   .nowcap { margin: 0; color: var(--muted); font-size: 13.5px; min-width: 0; flex: 1 1 280px; }
   .nowgrid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
   #now { width: 100%; touch-action: pan-y; cursor: pointer; }
-  #nowSlot { position: sticky; top: 12px; min-width: 0; }
+  .nowside { position: sticky; top: 12px; min-width: 0; display: grid; gap: 12px; }
+  #nowSlot { min-width: 0; }
+  .nowwheelbox { width: 100%; max-width: 360px; margin: 0 auto; }
+  #nowWheel { width: 100%; aspect-ratio: 1; display: block; cursor: pointer; }
+  .howto summary { font-size: 12.5px; }
+  #moreCue { position: fixed; left: 0; right: 0; bottom: 0; height: 76px; z-index: 14; pointer-events: none; display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to bottom, rgba(8, 9, 15, 0), var(--ink) 85%); opacity: 0; transition: opacity 0.45s ease; }
+  #moreCue.on { opacity: 1; }
+  #moreCue button { pointer-events: auto; font-size: 12.5px; color: var(--muted); border-radius: 999px; padding: 3px 12px; min-height: 0; background: rgba(16, 18, 28, 0.92); }
+  #moreCue:not(.on) button { pointer-events: none; }
+  .howto p { margin: 6px 0 0; font-size: 13px; color: var(--muted); max-width: 62ch; }
   #card { scroll-margin-top: 76px; }
-  @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } #nowSlot { position: static; } }
+  @media (max-width: 980px) { .nowgrid { grid-template-columns: minmax(0, 1fr); } .nowside { display: contents; } .nowwheelbox { order: -1; max-width: min(420px, 70svh); } }
   .viewnav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
   @media (max-width: 640px) { .viewnav { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .viewnav button { display: grid; gap: 1px; text-align: left; padding: 8px 14px; border-radius: 10px; background: #10121c; border: 1px solid var(--line); color: var(--muted); min-width: 0; }
@@ -294,6 +304,7 @@
   </details>
 
   <section id="nowbox" hidden>
+    <p class="foldintro"><b>What's in play, and when.</b> The wheel is the birth chart with the sky moving around it. Below, each row is one aspect: its thread rises toward the line as the aspect comes exact, then falls away. Rows that begin, end or peak in these days come first; the slow ones that last all season wait underneath.</p>
     <div class="nowtop">
       <div class="seg" id="nowSpans" role="group" aria-label="How much time to show"></div>
       <div class="tabs" role="group" aria-label="How aspects are drawn">
@@ -304,11 +315,21 @@
     </div>
     <div class="nowgrid">
       <canvas id="now" tabindex="0" role="img" aria-label="A forecast: days across the top, the Moon's track with its signs, phases and void periods, turning points, then this period's aspects as rows in the order they peak, the sky's own aspects, and the long slow transits underneath"></canvas>
-      <div id="nowSlot"></div>
+      <div class="nowside">
+        <div class="nowwheelbox">
+          <canvas id="nowWheel" role="img" aria-label="Your birth chart inside; around it, each planet's trail across the days shown below, with the aspects in focus marked as arcs as wide as their orbs. Click a lit stretch to read that aspect."></canvas>
+          <details class="howto"><summary>How to read the wheel</summary>
+            <p>Inside is your birth chart. Around it, each planet leaves a trail across the days shown below: faint where the window begins, brightest at the playhead, dimmer ahead. A trail that steps inward and doubles back is a retrograde.</p>
+            <p>Each aspect in focus gets a faint arc on the outer edge, as wide as its orb, at the point where it's exact. Where a trail runs through one, that stretch lights up in your planet's colour. It's the same stretch of days as that aspect's thread below rising to its line. Lines across the middle join the planets in orb right now to the points they touch. Tap a lit stretch to read it.</p>
+          </details>
+        </div>
+        <div id="nowSlot"></div>
+      </div>
     </div>
   </section>
 
   <section id="chartbox" hidden>
+    <p class="foldintro"><b>The birth chart.</b> The sky at the moment and place of birth: the twelve signs around the edge, the twelve houses inside them, and lines for the angles between planets. Headline gives the few things that stand out most. Full reads every planet, with the older nuances: dignity, the Sun's glare, which planets host each other. Everything adds the long tail.</p>
     <div class="twotop">
       <h2 class="twohead" id="chartHead"></h2>
       <div class="tabs" role="group" aria-label="How deep to read">
@@ -360,6 +381,7 @@
         <button type="button" data-lens="all" aria-pressed="false">Everything</button>
       </div>
     </div>
+    <p class="foldintro">The list reads the aspects between the two charts, strongest first, and the lens changes which lead. Below it, time runs across: the first chart's transits rise above the spine and the second's hang below, with a bright bridge wherever one planet touches both at once.</p>
     <div class="twogrid">
       <div class="twoleft" style="min-width:0">
         <p class="twolabel">The spine: what connects these two charts, for good</p>
@@ -412,6 +434,7 @@
   </div>
 
   <section id="scorebox">
+    <p class="foldintro"><b>The years, as a score.</b> Four years of transits, like a piano roll: each aspect swells as it nears exact and fades after. A slow planet's long shapes are the seasons of a life, and a retrograde returns as two or three swells in a row.</p>
     <div class="legend">
       <span>Each row is a point in the birth chart. Each shape is an aspect swelling to exactness. <b style="font-weight:500;color:var(--fg)">Striped</b> means a square or opposition.</span>
       <span id="legendPlanets"></span>
@@ -442,6 +465,7 @@
   </details>
 </div>
 
+<div id="moreCue" aria-hidden="true"><button type="button" tabindex="-1">More below ↓</button></div>
 <dialog id="shareDlg">
   <h2>Share a chart</h2>
   <form class="chart one" id="shareForm" novalidate>
@@ -1683,6 +1707,141 @@ now.addEventListener("pointerup", (e) => {
   if (row) { select(row.e); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
 });
 now.addEventListener("pointercancel", () => { ndown = null; });
+// ---------------------------------------------------------------- the wheel above Now
+// A biwheel for the window Now shows: the birth chart inside, and around it each planet's trail
+// across the days below, faint where the window begins, brightest at the playhead. Each aspect in
+// focus gets an arc as wide as its orb where it perfects; where a trail runs through one it lights
+// in the natal planet's colour, the same days as that thread rising to its line.
+const nowWheel = el("nowWheel"), nwg = nowWheel.getContext("2d");
+let nwTrails = null, nwKey = "", nwLit = [];
+const NO_RETRO = new Set(["node", "lilith"]);
+function nowTrails() {
+  const key = `${nowS}|${nowSpan}|${natal.ms}`;
+  if (key === nwKey) return nwTrails;
+  nwKey = key; nwTrails = {};
+  const step = (nowSpan <= 14 ? 3 : 6) * 3600000, end = nowS + nowSpan * DAY;
+  for (const b of NOW_BODIES) { const pts = []; for (let ms = nowS; ms <= end + 1; ms += step) pts.push([ms, longitude(b, ms)]); nwTrails[b] = pts; }
+  return nwTrails;
+}
+function drawNowWheel() {
+  const box = nowWheel.getBoundingClientRect(); if (!box.width) return;
+  const W = box.width, DPR = Math.min(2, devicePixelRatio || 1);
+  if (nowWheel.width !== Math.round(W * DPR)) nowWheel.width = nowWheel.height = Math.round(W * DPR);
+  const g = nwg, c = W / 2, R = W / 2 - 4;
+  const rTg = R * 0.93, rTr = R * 0.83, rZo = R * 0.72, rZi = R * 0.61, rN = R * 0.52, rC = R * 0.42, step = R * 0.035;
+  const timed = !chart.unknown, rot = timed ? natal.asc : 0, end = nowS + nowSpan * DAY, tc = Math.max(nowS, Math.min(end, t));
+  const ang = (lon) => (180 + lon - rot) * D2R;
+  const pt = (lon, r) => { const a = ang(lon); return [c + r * Math.cos(a), c - r * Math.sin(a)]; };
+  const arcTo = (lon0, lon1, r) => g.arc(c, c, r, -ang(lon0), -ang(lon1), true);
+  const fade = (ms) => ms <= tc ? 0.1 + 0.8 * Math.pow(tc > nowS ? (ms - nowS) / (tc - nowS) : 1, 1.6) : 0.9 - 0.62 * (end > tc ? (ms - tc) / (end - tc) : 1);
+  g.setTransform(DPR, 0, 0, DPR, 0, 0); g.clearRect(0, 0, W, W); g.textAlign = "center"; g.textBaseline = "middle"; g.lineCap = "round";
+  // the zodiac, between the chart and the sky
+  const TINT = ["rgba(240,140,90,0.07)", "rgba(150,170,110,0.06)", "rgba(170,190,230,0.06)", "rgba(90,140,220,0.07)"];
+  for (let k = 0; k < 12; k++) {
+    g.beginPath(); arcTo(k * 30, k * 30 + 30, rZo); g.arc(c, c, rZi, -ang(k * 30 + 30), -ang(k * 30), false); g.closePath(); g.fillStyle = TINT[k % 4]; g.fill();
+    const [gx, gy] = pt(k * 30 + 15, (rZo + rZi) / 2); g.fillStyle = MUTED; g.font = `${Math.round(R * 0.062)}px ${SYM}`; g.fillText(SIGN_GLYPH[k] + VS, gx, gy);
+  }
+  for (const r of [rZo, rZi, rC]) { g.beginPath(); g.arc(c, c, r, 0, 7); g.strokeStyle = LINE; g.lineWidth = 1; g.stroke(); }
+  if (timed) houses.cusps.forEach((cu, i) => {
+    const [x0, y0] = pt(cu, rC), [x1, y1] = pt(cu, rZi), axis = i === 0 || i === 9;
+    g.strokeStyle = axis ? "rgba(240,198,116,0.5)" : "rgba(139,145,168,0.18)"; g.lineWidth = axis ? 1.3 : 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  });
+  // the aspects in focus: an arc on the outer band as wide as the orb, at the point of exact
+  const rows = nowRows.fg || [], selKey = selected && selected.key;
+  // they get a thin track of their own just outside the zodiac, a lane each where they overlap
+  const lanes = [], laneGap = Math.max(3, R * 0.022);
+  for (const r of [...rows].sort((p, q) => norm(natal[p.e.np] + p.e.a - p.e.orb) - norm(natal[q.e.np] + q.e.a - q.e.orb))) {
+    const e = r.e, p = norm(natal[e.np] + e.a), lo = p - e.orb;
+    let k = lanes.findIndex((hi) => wrap180(lo - hi) > 0.5);
+    if (k < 0) k = lanes.length < 4 ? lanes.length : 3;
+    lanes[k] = p + e.orb;
+    const rr = rZo + laneGap * (k + 1), on = e.key === selKey;
+    g.strokeStyle = COLOR[e.np]; g.globalAlpha = on ? 0.95 : 0.4; g.lineWidth = on ? 2.4 : 1.5; g.lineCap = "butt";
+    g.beginPath(); arcTo(p - e.orb, p + e.orb, rr); g.stroke();
+    const [ex, ey] = pt(p, rr); g.fillStyle = COLOR[e.np]; g.beginPath(); g.arc(ex, ey, on ? 2.2 : 1.6, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1; g.lineCap = "round";
+  // the trails, and the stretches of them inside an orb, lit
+  const trails = nowTrails(); nwLit = [];
+  const byBody = {}; for (const r of rows) (byBody[r.e.tb] ||= []).push(r.e);
+  const trailOf = (b, pts) => {
+    const pxPerDeg = rTr * D2R, lit = byBody[b] || [];
+    let prevRetro = null;
+    for (let k = 1; k < pts.length; k++) {
+      const [m0, l0] = pts[k - 1], [m1, l1] = pts[k], retro = !NO_RETRO.has(b) && wrap180(l1 - l0) < 0, r = retro ? rTr + step : rTr, a = fade((m0 + m1) / 2);
+      const [x0, y0] = pt(l0, r), [x1, y1] = pt(l1, r);
+      if (prevRetro !== null && prevRetro !== retro) { const [sx, sy] = pt(l0, rTr), [ex, ey] = pt(l0, rTr + step); g.strokeStyle = COLOR[b]; g.globalAlpha = a * 0.7; g.lineWidth = 1; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); }
+      prevRetro = retro;
+      g.strokeStyle = COLOR[b]; g.globalAlpha = a * (retro ? 0.75 : 0.6); g.lineWidth = 1.4;
+      g.setLineDash(retro ? [2, 3] : []); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
+      // inside an orb the trail takes the natal planet's colour: the chosen aspect's if it's one of
+      // them, otherwise the tightest
+      const lm = l0 + wrap180(l1 - l0) / 2;
+      let best = null, bd = -1, bestD = 0;
+      for (const e of lit) {
+        const off = Math.abs(wrap180(lm - natal[e.np] - e.a));
+        if (off >= e.orb) continue;
+        const d = 1 - off / e.orb, score = d + (e.key === selKey ? 2 : 0);
+        if (score > bd) { bd = score; best = e; bestD = d; }
+      }
+      if (best) {
+        const on = best.key === selKey;
+        g.strokeStyle = COLOR[best.np]; g.globalAlpha = Math.min(1, a * (0.55 + 0.45 * bestD) + (on ? 0.2 : 0)); g.lineWidth = 2 + 2.4 * bestD * bestD + (on ? 0.8 : 0);
+        g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+        nwLit.push({ x: (x0 + x1) / 2, y: (y0 + y1) / 2, e: best });
+      }
+      // a small tick at each day's start, where a day is long enough on the wheel to show one
+      const day = localMidnight(m1);
+      if (day > m0 && day <= m1 && Math.abs(wrap180(l1 - l0)) * (DAY / (m1 - m0)) * pxPerDeg > 5) {
+        const [tx0, ty0] = pt(l1, r - R * 0.012), [tx1, ty1] = pt(l1, r + R * 0.012);
+        g.strokeStyle = COLOR[b]; g.globalAlpha = a * 0.8; g.lineWidth = 1; g.beginPath(); g.moveTo(tx0, ty0); g.lineTo(tx1, ty1); g.stroke();
+      }
+    }
+    g.globalAlpha = 1;
+  };
+  for (const b of NOW_BODIES) trailOf(b, trails[b]);
+  // the Moon goes round too fast to trail the whole window, so she trails a day and a half either side
+  const moonPts = []; for (let ms = tc - 36 * 3600000; ms <= tc + 36 * 3600000; ms += 2 * 3600000) moonPts.push([ms, longitude("moon", ms)]);
+  for (let i = 1; i < moonPts.length; i++) {
+    const [m0, l0] = moonPts[i - 1], [m1, l1] = moonPts[i], [x0, y0] = pt(l0, rTr + step), [x1, y1] = pt(l1, rTr + step);
+    g.strokeStyle = SILVER; g.globalAlpha = 0.6 - 0.52 * Math.abs((m0 + m1) / 2 - tc) / (36 * 3600000); g.lineWidth = 1.3;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+  }
+  g.globalAlpha = 1;
+  // the chart: natal bodies inside the zodiac
+  const nb = [...BODIES, "chiron", "lilith", "node"], gs = Math.round(R * 0.062), shownN = spread(nb.map((b) => natal[b]), (gs * 1.1) / rN / D2R);
+  nb.forEach((b, i) => {
+    const [a0, b0] = pt(natal[b], rZi), [a1, b1] = pt(natal[b], rZi - R * 0.025);
+    g.strokeStyle = COLOR[b]; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a0, b0); g.lineTo(a1, b1); g.stroke();
+    const [gx, gy] = pt(shownN[i], rN); g.fillStyle = COLOR[b]; g.font = `${gs}px ${SYM}`; g.fillText(GLYPH[b] + VS, gx, gy);
+  });
+  if (timed) { g.font = `500 ${Math.round(R * 0.032)}px "Instrument Sans", sans-serif`; g.fillStyle = NATAL; for (const [n, l] of [["AC", natal.asc], ["MC", natal.mc]]) { const [x, y] = pt(l, rZi - R * 0.035); g.fillText(n, x, y); } }
+  // what's in orb at the playhead, as chords across the middle
+  for (const r of rows) {
+    const e = r.e, lt = longitude(e.tb, tc), off = Math.abs(wrap180(lt - natal[e.np] - e.a));
+    if (off >= e.orb) continue;
+    const d = 1 - off / e.orb, on = e.key === selKey, [x0, y0] = pt(lt, rC), [x1, y1] = pt(natal[e.np], rC);
+    const grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, COLOR[e.tb]); grad.addColorStop(1, COLOR[e.np]);
+    g.strokeStyle = grad; g.globalAlpha = (on ? 0.95 : 0.3 + 0.45 * d); g.lineWidth = 0.8 + 1.6 * d + (on ? 1 : 0);
+    g.setLineDash(e.kind === 90 || e.kind === 180 ? [5, 4] : []); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.setLineDash([]);
+    g.globalAlpha = 1; g.fillStyle = COLOR[e.tb]; g.beginPath(); g.arc(x0, y0, 2, 0, 7); g.fill();
+  }
+  // the sky at the playhead, outside
+  const sky = [...NOW_BODIES, "moon"], at = sky.map((b) => b === "moon" ? longitude("moon", tc) : longitude(b, tc));
+  const shownT = spread(at, (gs * 1.1) / rTg / D2R), iNow = Math.max(0, Math.min(NDAYS - 2, Math.round((tc - T0) / DAY)));
+  sky.forEach((b, i) => {
+    const [a0, b0] = pt(at[i], rTr + step * 1.6), [a1, b1] = pt(at[i], rTr + step * 2.4);
+    g.strokeStyle = b === "moon" ? SILVER : COLOR[b]; g.lineWidth = 1.2; g.beginPath(); g.moveTo(a0, b0); g.lineTo(a1, b1); g.stroke();
+    const [gx, gy] = pt(shownT[i], rTg); g.fillStyle = b === "moon" ? SILVER : COLOR[b]; g.font = `${gs}px ${SYM}`; g.fillText(GLYPH[b] + VS, gx, gy);
+    if (b !== "moon" && !NO_RETRO.has(b) && table[b] && retroAt(b, iNow)) { g.font = `600 ${Math.round(gs * 0.45)}px "Instrument Sans", sans-serif`; g.fillStyle = "#c9b3ff"; g.fillText("℞", gx + gs * 0.6, gy + gs * 0.45); }
+  });
+}
+nowWheel.addEventListener("click", (e) => {
+  const r = nowWheel.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  let best = null, bd = coarse ? 22 : 12;
+  for (const h of nwLit) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h.e; } }
+  if (best) { select(best); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); }
+});
 // ---------------------------------------------------------------- chart
 // The birth chart as a reading at three depths. Headline picks the few things that win on aspect
 // type (conjunctions and oppositions, then squares, then trines and sextiles), on which bodies
@@ -2943,7 +3102,7 @@ function setView(v) {
   else if (v === "moon") el("moonSlot").append(el("card"));
   else if (v === "two") el("twoSlot").append(el("card"));
   else el("stageRight").append(el("card"), el("passing"));
-  writeHash();
+  writeHash(); setTimeout(syncCue, 250);
   if (v === "now") { if (!nowS) setNowSpan(innerWidth < 640 ? 7 : 14); nowLayoutDirty = true; }
   if (v === "chart") { el("card").hidden = true; renderChartRead(); } else el("card").hidden = false;
   if (v === "moon") { if (!moonStart) setMoonSpan(innerWidth < 640 ? 164 : 355); else { sizeMoon(); } }
@@ -3001,7 +3160,7 @@ el("vScore").addEventListener("click", () => setView("score"));
 el("vFold").addEventListener("click", () => setView("fold"));
 function frame() {
   computeNow();
-  if (view === "fold") drawFold(); else if (view === "now") drawNow(); else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else if (view === "chart") drawChartWheel(); else { drawDial(); drawScore(); }
+  if (view === "fold") drawFold(); else if (view === "now") { drawNow(); drawNowWheel(); } else if (view === "two") drawTwo(); else if (view === "moon") drawMoon(); else if (view === "chart") drawChartWheel(); else { drawDial(); drawScore(); }
   liveCard(); syncCards();
   el("when").textContent = new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   drawTape();
@@ -3221,6 +3380,19 @@ function renderExBar() {
   el("exText").textContent = mode === "visit" ? `You're looking at ${chart.name || "a chart"}, opened from a link and not saved.`
     : `You're looking at ${EXAMPLES[exKey].label}, read as if the chart were yours. ${EXAMPLES[exKey].note}`;
 }
+// on a phone, a soft fade and a small hint say the page goes on, until the first scroll in each movement
+const cueSeen = new Set();
+function syncCue() {
+  const key = document.body.classList.contains("onboarding") ? "welcome" : view;
+  const more = document.documentElement.scrollHeight - innerHeight - scrollY > 160;
+  el("moreCue").classList.toggle("on", innerWidth <= 640 && more && scrollY < 40 && !cueSeen.has(key));
+}
+addEventListener("scroll", () => {
+  if (scrollY > 40) cueSeen.add(document.body.classList.contains("onboarding") ? "welcome" : view);
+  if (el("moreCue").classList.contains("on")) syncCue();
+}, { passive: true });
+addEventListener("resize", () => syncCue());
+el("moreCue").querySelector("button").addEventListener("click", () => scrollBy({ top: innerHeight * 0.7, behavior: "smooth" }));
 function writeHash() {
   const tail = mode === "example" ? `&example=${exKey}` : mode === "visit" ? `&c=${visitCode}` : "";
   try { history.replaceState(null, "", mode === "welcome" ? location.pathname + location.search : `#${view}-view${tail}`); } catch (_) {}
@@ -3232,7 +3404,7 @@ function enterWelcome() {
   mode = "welcome"; document.body.classList.add("onboarding"); el("welcome").hidden = false;
   el("welcomeSlot").append(el("chartForm"), el("fErr"));
   el("chartForm").reset(); el("fReset").hidden = el("fShare").hidden = true; el("fSubmit").textContent = "Open my chart";
-  writeHash(); scrollTo({ top: 0 });
+  writeHash(); scrollTo({ top: 0 }); setTimeout(syncCue, 250);
 }
 function leaveWelcome() {
   if (!document.body.classList.contains("onboarding")) return;

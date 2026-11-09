@@ -91,6 +91,11 @@
   .hl { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
   .hl .k { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
   .hl .t { font: 400 19px/1.25 var(--display); }
+  .combos { display: grid; gap: 8px; }
+  .combos .hl { cursor: pointer; }
+  .combos .hl p { margin: 0; }
+  .hl .t .who { font: 500 10.5px var(--body); color: var(--muted); vertical-align: sub; margin: 0 3px 0 1px; }
+  .combos .hl[aria-pressed="true"] { border-color: var(--muted); background: #161a28; }
   .hl p { margin: 0; }
   .hl details summary { font-size: 12.5px; }
   .hl details p { margin: 6px 0 0; color: var(--fg); }
@@ -386,6 +391,8 @@
       <div class="twoleft" style="min-width:0">
         <p class="twolabel">The spine: what connects these two charts, for good</p>
         <ol class="spine" id="spine"></ol>
+        <p class="twolabel" style="margin-top:14px">What the two charts make together. Tap one to see it on the wheel.</p>
+        <div class="combos" id="twoCombos"></div>
       </div>
       <div class="twowheelwrap"><div class="twowheelbox"><canvas id="twoWheel" role="img" aria-label="Both birth charts on one wheel, with lines for the aspects between them. Click a line to read it."></canvas></div><p class="fine" id="twoWheelNote" style="text-align:center;margin-top:4px"></p></div>
     </div>
@@ -2453,6 +2460,7 @@ function computeSyn() {
 const ASPECT_KINDS = [0, 60, 90, 120, 180];
 const TWO_BODIES = ["sun", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto", "chiron", "node"];
 function computeTwo() {
+  twoFocus = null;
   if (!second) { twoEvents = []; computeSyn(); twoLayoutDirty = true; return; }
   twoEvents = [];
   for (const b of TWO_BODIES) ensureTable(b);
@@ -2483,10 +2491,166 @@ function renderSpine() {
     b.type = "button"; b.setAttribute("aria-pressed", String(c.key === selKey));
     b.innerHTML = `<span class="sg"><span style="color:${COLOR[c.tb]}">${GLYPH[c.tb]}${isAngle(c.tb) ? "" : VS}</span> ${ASPECT_GLYPH[c.kind]}${VS} <span style="color:${COLOR[c.np]}">${GLYPH[c.np]}${isAngle(c.np) ? "" : VS}</span></span>`
       + `<span class="sn">${possA()} ${NAME[c.tb]}, ${possB().toLowerCase() === "their" ? "their" : possB()} ${NAME[c.np]}</span><span class="st">${c.tag}</span><span class="so">${c.off.toFixed(1)}°</span>`;
-    b.addEventListener("click", () => { select(c); renderSpine(); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); });
+    b.addEventListener("click", () => { twoFocus = null; select(c); renderSpine(); if (innerWidth <= 980) el("card").scrollIntoView({ block: "start", behavior: "smooth" }); });
     li.append(b); return li;
   }));
   wireFade(ol);
+  renderCombos();
+}
+// ---------------------------------------------------------------- what the two charts make together
+// Readings that need both charts at once: shapes made of planets from each, one person's planets
+// gathered in the other's house, signs both of them fill, where each one's lights land in the
+// other's life, and the elements of the pair. Composed from the same parts as the Chart's readings.
+let twoFocus = null, comboList = [];
+const PERSONAL = new Set(["sun", "moon", "mercury", "venus", "mars"]);
+const EL_GIFT = { fire: "drive, nerve and enthusiasm", earth: "practicality, the body and what gets built", air: "talk, ideas and social ease", water: "feeling, intuition and attachment" };
+const cap = (x) => x[0].toUpperCase() + x.slice(1);
+const joinAnd = (xs) => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+function computeCombos() {
+  comboList = [];
+  if (!second) return;
+  const nm = { a: chart.name || "the first person", b: second.name || "the second person" }, other = { a: "b", b: "a" };
+  const nat = { a: natal, b: natalB }, hs = { a: chart.unknown ? null : houses, b: second.unknown ? null : housesB };
+  const lonOf = (m) => nat[m.who][m.p], own = (m) => `${nm[m.who]}'s`, lab = (m) => `${own(m)} ${NAME[m.p]}`;
+  const init = { a: (chart.name || "1")[0].toUpperCase(), b: (second.name || "2")[0].toUpperCase() };
+  if (init.a === init.b) { init.a = chart.name ? chart.name.slice(0, 2) : "1"; init.b = second.name ? second.name.slice(0, 2) : "2"; }
+  const glyph = (m) => `<span style="color:${COLOR[m.p]}">${GLYPH[m.p]}${VS}</span><span class="who">${init[m.who]}</span>`;
+  // "Ada's Jupiter and Ben's Sun, Moon and Mercury": each owner named once
+  const labs = (list) => {
+    const parts = ["a", "b"].map((w) => list.filter((m) => m.who === w)).filter((g) => g.length).map((g) => [g.length, `${own(g[0])} ${joinAnd(g.map((m) => NAME[m.p]))}`]);
+    return parts.length === 2 && parts[0][0] > 1 ? `${parts[0][1]}, along with ${parts[1][1]},` : joinAnd(parts.map((q) => q[1]));
+  };
+  const house = (h) => third(HOUSE[h]);
+  // whose blind spot: the host lives with a guest planet in their house, but whether the guest can see
+  // that planet is a question for the guest's own chart. Lilly's signs of a planet its owner can't see:
+  // in their own 12th or 8th, lost in their own Sun's glare, or retrograde
+  const msB = toUTC(second), retroB = Object.fromEntries(BODIES.map((p) => [p, p !== "sun" && p !== "moon" && wrap180(longitude(p, msB + 3600000) - natalB[p]) < 0]));
+  const hiddenWhy = (m) => {
+    const why = [], n = nat[m.who], h = hs[m.who] ? houseOf(hs[m.who], n[m.p]) : null;
+    if (h === 12 || h === 8) why.push(`in the ${ORD[h]} house`);
+    if (m.p !== "sun" && !OUTER.includes(m.p)) { const d = Math.abs(wrap180(n[m.p] - n.sun)); if (d >= 17 / 60 && d < 8.5) why.push("combust, lost in the Sun's glare"); else if (d >= 8.5 && d < 17) why.push("under the Sun's beams"); }
+    if ((m.who === "a" ? natal.retro || {} : retroB)[m.p]) why.push("retrograde");
+    return why;
+  };
+  const ownSight = (list, host) => {
+    const hid = list.map((m) => [m, hiddenWhy(m)]).filter(([, w]) => w.length);
+    if (!hid.length) return "";
+    const g = list[0].who;
+    const the = (p) => (p === "sun" || p === "moon" ? "the " : "") + NAME[p], groups = new Map();
+    for (const [m, w] of hid) { const k = joinAnd(w); groups.set(k, [...(groups.get(k) || []), m.p]); }
+    const said = [...groups].map(([w, ps]) => `${joinAnd(ps.map(the))} ${ps.length > 1 ? "are" : "is"} ${w}`);
+    return ` In ${nm[g]}'s own chart ${joinAnd(said)}, so ${nm[g]} may not see ${hid.length > 1 ? "these parts" : "this part"} of themselves clearly either: the blind spot can be ${nm[g]}'s as much as ${nm[host]}'s.`;
+  };
+  const darkHouse = (h, host) => h === 12 ? ` The 12th is the house of what's hidden, so ${nm[host]} may feel this before being able to name it.` : h === 8 ? ` The 8th is a house of what goes unspoken, so ${nm[host]} may sense this more than see it.` : "";
+  const apexSight = (z) => { const w = hiddenWhy(z); return w.length ? ` In ${nm[z.who]}'s own chart ${z.p === "sun" || z.p === "moon" ? "the " : ""}${NAME[z.p]} is ${joinAnd(w)}, so ${nm[z.who]} may carry this without seeing it, and the other may notice it first.` : ""; };
+  const rulerOf = { a: chart.unknown ? null : RULER[signOf(natal.asc)], b: second.unknown ? null : RULER[signOf(natalB.asc)] };
+  const rulerNote = (m) => rulerOf[m.who] === m.p ? ` ${NAME[m.p]} is also ${own(m)} chart ruler, so this lands close to home.` : "";
+  const short = (p) => third(TOPIC[p]).split(",")[0].replace(/ and .*$/, "");
+  const M = ["a", "b"].flatMap((who) => BODIES.map((p) => ({ who, p, id: `${who}:${p}` })));
+  // aspects among the twenty: working natal orbs within one chart, the spine's orbs across
+  const orbFor = (x, y) => x.who === y.who ? (NATAL_ORB[x.p] + NATAL_ORB[y.p]) / 2 : synOrb(x.p, y.p);
+  const sep = (x, y) => Math.abs(wrap180(lonOf(x) - lonOf(y)));
+  const has = (x, y, k) => Math.abs(sep(x, y) - k) < orbFor(x, y);
+  const quinc = (x, y) => Math.abs(sep(x, y) - 150) < 3;
+  const tight = (pairs) => pairs.reduce((s, [x, y, k]) => s + Math.max(0, 1 - Math.abs(sep(x, y) - k) / orbFor(x, y)), 0) / pairs.length;
+  const ok = (list) => new Set(list.map((m) => m.who)).size === 2 && list.filter((m) => PERSONAL.has(m.p)).length >= 2;
+  const shapes = [], seen = new Set();
+  const add = (type, list, edges) => { const k = type + list.map((m) => m.id).sort().join(); if (seen.has(k) || !ok(list)) return; seen.add(k); shapes.push({ type, list, edges, score: tight(edges) * (1 + list.filter((m) => PERSONAL.has(m.p)).length * 0.25) }); };
+  for (let i = 0; i < M.length; i++) for (let j = i + 1; j < M.length; j++) for (let l = 0; l < M.length; l++) {
+    if (l === i || l === j) continue;
+    const [x, y, z] = [M[i], M[j], M[l]];
+    if (has(x, y, 180) && has(x, z, 90) && has(y, z, 90)) add("t_square", [x, y, z], [[x, y, 180], [x, z, 90], [y, z, 90]]);
+    if (l > j && has(x, y, 120) && has(x, z, 120) && has(y, z, 120)) add("grand_trine", [x, y, z], [[x, y, 120], [x, z, 120], [y, z, 120]]);
+    if (has(x, y, 60) && quinc(x, z) && quinc(y, z)) add("yod", [x, y, z], [[x, y, 60], [x, z, 150], [y, z, 150]]);
+  }
+  for (const gt of shapes.filter((q) => q.type === "grand_trine")) for (const v of gt.list) for (const w of M) {
+    if (gt.list.includes(w)) continue;
+    const others = gt.list.filter((q) => q !== v);
+    if (has(v, w, 180) && others.every((o) => has(o, w, 60))) { add("kite", [...gt.list, w], [...gt.edges, [v, w, 180], ...others.map((o) => [o, w, 60])]); gt.inKite = true; }
+  }
+  for (const ts of shapes.filter((q) => q.type === "t_square")) for (const w of M) {
+    const [x, y, z] = ts.list;
+    if (![x, y, z].includes(w) && has(z, w, 180) && has(x, w, 90) && has(y, w, 90)) { add("grand_cross", [x, y, z, w], [...ts.edges, [z, w, 180], [x, w, 90], [y, w, 90]]); ts.inCross = true; }
+  }
+  const SHAPE = { t_square: "A T-square", grand_trine: "A grand trine", grand_cross: "A grand cross", yod: "A yod", kite: "A kite" };
+  for (const s of shapes.filter((q) => !q.inKite && !q.inCross).sort((p, q) => q.score - p.score).slice(0, 3)) {
+    const L = s.list, byWho = (w) => L.filter((m) => m.who === w).map((m) => NAME[m.p]);
+    const brings = `${cap(nm.a)} brings ${joinAnd(byWho("a"))}; ${nm.b} brings ${joinAnd(byWho("b"))}.`;
+    let t, p;
+    if (s.type === "t_square") {
+      const [x, y, z] = L;
+      t = `${SHAPE.t_square}: ${glyph(x)} ${glyph(y)} opposite, ${glyph(z)} at the point`;
+      p = `${cap(labs([x, y]))} pull against each other, and ${lab(z)} squares both, so the pull lands there. Between two people a tension like this keeps returning to ${short(z.p)}. The focal planet is ${own(z)}, so ${nm[z.who]} may be the one who feels the pressure most and acts on it for both.${rulerNote(z)}${apexSight(z)} Some pairs find their aliveness in exactly this kind of friction. ${brings}`;
+    } else if (s.type === "grand_trine") {
+      const els = new Set(L.map((m) => ELEMENT[signOf(lonOf(m)) % 4])), el = els.size === 1 ? [...els][0] : null;
+      t = `${SHAPE.grand_trine}${el ? ` in ${el}` : ""}: ${L.map(glyph).join(" ")}`;
+      p = `${cap(labs(L))} trine one another, a closed circuit of ease that runs through both of them${el ? `, in ${el}: ${EL_GIFT[el]}` : ""}. It's the part of the bond that works without effort, and so the part most easily taken for granted. ${brings}`;
+    } else if (s.type === "grand_cross") {
+      t = `${SHAPE.grand_cross}: ${L.map(glyph).join(" ")}`;
+      p = `${cap(labs(L))} pull against each other from four directions at once. Between two people this is a bond with friction built in on several fronts. It asks for flexibility, and pairs who stay with it tend to build real stamina together. ${brings}`;
+    } else if (s.type === "yod") {
+      const [x, y, z] = L;
+      t = `${SHAPE.yod}: ${glyph(x)} ${glyph(y)} pointing at ${glyph(z)}`;
+      p = `${cap(labs([x, y]))} work together easily, and both sit at an awkward angle to ${lab(z)}, the apex.${rulerNote(z)} ${cap(nm[z.who])} may feel asked, again and again, to adjust around ${short(z.p)} in ways the other keeps prompting, without either quite meaning to.${apexSight(z)} ${brings}`;
+    } else {
+      const w = L[3];
+      t = `${SHAPE.kite}: ${L.slice(0, 3).map(glyph).join(" ")} with ${glyph(w)}`;
+      p = `${cap(labs(L.slice(0, 3)))} make a grand trine, and ${lab(w)} sits opposite one corner, giving all that ease a direction: ${short(w.p)}. The tradition reads a kite as talent that knows what it's for. ${brings}`;
+    }
+    comboList.push({ k: "A shape made of both charts", t, p, members: L, edges: s.edges });
+  }
+  // one person's planets gathered in the other's house
+  for (const host of ["a", "b"]) {
+    if (!hs[host]) continue;
+    const guest = other[host];
+    for (let h = 1; h <= 12; h++) {
+      const list = M.filter((m) => m.who === guest && houseOf(hs[host], lonOf(m)) === h);
+      if (list.length < 3 || list.filter((m) => !OUTER.includes(m.p)).length < 2) continue;
+      comboList.push({ k: "Where one lands in the other", members: list,
+        t: `${list.map(glyph).join(" ")} in ${nm[host]}'s ${ORD[h]} house`,
+        p: `${cap(own(list[0]))} ${joinAnd(list.map((m) => NAME[m.p]))} fall in ${nm[host]}'s ${ORD[h]} house: ${house(h)}. Much of what ${nm[guest]} brings, ${joinAnd(list.map((m) => short(m.p)))}, lands in that part of ${nm[host]}'s life, and it's where ${nm[host]} is likely to feel ${nm[guest]} most.${darkHouse(h, host)}${ownSight(list, host)}` });
+    }
+  }
+  // each one's lights in the other's houses
+  const lights = [];
+  for (const host of ["a", "b"]) {
+    if (!hs[host]) continue;
+    const guest = other[host], sh = houseOf(hs[host], nat[guest].sun), mh = houseOf(hs[host], nat[guest].moon);
+    const darkest = [sh, mh].includes(12) ? 12 : [sh, mh].includes(8) ? 8 : 0;
+    lights.push(`${cap(nm[guest])}'s Sun falls in ${nm[host]}'s ${ORD[sh]} house (${house(sh)})${mh === sh ? `, and the Moon with it` : `, and the Moon in the ${ORD[mh]} (${house(mh)})`}.${darkHouse(darkest, host)}${ownSight([{ who: guest, p: "sun" }, { who: guest, p: "moon" }].filter((m) => [12, 8].includes(houseOf(hs[host], nat[guest][m.p]))), host)}`);
+  }
+  if (lights.length) comboList.push({ k: "Each other's lights", members: ["a", "b"].flatMap((w) => [{ who: w, p: "sun" }, { who: w, p: "moon" }]),
+    t: `Where each one's Sun and Moon land`, p: `${lights.join(" ")} The Sun shows where a person lights up the other's life; the Moon, where they feel at home in it.` });
+  // signs both of them fill
+  const signs = [];
+  for (let sg = 0; sg < 12; sg++) {
+    const list = M.filter((m) => signOf(lonOf(m)) === sg);
+    if (list.length >= 3 && new Set(list.map((m) => m.who)).size === 2 && list.filter((m) => PERSONAL.has(m.p)).length >= 2) signs.push({ sg, list });
+  }
+  for (const { sg, list } of signs.sort((p, q) => q.list.length - p.list.length).slice(0, 2)) comboList.push({ k: "A sign they share", members: list,
+    t: `${list.length} planets in ${SIGN[sg]}: ${list.map(glyph).join(" ")}`,
+    p: `Between them, ${labs(list)} gather in ${SIGN[sg]}. It colours the pair with ${SIGN_THEME[sg]}: a note both of them sound, which can feel like recognition, and can also mean neither balances the other there.` });
+  // the elements of the pair, from the fourteen traditional planets
+  const count = { fire: 0, earth: 0, air: 0, water: 0 };
+  for (const w of ["a", "b"]) for (const p of TRAD) count[ELEMENT[signOf(nat[w][p]) % 4]]++;
+  const ranked = ELEMENT.slice().sort((p, q) => count[q] - count[p]), hi = ranked[0], lo = ranked[3];
+  if (count[hi] >= 6 || count[lo] <= 1) comboList.push({ k: "The pair's elements", members: [],
+    t: ELEMENT.map((e) => `${cap(e)} ${count[e]}`).join(" · "),
+    p: `Of the fourteen traditional planets between them, ${count[hi]} are in ${hi} signs, so ${EL_GIFT[hi]} come easily to this pair.${count[lo] <= 1 ? ` ${cap(lo)} is ${count[lo] ? "nearly " : ""}missing, so neither brings much ${EL_GIFT[lo]}: the kind of thing a pair often looks for outside itself, or learns on purpose.` : ""}` });
+}
+function renderCombos() {
+  const box = el("twoCombos"); if (!box) return;
+  computeCombos();
+  if (!comboList.length) { box.innerHTML = `<p class="fine">No combinations stand out between these two charts: no shared shapes, clusters or piled-up signs.</p>`; return; }
+  box.replaceChildren(...comboList.map((c, i) => {
+    const d = document.createElement("div"); d.className = "hl"; d.tabIndex = 0; d.setAttribute("role", "button");
+    d.setAttribute("aria-pressed", String(twoFocus === c));
+    d.innerHTML = `<span class="k">${c.k}</span><span class="t">${c.t}</span><p>${c.p}</p>`;
+    const go = () => { twoFocus = twoFocus === comboList[i] ? null : comboList[i]; box.querySelectorAll(".hl").forEach((x, j) => x.setAttribute("aria-pressed", String(twoFocus === comboList[j]))); twoLayoutDirty = true; dirty = true;
+      if (twoFocus && innerWidth <= 860) el("twoWheel").scrollIntoView({ block: "center", behavior: "smooth" }); };
+    d.addEventListener("click", go); d.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    return d;
+  }));
 }
 const twoWheel = el("twoWheel"), twg = twoWheel.getContext("2d");
 function drawTwoWheel() {
@@ -2506,7 +2670,7 @@ function drawTwoWheel() {
   twoLines = [];
   const selKey = chosen && selected && selected.syn ? selected.key : null;
   for (const c of [...synList].slice(0, 24).reverse()) {
-    const [x0, y0] = pt(natal[c.tb], rC), [x1, y1] = pt(natalB[c.np], rC), on = !selKey || c.key === selKey;
+    const [x0, y0] = pt(natal[c.tb], rC), [x1, y1] = pt(natalB[c.np], rC), on = !twoFocus && (!selKey || c.key === selKey);
     const grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, COLOR[c.tb]); grad.addColorStop(1, COLOR[c.np]);
     g.strokeStyle = grad; g.globalAlpha = on ? 0.3 + 0.7 * c.depth : 0.12; g.lineWidth = 0.8 + 2.4 * c.depth + (c.key === selKey ? 1 : 0);
     g.setLineDash(c.kind === 90 || c.kind === 180 ? [5, 4] : []);
@@ -2514,6 +2678,18 @@ function drawTwoWheel() {
     twoLines.push({ c, x0, y0, x1, y1 });
   }
   g.setLineDash([]); g.globalAlpha = 1;
+  // a chosen combination: its members ringed, its aspects drawn bright, from both charts
+  if (twoFocus) {
+    const at = (m) => pt((m.who === "a" ? natal : natalB)[m.p], rC);
+    for (const [x, y, k] of twoFocus.edges || []) {
+      const [x0, y0] = at(x), [x1, y1] = at(y), grad = g.createLinearGradient(x0, y0, x1, y1); grad.addColorStop(0, COLOR[x.p]); grad.addColorStop(1, COLOR[y.p]);
+      g.strokeStyle = grad; g.globalAlpha = 0.95; g.lineWidth = 2.4; g.setLineDash(k === 90 || k === 180 ? [6, 4] : k === 150 ? [2, 3] : []);
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    }
+    g.setLineDash([]);
+    for (const m of twoFocus.members) { const [x, y] = at(m); g.globalAlpha = 1; g.strokeStyle = COLOR[m.p]; g.lineWidth = 1.6; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke(); g.fillStyle = m.who === "a" ? NATAL : "#8fb8ff"; g.beginPath(); g.arc(x, y, 1.8, 0, 7); g.fill(); }
+    g.globalAlpha = 1;
+  }
   const gs = Math.round(R * 0.06), ring = (nat, r) => {
     const list = SYN_POINTS.filter((p) => !isAngle(p) && nat[p] != null), shown = spread(list.map((b) => nat[b]), (gs * 1.15) / r / D2R);
     list.forEach((b, i) => {
@@ -2531,7 +2707,7 @@ twoWheel.addEventListener("click", (e) => {
   const r = twoWheel.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, tol = coarse ? 18 : 10;
   let best = null, bd = tol;
   for (const l of twoLines) { const dx = l.x1 - l.x0, dy = l.y1 - l.y0, u = Math.max(0, Math.min(1, ((x - l.x0) * dx + (y - l.y0) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(x - l.x0 - u * dx, y - l.y0 - u * dy); if (d < bd) { bd = d; best = l.c; } }
-  if (best) { select(best); renderSpine(); }
+  if (best) { twoFocus = null; select(best); renderSpine(); }
 });
 // the near term, mirrored
 const two = el("two"), tg2 = two.getContext("2d"), tCache = document.createElement("canvas"), tcg = tCache.getContext("2d");
